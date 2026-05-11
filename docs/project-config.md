@@ -176,7 +176,7 @@ agents:
 
 #### class
 
-Recommended values for MVP:
+Recommended built-in values for MVP:
 
 - `orchestrator`
 - `builder`
@@ -185,6 +185,10 @@ Recommended values for MVP:
 - `architect`
 - `docs`
 - `release`
+
+This is a recommended built-in vocabulary, not a closed set.
+
+Projects may define custom role classes when they need more specialized agent behavior.
 
 #### worktree_mode
 
@@ -375,7 +379,7 @@ AOM should validate config at project initialization and project open time.
 
 - every agent must reference an existing role
 - runtime must be in the allowed runtime set
-- role class must be in the known class set
+- role class must be present
 - `dedicated-writer` should normally be restricted to non-reviewer implementation roles
 
 ### resources.yaml

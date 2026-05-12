@@ -15,6 +15,7 @@ import (
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/tmux"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/worktree"
 )
 
 var newApp = app.New
@@ -179,6 +180,10 @@ func (r Runner) executePlan(args []string) error {
 		PreferredAgent: planResult.RecommendedAgent,
 	}, buildPlanStepSeeds(planResult.Steps))
 	if err != nil {
+		return err
+	}
+
+	if _, err := r.ensurePlannedWorktree(result, createResult.Task); err != nil {
 		return err
 	}
 
@@ -455,6 +460,10 @@ func (r Runner) executeTaskCreate(args []string) error {
 		return err
 	}
 
+	if _, err := r.ensurePlannedWorktree(result, createResult.Task); err != nil {
+		return err
+	}
+
 	if err := r.syncTaskArtifacts(result, createResult.Task.ID, artifact.Event{
 		Type:        "task.created",
 		Actor:       "operator",
@@ -534,6 +543,21 @@ func (r Runner) executeTaskShow(args []string) error {
 	fmt.Fprintf(r.stdout, "Status: %s\n", taskRecord.Status)
 	fmt.Fprintf(r.stdout, "Preferred role: %s\n", emptyFallback(taskRecord.PreferredRole))
 	fmt.Fprintf(r.stdout, "Preferred agent: %s\n", emptyFallback(taskRecord.PreferredAgent))
+	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer worktreeDB.Close()
+
+	mapping, err := worktreeService.GetByTask(taskRecord.ID)
+	if err != nil {
+		return err
+	}
+	if mapping != nil {
+		fmt.Fprintf(r.stdout, "Worktree status: %s\n", mapping.Status)
+		fmt.Fprintf(r.stdout, "Worktree branch: %s\n", mapping.BranchName)
+		fmt.Fprintf(r.stdout, "Worktree path: %s\n", mapping.WorktreePath)
+	}
 	fmt.Fprintf(r.stdout, "Steps: %d\n", len(steps))
 	fmt.Fprintf(r.stdout, "Recommended next action: %s\n", recommendTaskAction(taskRecord.Status, steps))
 
@@ -857,6 +881,15 @@ func (r Runner) executeSessionSpawn(args []string) error {
 		}
 	}
 
+	executionPath := result.Project.RepoPath
+	var taskWorktree *worktree.Record
+	if taskRecord != nil {
+		taskWorktree, executionPath, err = r.resolveTaskExecutionPath(result, *taskRecord)
+		if err != nil {
+			return err
+		}
+	}
+
 	var stepRecord *step.Record
 	if params.stepID != "" {
 		if taskRecord == nil {
@@ -894,16 +927,29 @@ func (r Runner) executeSessionSpawn(args []string) error {
 		Runtime:         agentRecord.Runtime,
 		Status:          "Booting",
 		RepoPath:        result.Project.RepoPath,
-		WorktreePath:    result.Project.RepoPath,
+		WorktreePath:    executionPath,
 		TmuxSessionName: workspace.Name,
 	})
 	if err != nil {
 		return err
 	}
 
-	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, result.Project.RepoPath, sessionLaunchCommand(*record, params.mockRuntime))
+	if taskRecord != nil {
+		if err := r.syncTaskArtifactsWithSessionEvents(result, taskRecord.ID, false, record, artifact.Event{
+			Type:        "session.created",
+			Actor:       "aom",
+			StepID:      params.stepID,
+			SessionID:   record.ID,
+			Summary:     fmt.Sprintf("Session record created for %s using %s launch mode", agentRecord.Name, launchModeLabel(params.mockRuntime)),
+			StateEffect: "Session Booting",
+		}); err != nil {
+			return err
+		}
+	}
+
+	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, sessionLaunchCommand(*record, params.mockRuntime))
 	if err != nil {
-		return err
+		return r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
 	}
 
 	record.Status = "Idle"
@@ -916,25 +962,25 @@ func (r Runner) executeSessionSpawn(args []string) error {
 		return err
 	}
 
+	if taskRecord != nil {
+		if err := r.syncTaskArtifactsWithSessionEvents(result, taskRecord.ID, false, record, artifact.Event{
+			Type:        "session.ready",
+			Actor:       "aom",
+			StepID:      params.stepID,
+			SessionID:   record.ID,
+			Summary:     fmt.Sprintf("Session pane attached for %s and ready for operator inspection", agentRecord.Name),
+			StateEffect: fmt.Sprintf("Session %s", record.Status),
+		}); err != nil {
+			return err
+		}
+	}
+
 	if err := r.app.Tmux.AnnotatePane(record.TmuxPane, map[string]string{
 		"@aom_session_id": record.ID,
 		"@aom_agent":      record.AgentName,
 		"@aom_role":       record.RoleName,
 	}); err != nil {
-		return err
-	}
-
-	if taskRecord != nil {
-		if err := r.syncTaskArtifactsWithSession(result, taskRecord.ID, artifact.Event{
-			Type:        "session.created",
-			Actor:       "aom",
-			StepID:      params.stepID,
-			SessionID:   record.ID,
-			Summary:     fmt.Sprintf("Session spawned for %s using %s launch mode", agentRecord.Name, launchModeLabel(params.mockRuntime)),
-			StateEffect: fmt.Sprintf("Session %s", record.Status),
-		}, false, record); err != nil {
-			return err
-		}
+		return r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane annotation failed after session launch", err)
 	}
 
 	fmt.Fprintln(r.stdout, "Session spawned")
@@ -950,11 +996,50 @@ func (r Runner) executeSessionSpawn(args []string) error {
 	}
 	fmt.Fprintf(r.stdout, "Runtime: %s\n", record.Runtime)
 	fmt.Fprintf(r.stdout, "Launch mode: %s\n", launchModeLabel(params.mockRuntime))
+	if taskWorktree != nil {
+		fmt.Fprintf(r.stdout, "Worktree status: %s\n", taskWorktree.Status)
+	}
+	fmt.Fprintf(r.stdout, "Worktree path: %s\n", record.WorktreePath)
 	fmt.Fprintf(r.stdout, "Workspace: %s\n", workspace.Target)
 	fmt.Fprintf(r.stdout, "Window: %s\n", record.TmuxWindow)
 	fmt.Fprintf(r.stdout, "Pane: %s\n", record.TmuxPane)
 
 	return nil
+}
+
+func (r Runner) failTaskBoundSessionSpawn(
+	result *project.OpenResult,
+	sessionService *session.Service,
+	record *session.Record,
+	taskRecord *task.Record,
+	stepID string,
+	summary string,
+	cause error,
+) error {
+	if record == nil {
+		return cause
+	}
+
+	record.Status = "Failed"
+	if _, err := sessionService.Save(*record); err != nil {
+		return fmt.Errorf("%w (also failed to persist failed session state: %v)", cause, err)
+	}
+
+	if taskRecord != nil {
+		appendErr := r.syncTaskArtifactsWithSessionEvents(result, taskRecord.ID, false, record, artifact.Event{
+			Type:        "session.failed",
+			Actor:       "aom",
+			StepID:      stepID,
+			SessionID:   record.ID,
+			Summary:     summary,
+			StateEffect: "Session Failed",
+		})
+		if appendErr != nil {
+			return fmt.Errorf("%w (also failed to append task log event: %v)", cause, appendErr)
+		}
+	}
+
+	return cause
 }
 
 type sessionSpawnParams struct {
@@ -1058,7 +1143,26 @@ func (r Runner) executeAttach(args []string) error {
 	}
 
 	fmt.Fprintf(r.stdout, "Attaching to %s (%s)\n", sessionRecord.ID, sessionRecord.TmuxPane)
-	return r.app.Tmux.AttachPane(sessionRecord.TmuxSessionName, sessionRecord.TmuxPane)
+	if err := r.app.Tmux.AttachPane(sessionRecord.TmuxSessionName, sessionRecord.TmuxPane); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(sessionRecord.TaskID) == "" {
+		return nil
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	return r.syncTaskArtifactsWithSession(result, sessionRecord.TaskID, artifact.Event{
+		Type:        "operator.intervention",
+		Actor:       "operator",
+		SessionID:   sessionRecord.ID,
+		Summary:     fmt.Sprintf("Operator attached directly to session %s for live intervention", sessionRecord.ID),
+		StateEffect: "Re-analysis required",
+	}, false, sessionRecord)
 }
 
 func (r Runner) executeCapture(args []string) error {
@@ -1087,8 +1191,9 @@ func (r Runner) executeCapture(args []string) error {
 }
 
 type taskView struct {
-	Task  task.Record
-	Steps []step.Record
+	Task     task.Record
+	Steps    []step.Record
+	Worktree *worktree.Record
 }
 
 func (r Runner) printProjectSummary(title string, result *project.OpenResult, workspace *tmux.Workspace, sessions []session.Record, taskCount int, taskViews []taskView) {
@@ -1160,6 +1265,15 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 				emptyFallback(item.Task.PreferredAgent),
 				len(item.Steps),
 			)
+			if item.Worktree != nil {
+				fmt.Fprintf(
+					r.stdout,
+					"    worktree=%s | branch=%s | path=%s\n",
+					item.Worktree.Status,
+					item.Worktree.BranchName,
+					item.Worktree.WorktreePath,
+				)
+			}
 			fmt.Fprintf(r.stdout, "    next=%s\n", recommendTaskAction(item.Task.Status, item.Steps))
 			for _, taskStep := range item.Steps {
 				fmt.Fprintf(
@@ -1291,6 +1405,54 @@ func buildPlanStepSeeds(steps []plan.StepProposal) []task.StepSeed {
 	return seeds
 }
 
+func (r Runner) ensurePlannedWorktree(result *project.OpenResult, taskRecord task.Record) (*worktree.Record, error) {
+	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	defer worktreeDB.Close()
+
+	record, err := worktreeService.CreatePlanned(worktree.CreateParams{
+		ProjectID:     result.Project.ID,
+		TaskID:        taskRecord.ID,
+		TaskTitle:     taskRecord.Title,
+		RepoPath:      result.Project.RepoPath,
+		DefaultBranch: result.Project.DefaultBranch,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return worktreeService.EnsureProvisioned(record.TaskID, result.Project.RepoPath)
+}
+
+func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, taskRecord task.Record) (*worktree.Record, string, error) {
+	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return nil, "", err
+	}
+	defer worktreeDB.Close()
+
+	mapping, err := worktreeService.GetByTask(taskRecord.ID)
+	if err != nil {
+		return nil, "", err
+	}
+	if mapping == nil {
+		return nil, result.Project.RepoPath, nil
+	}
+	if mapping.Status != "Ready" {
+		mapping, err = worktreeService.EnsureProvisioned(mapping.TaskID, result.Project.RepoPath)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+	if mapping == nil || mapping.Status != "Ready" || strings.TrimSpace(mapping.WorktreePath) == "" {
+		return mapping, result.Project.RepoPath, nil
+	}
+
+	return mapping, mapping.WorktreePath, nil
+}
+
 func recommendTaskAction(status string, steps []step.Record) string {
 	if status == "Done" {
 		return "task is closed; archive later if needed"
@@ -1357,14 +1519,32 @@ func (r Runner) loadTaskViews(result *project.OpenResult) ([]taskView, error) {
 		})
 	}
 
+	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	defer worktreeDB.Close()
+
+	for i := range views {
+		mapping, err := worktreeService.GetByTask(views[i].Task.ID)
+		if err != nil {
+			return nil, err
+		}
+		views[i].Worktree = mapping
+	}
+
 	return views, nil
 }
 
 func (r Runner) syncTaskArtifacts(result *project.OpenResult, taskID string, event artifact.Event, seed bool) error {
-	return r.syncTaskArtifactsWithSession(result, taskID, event, seed, nil)
+	return r.syncTaskArtifactsWithSessionEvents(result, taskID, seed, nil, event)
 }
 
 func (r Runner) syncTaskArtifactsWithSession(result *project.OpenResult, taskID string, event artifact.Event, seed bool, activeSession *session.Record) error {
+	return r.syncTaskArtifactsWithSessionEvents(result, taskID, seed, activeSession, event)
+}
+
+func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, taskID string, seed bool, activeSession *session.Record, events ...artifact.Event) error {
 	view, err := r.loadTaskView(result, taskID)
 	if err != nil {
 		return err
@@ -1374,12 +1554,17 @@ func (r Runner) syncTaskArtifactsWithSession(result *project.OpenResult, taskID 
 	}
 
 	service := artifact.NewService(result.Project.RepoPath, result.StateDir)
+	updatedBy := "aom"
+	if len(events) > 0 {
+		updatedBy = events[len(events)-1].Actor
+	}
 	params := artifact.SyncParams{
 		Task:                  view.Task,
 		Steps:                 view.Steps,
 		ActiveSession:         activeSession,
+		Worktree:              view.Worktree,
 		CreatedBy:             "operator",
-		UpdatedBy:             event.Actor,
+		UpdatedBy:             updatedBy,
 		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps),
 	}
 	if seed {
@@ -1388,7 +1573,7 @@ func (r Runner) syncTaskArtifactsWithSession(result *project.OpenResult, taskID 
 	if err := service.RefreshTaskArtifacts(params); err != nil {
 		return err
 	}
-	return service.AppendEvent(taskID, event)
+	return service.AppendEvents(params, events)
 }
 
 func (r Runner) loadTaskByID(result *project.OpenResult, taskID string) (*task.Record, error) {
@@ -1437,9 +1622,21 @@ func (r Runner) loadTaskView(result *project.OpenResult, taskID string) (*taskVi
 		return nil, err
 	}
 
+	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	defer worktreeDB.Close()
+
+	mapping, err := worktreeService.GetByTask(record.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &taskView{
-		Task:  *record,
-		Steps: steps,
+		Task:     *record,
+		Steps:    steps,
+		Worktree: mapping,
 	}, nil
 }
 

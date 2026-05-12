@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 )
+
+var defaultIDSequence atomic.Int64
 
 const (
 	defaultMode       = "Direct"
@@ -357,6 +360,8 @@ func validateTaskTransition(current, next string) error {
 
 func defaultTaskIDGenerator(prefix string) IDGenerator {
 	return func() string {
-		return prefix + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+		timestamp := time.Now().UnixNano()
+		sequence := defaultIDSequence.Add(1)
+		return prefix + "-" + strconv.FormatInt(timestamp, 10) + "-" + strconv.FormatInt(sequence, 10)
 	}
 }

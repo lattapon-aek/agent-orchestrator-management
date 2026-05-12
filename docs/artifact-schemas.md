@@ -356,6 +356,7 @@ Each event should contain at least:
 - `step.confirmed`
 - `step.completed`
 - `session.created`
+- `session.ready`
 - `session.detached`
 - `session.failed`
 - `session.replaced`

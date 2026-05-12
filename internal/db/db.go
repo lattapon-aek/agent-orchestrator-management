@@ -14,6 +14,7 @@ const (
 	migrationSchemaV1 = "schema-v1"
 	migrationSchemaV2 = "schema-v2"
 	migrationSchemaV3 = "schema-v3"
+	migrationSchemaV4 = "schema-v4"
 )
 
 // Open opens the SQLite database at the provided path and applies known migrations.
@@ -127,6 +128,33 @@ func Migrate(db *sql.DB) error {
 	if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV3); err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("record migration %q: %w", migrationSchemaV3, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration transaction: %w", err)
+	}
+
+	applied, err = hasMigration(db, migrationSchemaV4)
+	if err != nil {
+		return fmt.Errorf("check migration %q: %w", migrationSchemaV4, err)
+	}
+	if applied {
+		return nil
+	}
+
+	tx, err = db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin migration transaction: %w", err)
+	}
+
+	if err := applySchemaV4(tx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("apply schema v4: %w", err)
+	}
+
+	if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV4); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("record migration %q: %w", migrationSchemaV4, err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -268,4 +296,22 @@ CREATE TABLE steps (
 	}
 
 	return nil
+}
+
+func applySchemaV4(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE worktrees (
+	task_id TEXT PRIMARY KEY,
+	project_id TEXT NOT NULL,
+	status TEXT NOT NULL,
+	base_branch TEXT NOT NULL,
+	branch_name TEXT NOT NULL,
+	worktree_path TEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY(project_id) REFERENCES projects(id),
+	FOREIGN KEY(task_id) REFERENCES tasks(id)
+);
+`)
+	return err
 }

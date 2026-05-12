@@ -30,6 +30,9 @@ func TestOpenCreatesSchemaV1(t *testing.T) {
 	if count := migrationCount(t, db, migrationSchemaV3); count != 1 {
 		t.Fatalf("migration count = %d, want 1", count)
 	}
+	if count := migrationCount(t, db, migrationSchemaV4); count != 1 {
+		t.Fatalf("migration count = %d, want 1", count)
+	}
 
 	assertColumnExists(t, db, "sessions", "agent_name")
 	assertColumnExists(t, db, "sessions", "role_name")
@@ -39,6 +42,7 @@ func TestOpenCreatesSchemaV1(t *testing.T) {
 	assertColumnExists(t, db, "tasks", "preferred_agent")
 	assertColumnExists(t, db, "tasks", "updated_at")
 	assertTableExists(t, db, "steps")
+	assertTableExists(t, db, "worktrees")
 }
 
 func TestOpenIsIdempotent(t *testing.T) {
@@ -63,6 +67,9 @@ func TestOpenIsIdempotent(t *testing.T) {
 		t.Fatalf("migration count after reopen = %d, want 1", count)
 	}
 	if count := migrationCount(t, db, migrationSchemaV3); count != 1 {
+		t.Fatalf("migration count after reopen = %d, want 1", count)
+	}
+	if count := migrationCount(t, db, migrationSchemaV4); count != 1 {
 		t.Fatalf("migration count after reopen = %d, want 1", count)
 	}
 }
@@ -110,6 +117,9 @@ func TestMigrateUpgradesSchemaV1DatabaseToLatest(t *testing.T) {
 	if count := migrationCount(t, rawDB, migrationSchemaV3); count != 1 {
 		t.Fatalf("migration schema-v3 count = %d, want 1", count)
 	}
+	if count := migrationCount(t, rawDB, migrationSchemaV4); count != 1 {
+		t.Fatalf("migration schema-v4 count = %d, want 1", count)
+	}
 
 	assertColumnExists(t, rawDB, "sessions", "agent_name")
 	assertColumnExists(t, rawDB, "sessions", "role_name")
@@ -119,6 +129,7 @@ func TestMigrateUpgradesSchemaV1DatabaseToLatest(t *testing.T) {
 	assertColumnExists(t, rawDB, "tasks", "preferred_agent")
 	assertColumnExists(t, rawDB, "tasks", "updated_at")
 	assertTableExists(t, rawDB, "steps")
+	assertTableExists(t, rawDB, "worktrees")
 }
 
 func assertTableExists(t *testing.T, db *sql.DB, table string) {

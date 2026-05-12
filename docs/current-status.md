@@ -105,6 +105,16 @@ Implemented in the first slice:
 - task and step updates refresh task artifacts and append canonical log events
 - pre-worktree canonical artifact root at `.aom/tasks/<task-id>/`
 - `session spawn --task` refreshes task artifacts with active session context and appends `session.created`
+- task-bound session spawn now records `session.created` and `session.ready` lifecycle events in `log.md`
+- failed task-bound session spawn now persists session status as `Failed` and appends `session.failed`
+- task-bound session lifecycle events are now emitted in creation order as the spawn flow advances
+- failure handling is covered for both pane creation failure and pane annotation failure after launch
+- `attach` on a task-bound session now refreshes task artifacts and appends `operator.intervention`
+- planned worktree mappings now persist in `internal/worktree` and are seeded during `task create` and `plan --create`
+- task views and artifacts now surface planned worktree status, branch, and path even before real worktree provisioning
+- best-effort git worktree provisioning now runs on top of the persisted mapping; git-backed repos move planned worktrees to `Ready`
+- task-bound session spawn now uses the provisioned worktree path when the mapping is `Ready`, with repo-root fallback retained for non-git or unprovisioned cases
+- canonical task artifacts now move into `<worktree>/.agent/` when the mapped worktree is `Ready`, while non-git or unprovisioned tasks still use the repo-root fallback
 
 ## Current CLI Surface
 
@@ -136,6 +146,15 @@ Current behavior notes:
 - `task create` and `plan --create` now seed task-local continuity artifacts under `.aom/tasks/<task-id>/`
 - `task update` and `step update` validate allowed state transitions, including `NeedsAttention`
 - `session spawn --task` binds `task_id` into the session record and refreshes `state.md`, `index.md`, and `log.md`
+- task-bound `session spawn` records both boot and ready lifecycle transitions in canonical task log events
+- task-bound `session spawn` failure after durable record creation is logged canonically and leaves the session record in `Failed`
+- task-bound `session spawn` writes `session.created` before launch, then `session.ready` or `session.failed` based on the observed result
+- `attach` records manual operator intervention for task-bound sessions and marks the task log with `Re-analysis required`
+- `task create` and `plan --create` now persist a `Planned` task-to-worktree mapping with deterministic branch and path naming under `.aom/worktrees/`
+- `task show`, `status`, `task.md`, and `index.md` now expose the planned worktree mapping
+- when the project repo is a valid git worktree host, `task create` and `plan --create` now provision the linked worktree immediately and mark the mapping `Ready`
+- `session spawn --task` now launches from the mapped worktree path when available and records the chosen path in the durable session record
+- worktree-backed tasks now write `task.md`, `state.md`, `index.md`, `log.md`, and mode-dependent artifacts inside the real task worktree under `.agent/`
 - `session spawn --mock` launches a mock runtime transcript for live local flow verification
 - `session spawn` otherwise uses a placeholder shell command, not a real provider CLI yet
 - `attach` and `capture` operate through the tmux manager abstraction
@@ -263,10 +282,8 @@ Recommended path for live E2E:
 
 Still out of scope at the current handoff point:
 - real provider runtime launch for Codex, Claude, or Kiro
-- worktree-aware session spawn
 - handoff and checkpoint logic
 - provider-native resume and replacement flows
-- worktree provisioning and moving artifact roots from repo fallback into real task worktrees
 
 ## Immediate Next Step
 
@@ -277,6 +294,11 @@ Recommended first implementation slice:
 1. append richer canonical log events around session lifecycle
 2. move artifact root from repo fallback to task worktree when Milestone 5 begins
 3. start task-to-worktree mapping so task-bound sessions launch in isolated paths
+
+Current next recommended slice:
+1. add repair handling when persisted worktree mappings drift from the filesystem or git registration state
+2. teach `open`/`status` to surface worktree repair hints explicitly when mappings are stale
+3. start reconciling session/worktree state transitions such as `Ready -> Active` and `NeedsRepair`
 
 ## Suggested First Checks On Another Machine
 

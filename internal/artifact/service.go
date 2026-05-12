@@ -10,6 +10,7 @@ import (
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/session"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/worktree"
 )
 
 // Event is one canonical AOM task timeline event.
@@ -27,6 +28,7 @@ type SyncParams struct {
 	Task                  task.Record
 	Steps                 []step.Record
 	ActiveSession         *session.Record
+	Worktree              *worktree.Record
 	CreatedBy             string
 	UpdatedBy             string
 	RecommendedNextAction string
@@ -56,7 +58,7 @@ func (s *Service) SeedTaskArtifacts(params SyncParams) error {
 		return err
 	}
 
-	if err := s.appendEvent(params.Task.ID, Event{
+	if err := s.appendEvent(params, Event{
 		Type:        "task.created",
 		Actor:       defaultActor(params.CreatedBy),
 		Summary:     fmt.Sprintf("Task created in %s mode", params.Task.Mode),
@@ -66,7 +68,7 @@ func (s *Service) SeedTaskArtifacts(params SyncParams) error {
 	}
 
 	for _, item := range params.Steps {
-		if err := s.appendEvent(params.Task.ID, Event{
+		if err := s.appendEvent(params, Event{
 			Type:        "step.proposed",
 			Actor:       "aom",
 			StepID:      item.ID,
@@ -86,8 +88,18 @@ func (s *Service) RefreshTaskArtifacts(params SyncParams) error {
 }
 
 // AppendEvent records one canonical task log event.
-func (s *Service) AppendEvent(taskID string, event Event) error {
-	return s.appendEvent(taskID, event)
+func (s *Service) AppendEvent(params SyncParams, event Event) error {
+	return s.appendEvent(params, event)
+}
+
+// AppendEvents records multiple canonical task log events in order.
+func (s *Service) AppendEvents(params SyncParams, events []Event) error {
+	for _, event := range events {
+		if err := s.appendEvent(params, event); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Service) writeArtifacts(params SyncParams) error {
@@ -98,7 +110,7 @@ func (s *Service) writeArtifacts(params SyncParams) error {
 		return fmt.Errorf("task title is required")
 	}
 
-	dir := s.taskDir(params.Task.ID)
+	dir := s.taskDir(params)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create artifact dir %q: %w", dir, err)
 	}
@@ -114,7 +126,7 @@ func (s *Service) writeArtifacts(params SyncParams) error {
 		}
 	}
 
-	if err := s.ensureLogFile(params.Task.ID); err != nil {
+	if err := s.ensureLogFile(params); err != nil {
 		return err
 	}
 
@@ -133,6 +145,15 @@ func (s *Service) writeArtifacts(params SyncParams) error {
 
 func (s *Service) renderTaskMarkdown(params SyncParams) string {
 	artifactRoot := fmt.Sprintf(".aom/%s/%s", s.stateDir, params.Task.ID)
+	worktreePath := "not provisioned yet"
+	worktreeBranch := "-"
+	if params.Worktree != nil {
+		worktreePath = params.Worktree.WorktreePath
+		worktreeBranch = params.Worktree.BranchName
+		if params.Worktree.Status == "Ready" && strings.TrimSpace(params.Worktree.WorktreePath) != "" {
+			artifactRoot = filepath.Join(params.Worktree.WorktreePath, ".agent")
+		}
+	}
 	return fmt.Sprintf(`# Task
 
 ## Identity
@@ -143,7 +164,8 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 - Created By: %s
 - Assigned Role: %s
 - Assigned Agent: %s
-- Worktree: not provisioned yet
+- Worktree: %s
+- Worktree Branch: %s
 - Artifact Root: %s
 
 ## Goal
@@ -171,6 +193,8 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 		defaultActor(params.CreatedBy),
 		emptyFallback(params.Task.PreferredRole),
 		emptyFallback(params.Task.PreferredAgent),
+		worktreePath,
+		worktreeBranch,
 		artifactRoot,
 		params.Task.Title,
 	)
@@ -254,10 +278,14 @@ func (s *Service) renderIndexMarkdown(params SyncParams) string {
 	activeSession := "-"
 	runtime := "-"
 	recoveryStatus := "No active session"
+	worktreeStatus := "NotProvisioned"
 	if params.ActiveSession != nil {
 		activeSession = params.ActiveSession.ID
 		runtime = params.ActiveSession.Runtime
 		recoveryStatus = "Live"
+	}
+	if params.Worktree != nil {
+		worktreeStatus = params.Worktree.Status
 	}
 
 	return fmt.Sprintf(`# Task Index
@@ -274,7 +302,7 @@ func (s *Service) renderIndexMarkdown(params SyncParams) string {
 - Assigned Agent: %s
 - Active Session: %s
 - Runtime: %s
-- Worktree Status: NotProvisioned
+- Worktree Status: %s
 - Continuity Readiness: Good
 
 ## Artifacts
@@ -301,6 +329,7 @@ func (s *Service) renderIndexMarkdown(params SyncParams) string {
 		emptyFallback(params.Task.PreferredAgent),
 		activeSession,
 		runtime,
+		worktreeStatus,
 		s.renderArtifactInventory(params.Task.Mode),
 		recoveryStatus,
 		emptyFallback(params.RecommendedNextAction),
@@ -373,25 +402,30 @@ func (s *Service) removeUnusedModeArtifacts(dir string, keep map[string]string) 
 	return nil
 }
 
-func (s *Service) ensureLogFile(taskID string) error {
-	path := filepath.Join(s.taskDir(taskID), "log.md")
+func (s *Service) ensureLogFile(params SyncParams) error {
+	dir := s.taskDir(params)
+	path := filepath.Join(dir, "log.md")
 	if _, err := os.Stat(path); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("stat log.md: %w", err)
 	}
 
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create artifact dir %q: %w", dir, err)
+	}
 	if err := os.WriteFile(path, []byte("# Task Log\n\n## Events\n"), 0o644); err != nil {
 		return fmt.Errorf("write log.md: %w", err)
 	}
 	return nil
 }
 
-func (s *Service) appendEvent(taskID string, event Event) error {
-	if err := s.ensureLogFile(taskID); err != nil {
+func (s *Service) appendEvent(params SyncParams, event Event) error {
+	if err := s.ensureLogFile(params); err != nil {
 		return err
 	}
 
+	taskID := params.Task.ID
 	timestamp := s.now().Format(time.RFC3339)
 	entry := fmt.Sprintf(
 		"\n### %s | %s | %s\n- Actor: %s\n- Task: %s\n%s%s- Summary: %s\n- State Effect: %s\n",
@@ -406,7 +440,7 @@ func (s *Service) appendEvent(taskID string, event Event) error {
 		event.StateEffect,
 	)
 
-	path := filepath.Join(s.taskDir(taskID), "log.md")
+	path := filepath.Join(s.taskDir(params), "log.md")
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("open log.md for append: %w", err)
@@ -420,8 +454,11 @@ func (s *Service) appendEvent(taskID string, event Event) error {
 	return nil
 }
 
-func (s *Service) taskDir(taskID string) string {
-	return filepath.Join(s.repoPath, ".aom", s.stateDir, taskID)
+func (s *Service) taskDir(params SyncParams) string {
+	if params.Worktree != nil && params.Worktree.Status == "Ready" && strings.TrimSpace(params.Worktree.WorktreePath) != "" {
+		return filepath.Join(params.Worktree.WorktreePath, ".agent")
+	}
+	return filepath.Join(s.repoPath, ".aom", s.stateDir, params.Task.ID)
 }
 
 func renderCompletedWork(steps []step.Record) string {

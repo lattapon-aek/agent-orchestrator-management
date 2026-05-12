@@ -2,6 +2,7 @@ package task
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/db"
@@ -183,5 +184,22 @@ func TestServiceCreateFromPlanCreatesMultipleSequentialSteps(t *testing.T) {
 	}
 	if len(result.Steps[1].Dependencies) != 1 || result.Steps[1].Dependencies[0] != "STEP-001" {
 		t.Fatalf("Step[1].Dependencies = %#v, want [STEP-001]", result.Steps[1].Dependencies)
+	}
+}
+
+func TestDefaultTaskIDGeneratorProducesDistinctIDs(t *testing.T) {
+	gen := defaultTaskIDGenerator("STEP")
+
+	first := gen()
+	second := gen()
+
+	if first == second {
+		t.Fatalf("generated duplicate ids: %q", first)
+	}
+	if !strings.HasPrefix(first, "STEP-") {
+		t.Fatalf("first id = %q, want STEP- prefix", first)
+	}
+	if !strings.HasPrefix(second, "STEP-") {
+		t.Fatalf("second id = %q, want STEP- prefix", second)
 	}
 }

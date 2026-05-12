@@ -9,7 +9,12 @@ import (
 	"strings"
 )
 
-const defaultStatus = "Planned"
+const (
+	StatusPlanned     = "Planned"
+	StatusReady       = "Ready"
+	StatusActive      = "Active"
+	StatusNeedsRepair = "NeedsRepair"
+)
 
 // CreateParams describes the minimum input needed to create a planned worktree mapping.
 type CreateParams struct {
@@ -65,7 +70,7 @@ func (s *Service) CreatePlanned(params CreateParams) (*Record, error) {
 	record := Record{
 		TaskID:       taskID,
 		ProjectID:    projectID,
-		Status:       defaultStatus,
+		Status:       StatusPlanned,
 		BaseBranch:   defaultBranch,
 		BranchName:   plannedBranchName(taskID, params.TaskTitle),
 		WorktreePath: plannedWorktreePath(repoPath, taskID, params.TaskTitle),
@@ -117,7 +122,7 @@ func (s *Service) EnsureProvisioned(taskID, repoPath string) (*Record, error) {
 		return nil, fmt.Errorf("worktree for task %q not found", taskID)
 	}
 
-	if record.Status == "Ready" {
+	if record.Status == StatusReady || record.Status == StatusActive {
 		return record, nil
 	}
 
@@ -134,23 +139,218 @@ func (s *Service) EnsureProvisioned(taskID, repoPath string) (*Record, error) {
 	}
 
 	if _, err := s.stat(record.WorktreePath); err == nil {
-		record.Status = "Ready"
+		record.Status = StatusReady
 		if err := s.repo.Upsert(*record); err != nil {
 			return nil, err
 		}
 		return s.repo.GetByTaskID(taskID)
 	}
 
-	if output, err := s.runGit(repoPath, "worktree", "add", "-b", record.BranchName, record.WorktreePath, record.BaseBranch); err != nil {
-		return nil, fmt.Errorf("provision worktree for task %q: %s", taskID, strings.TrimSpace(string(output)))
+	if err := s.addWorktree(repoPath, record); err != nil {
+		return nil, err
 	}
 
-	record.Status = "Ready"
+	record.Status = StatusReady
 	if err := s.repo.Upsert(*record); err != nil {
 		return nil, err
 	}
 
 	return s.repo.GetByTaskID(taskID)
+}
+
+// Repair tries to recover a persisted worktree mapping that drifted from git
+// registration or the filesystem without changing the task-to-worktree contract.
+func (s *Service) Repair(taskID, repoPath string) (*Record, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return nil, fmt.Errorf("task id is required")
+	}
+	repoPath = strings.TrimSpace(repoPath)
+	if repoPath == "" {
+		return nil, fmt.Errorf("repo path is required")
+	}
+
+	record, err := s.repo.GetByTaskID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("worktree for task %q not found", taskID)
+	}
+	if !s.gitAvailable(repoPath) {
+		return nil, fmt.Errorf("project repo %q does not support git worktree repair", repoPath)
+	}
+
+	if output, err := s.runGit(repoPath, "worktree", "prune"); err != nil {
+		return nil, fmt.Errorf("prune stale git worktrees: %s", strings.TrimSpace(string(output)))
+	}
+
+	pathExists, err := s.pathExists(record.WorktreePath)
+	if err != nil {
+		return nil, fmt.Errorf("stat worktree path for task %q: %w", taskID, err)
+	}
+	registered, err := s.isRegistered(repoPath, record.WorktreePath)
+	if err != nil {
+		return nil, err
+	}
+
+	switch {
+	case pathExists && !registered:
+		return nil, fmt.Errorf("worktree path %q exists but is not registered; manual cleanup is required before repair", record.WorktreePath)
+	case !pathExists && !registered:
+		if err := s.mkdirAll(filepath.Dir(record.WorktreePath), 0o755); err != nil {
+			return nil, fmt.Errorf("create worktree parent dir: %w", err)
+		}
+		if err := s.addWorktree(repoPath, record); err != nil {
+			return nil, err
+		}
+	}
+
+	record.Status = StatusReady
+	if err := s.repo.Upsert(*record); err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetByTaskID(taskID)
+}
+
+// Reconcile refreshes one persisted worktree mapping from filesystem, git registration,
+// and whether the task currently has an active session.
+func (s *Service) Reconcile(taskID, repoPath string, hasActiveSession bool) (*Record, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return nil, fmt.Errorf("task id is required")
+	}
+	repoPath = strings.TrimSpace(repoPath)
+	if repoPath == "" {
+		return nil, fmt.Errorf("repo path is required")
+	}
+
+	record, err := s.repo.GetByTaskID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, nil
+	}
+
+	if !s.gitAvailable(repoPath) {
+		return record, nil
+	}
+
+	pathExists := false
+	if _, err := s.stat(record.WorktreePath); err == nil {
+		pathExists = true
+	} else if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("stat worktree path for task %q: %w", taskID, err)
+	}
+
+	registered, err := s.isRegistered(repoPath, record.WorktreePath)
+	if err != nil {
+		return nil, err
+	}
+
+	nextStatus := reconciledStatus(record.Status, pathExists, registered, hasActiveSession)
+	if nextStatus == record.Status {
+		return record, nil
+	}
+
+	record.Status = nextStatus
+	if err := s.repo.Upsert(*record); err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetByTaskID(taskID)
+}
+
+func (s *Service) gitAvailable(repoPath string) bool {
+	if _, err := s.lookPath("git"); err != nil {
+		return false
+	}
+	if _, err := s.runGit(repoPath, "rev-parse", "--is-inside-work-tree"); err != nil {
+		return false
+	}
+	return true
+}
+
+func (s *Service) pathExists(path string) (bool, error) {
+	if _, err := s.stat(path); err == nil {
+		return true, nil
+	} else if os.IsNotExist(err) {
+		return false, nil
+	} else {
+		return false, err
+	}
+}
+
+func (s *Service) isRegistered(repoPath, worktreePath string) (bool, error) {
+	output, err := s.runGit(repoPath, "worktree", "list", "--porcelain")
+	if err != nil {
+		return false, fmt.Errorf("inspect git worktree registration: %s", strings.TrimSpace(string(output)))
+	}
+
+	expected := filepath.Clean(worktreePath)
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "worktree ") {
+			continue
+		}
+		path := strings.TrimSpace(strings.TrimPrefix(line, "worktree "))
+		if filepath.Clean(path) == expected {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (s *Service) addWorktree(repoPath string, record *Record) error {
+	branchExists, err := s.branchExists(repoPath, record.BranchName)
+	if err != nil {
+		return err
+	}
+
+	var args []string
+	if branchExists {
+		args = []string{"worktree", "add", record.WorktreePath, record.BranchName}
+	} else {
+		args = []string{"worktree", "add", "-b", record.BranchName, record.WorktreePath, record.BaseBranch}
+	}
+
+	if output, err := s.runGit(repoPath, args...); err != nil {
+		return fmt.Errorf("provision worktree for task %q: %s", record.TaskID, strings.TrimSpace(string(output)))
+	}
+
+	return nil
+}
+
+func (s *Service) branchExists(repoPath, branchName string) (bool, error) {
+	output, err := s.runGit(repoPath, "branch", "--list", branchName)
+	if err != nil {
+		return false, fmt.Errorf("check existing branch %q: %s", branchName, strings.TrimSpace(string(output)))
+	}
+
+	return strings.TrimSpace(string(output)) != "", nil
+}
+
+func reconciledStatus(current string, pathExists, registered, hasActiveSession bool) string {
+	if !pathExists || !registered {
+		switch current {
+		case StatusReady, StatusActive, StatusNeedsRepair:
+			return StatusNeedsRepair
+		default:
+			if pathExists || registered {
+				return StatusNeedsRepair
+			}
+			return StatusPlanned
+		}
+	}
+
+	if hasActiveSession {
+		return StatusActive
+	}
+
+	return StatusReady
 }
 
 func plannedBranchName(taskID, taskTitle string) string {

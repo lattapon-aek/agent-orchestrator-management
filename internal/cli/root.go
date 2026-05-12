@@ -67,6 +67,8 @@ func (r Runner) Execute(args []string) error {
 		return r.executeStatus(args[1:])
 	case "task":
 		return r.executeTask(args[1:])
+	case "worktree":
+		return r.executeWorktree(args[1:])
 	case "project":
 		return r.executeProject(args[1:])
 	default:
@@ -240,6 +242,12 @@ func (r Runner) executeSession(args []string) error {
 		return r.executeSessionList(args[1:])
 	case "show":
 		return r.executeSessionShow(args[1:])
+	case "replace":
+		return r.executeSessionReplace(args[1:])
+	case "stop":
+		return r.executeSessionStop(args[1:])
+	case "archive":
+		return r.executeSessionArchive(args[1:])
 	default:
 		return fmt.Errorf("unknown session command %q", strings.Join(args, " "))
 	}
@@ -255,6 +263,19 @@ func (r Runner) executeProject(args []string) error {
 		return r.executeProjectInit(args[1:])
 	default:
 		return fmt.Errorf("unknown project command %q", strings.Join(args, " "))
+	}
+}
+
+func (r Runner) executeWorktree(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("worktree subcommand is required")
+	}
+
+	switch args[0] {
+	case "repair":
+		return r.executeWorktreeRepair(args[1:])
+	default:
+		return fmt.Errorf("unknown worktree command %q", strings.Join(args, " "))
 	}
 }
 
@@ -324,6 +345,57 @@ func (r Runner) executeProjectInit(args []string) error {
 	return nil
 }
 
+func (r Runner) executeWorktreeRepair(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("task identifier is required")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("worktree repair does not accept extra positional arguments in the current milestone")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	taskRecord, err := r.loadTaskByID(result, strings.TrimSpace(args[0]))
+	if err != nil {
+		return err
+	}
+	if taskRecord == nil {
+		return fmt.Errorf("task %q not found", strings.TrimSpace(args[0]))
+	}
+
+	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer worktreeDB.Close()
+
+	record, err := worktreeService.Repair(taskRecord.ID, result.Project.RepoPath)
+	if err != nil {
+		return err
+	}
+
+	if err := r.syncTaskArtifacts(result, taskRecord.ID, artifact.Event{
+		Type:        "worktree.repaired",
+		Actor:       "operator",
+		Summary:     "Worktree continuity was explicitly repaired",
+		StateEffect: fmt.Sprintf("Worktree %s", record.Status),
+	}, false); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(r.stdout, "Worktree repaired")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Task: %s\n", taskRecord.ID)
+	fmt.Fprintf(r.stdout, "Status: %s\n", record.Status)
+	fmt.Fprintf(r.stdout, "Branch: %s\n", record.BranchName)
+	fmt.Fprintf(r.stdout, "Path: %s\n", record.WorktreePath)
+
+	return nil
+}
+
 type projectInitParams struct {
 	name          string
 	repo          string
@@ -369,7 +441,7 @@ func (r Runner) executeOpen(args []string) error {
 		return err
 	}
 
-	taskViews, err := r.loadTaskViews(result)
+	taskViews, err := r.loadTaskViews(result, sessions)
 	if err != nil {
 		return err
 	}
@@ -398,7 +470,7 @@ func (r Runner) executeStatus(args []string) error {
 		return err
 	}
 
-	taskViews, err := r.loadTaskViews(result)
+	taskViews, err := r.loadTaskViews(result, sessions)
 	if err != nil {
 		return err
 	}
@@ -549,17 +621,31 @@ func (r Runner) executeTaskShow(args []string) error {
 	}
 	defer worktreeDB.Close()
 
-	mapping, err := worktreeService.GetByTask(taskRecord.ID)
+	sessions, err := r.loadProjectSessions(result)
 	if err != nil {
 		return err
+	}
+
+	mapping, err := worktreeService.Reconcile(taskRecord.ID, result.Project.RepoPath, hasActiveTaskSession(sessions, taskRecord.ID))
+	if err != nil {
+		return err
+	}
+	if mapping == nil {
+		mapping, err = worktreeService.GetByTask(taskRecord.ID)
+		if err != nil {
+			return err
+		}
 	}
 	if mapping != nil {
 		fmt.Fprintf(r.stdout, "Worktree status: %s\n", mapping.Status)
 		fmt.Fprintf(r.stdout, "Worktree branch: %s\n", mapping.BranchName)
 		fmt.Fprintf(r.stdout, "Worktree path: %s\n", mapping.WorktreePath)
+		if hint := worktreeHint(taskRecord.ID, mapping); hint != "" {
+			fmt.Fprintf(r.stdout, "Worktree hint: %s\n", hint)
+		}
 	}
 	fmt.Fprintf(r.stdout, "Steps: %d\n", len(steps))
-	fmt.Fprintf(r.stdout, "Recommended next action: %s\n", recommendTaskAction(taskRecord.Status, steps))
+	fmt.Fprintf(r.stdout, "Recommended next action: %s\n", recommendTaskAction(taskRecord.Status, steps, mapping))
 
 	return nil
 }
@@ -869,7 +955,11 @@ func (r Runner) executeSessionSpawn(args []string) error {
 	if err != nil {
 		return err
 	}
+	return r.executeResolvedSessionSpawn(result, agentRecord, params)
+}
 
+func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRecord *agent.Record, params sessionSpawnParams) error {
+	var err error
 	var taskRecord *task.Record
 	if params.taskID != "" {
 		taskRecord, err = r.loadTaskByID(result, params.taskID)
@@ -963,6 +1053,18 @@ func (r Runner) executeSessionSpawn(args []string) error {
 	}
 
 	if taskRecord != nil {
+		worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
+		if err != nil {
+			return err
+		}
+		taskWorktree, err = worktreeService.Reconcile(taskRecord.ID, result.Project.RepoPath, true)
+		worktreeDB.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	if taskRecord != nil {
 		if err := r.syncTaskArtifactsWithSessionEvents(result, taskRecord.ID, false, record, artifact.Event{
 			Type:        "session.ready",
 			Actor:       "aom",
@@ -1004,6 +1106,57 @@ func (r Runner) executeSessionSpawn(args []string) error {
 	fmt.Fprintf(r.stdout, "Window: %s\n", record.TmuxWindow)
 	fmt.Fprintf(r.stdout, "Pane: %s\n", record.TmuxPane)
 
+	return nil
+}
+
+func (r Runner) executeSessionReplace(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("session identifier is required")
+	}
+
+	params := sessionReplaceParams{id: strings.TrimSpace(args[0])}
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--agent":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--agent requires a value")
+			}
+			params.agentName = strings.TrimSpace(args[i])
+		case "--reason":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--reason requires a value")
+			}
+			params.reason = strings.TrimSpace(args[i])
+		case "--mock":
+			params.mockRuntime = true
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+	if params.agentName == "" {
+		return fmt.Errorf("--agent is required")
+	}
+
+	oldRecord, err := r.loadSessionByIdentifier(params.id)
+	if err != nil {
+		return err
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	agentRecord, err := findAgent(result.Agents, params.agentName)
+	if err != nil {
+		return err
+	}
+
+	if err := r.replaceSession(result, *oldRecord, agentRecord, params); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1049,6 +1202,13 @@ type sessionSpawnParams struct {
 	mockRuntime bool
 }
 
+type sessionReplaceParams struct {
+	id          string
+	agentName   string
+	reason      string
+	mockRuntime bool
+}
+
 func (r Runner) executeSessionList(args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("session list does not accept positional arguments in the current milestone")
@@ -1059,13 +1219,7 @@ func (r Runner) executeSessionList(args []string) error {
 		return err
 	}
 
-	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
-	if err != nil {
-		return err
-	}
-	defer sqlDB.Close()
-
-	sessions, err := sessionService.ListByProject(result.Project.ID)
+	sessions, err := r.loadProjectSessions(result)
 	if err != nil {
 		return err
 	}
@@ -1122,6 +1276,232 @@ func (r Runner) executeSessionShow(args []string) error {
 	fmt.Fprintf(r.stdout, "Tmux session: %s\n", sessionRecord.TmuxSessionName)
 	fmt.Fprintf(r.stdout, "Tmux window: %s\n", sessionRecord.TmuxWindow)
 	fmt.Fprintf(r.stdout, "Tmux pane: %s\n", sessionRecord.TmuxPane)
+
+	return nil
+}
+
+func (r Runner) replaceSession(result *project.OpenResult, oldRecord session.Record, agentRecord *agent.Record, params sessionReplaceParams) error {
+	if agentRecord == nil {
+		return fmt.Errorf("replacement agent is required")
+	}
+
+	spawnParams := sessionSpawnParams{
+		agentName:   agentRecord.Name,
+		taskID:      oldRecord.TaskID,
+		mockRuntime: params.mockRuntime,
+	}
+
+	taskRecord, err := r.loadTaskByID(result, oldRecord.TaskID)
+	if err != nil {
+		return err
+	}
+	if oldRecord.TaskID != "" && taskRecord == nil {
+		return fmt.Errorf("task %q not found", oldRecord.TaskID)
+	}
+
+	oldStatusBefore := oldRecord.Status
+	if err := r.executeResolvedSessionSpawn(result, agentRecord, spawnParams); err != nil {
+		return err
+	}
+
+	newSession, err := r.findReplacementSession(result, oldRecord.ID, oldRecord.TaskID, agentRecord.Name)
+	if err != nil {
+		return err
+	}
+
+	stoppedStatus := oldRecord.Status
+	if stoppableReplacementSession(oldRecord.Status) {
+		stopped, err := r.stopSessionRecord(result, oldRecord, false)
+		if err != nil {
+			return err
+		}
+		stoppedStatus = stopped.Status
+	}
+
+	if strings.TrimSpace(oldRecord.TaskID) != "" {
+		reason := params.reason
+		if reason == "" {
+			reason = "operator requested replacement"
+		}
+		if err := r.syncTaskArtifactsWithSessionEvents(result, oldRecord.TaskID, false, newSession, artifact.Event{
+			Type:        "session.replaced",
+			Actor:       "operator",
+			SessionID:   newSession.ID,
+			Summary:     fmt.Sprintf("Session %s replaced %s using agent %s (%s)", newSession.ID, oldRecord.ID, agentRecord.Name, reason),
+			StateEffect: fmt.Sprintf("Old session %s, new session %s", stoppedStatus, newSession.Status),
+		}); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "Session replaced")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Old session: %s\n", oldRecord.ID)
+	fmt.Fprintf(r.stdout, "Old status: %s\n", oldStatusBefore)
+	fmt.Fprintf(r.stdout, "New session: %s\n", newSession.ID)
+	fmt.Fprintf(r.stdout, "Agent: %s\n", newSession.AgentName)
+	fmt.Fprintf(r.stdout, "Reason: %s\n", emptyFallback(params.reason))
+	fmt.Fprintln(r.stdout, "Continuity quality: artifact-backed")
+	fmt.Fprintln(r.stdout, "Next recommended action: inspect the replacement session and continue work from the same task context")
+
+	return nil
+}
+
+func (r Runner) stopSessionRecord(result *project.OpenResult, record session.Record, print bool) (*session.Record, error) {
+	if strings.TrimSpace(record.TmuxPane) != "" && record.Status != "Detached" {
+		paneExists, err := r.app.Tmux.PaneExists(record.TmuxPane)
+		if err != nil {
+			return nil, err
+		}
+		if paneExists {
+			if err := r.app.Tmux.KillPane(record.TmuxPane); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	defer sqlDB.Close()
+
+	stopped, err := sessionService.Stop(record)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(stopped.TaskID) != "" {
+		if err := r.syncTaskArtifacts(result, stopped.TaskID, artifact.Event{
+			Type:        "session.stopped",
+			Actor:       "operator",
+			SessionID:   stopped.ID,
+			Summary:     "Session stopped explicitly by operator",
+			StateEffect: "Session Stopped",
+		}, false); err != nil {
+			return nil, err
+		}
+	}
+
+	if print {
+		fmt.Fprintln(r.stdout, "Session stopped")
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintf(r.stdout, "Session: %s\n", stopped.ID)
+		fmt.Fprintf(r.stdout, "Status: %s\n", stopped.Status)
+		fmt.Fprintf(r.stdout, "Task: %s\n", emptyFallback(stopped.TaskID))
+	}
+
+	return stopped, nil
+}
+
+func (r Runner) findReplacementSession(result *project.OpenResult, oldSessionID, taskID, agentName string) (*session.Record, error) {
+	sessions, err := r.loadProjectSessions(result)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := len(sessions) - 1; i >= 0; i-- {
+		item := sessions[i]
+		if item.ID == oldSessionID {
+			continue
+		}
+		if item.TaskID != taskID || item.AgentName != agentName {
+			continue
+		}
+		return &item, nil
+	}
+
+	return nil, fmt.Errorf("replacement session was not found after spawn")
+}
+
+func stoppableReplacementSession(status string) bool {
+	switch status {
+	case "Idle", "WaitingHandoff", "Detached":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r Runner) executeSessionStop(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("session identifier is required")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("session stop does not accept extra positional arguments in the current milestone")
+	}
+
+	record, err := r.loadSessionByIdentifier(strings.TrimSpace(args[0]))
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(record.TmuxPane) != "" && record.Status != "Detached" {
+		paneExists, err := r.app.Tmux.PaneExists(record.TmuxPane)
+		if err != nil {
+			return err
+		}
+		if paneExists {
+			if err := r.app.Tmux.KillPane(record.TmuxPane); err != nil {
+				return err
+			}
+		}
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+	_, err = r.stopSessionRecord(result, *record, true)
+	return err
+}
+
+func (r Runner) executeSessionArchive(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("session identifier is required")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("session archive does not accept extra positional arguments in the current milestone")
+	}
+
+	record, err := r.loadSessionByIdentifier(strings.TrimSpace(args[0]))
+	if err != nil {
+		return err
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	archived, err := sessionService.Archive(*record)
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(archived.TaskID) != "" {
+		if err := r.syncTaskArtifacts(result, archived.TaskID, artifact.Event{
+			Type:        "session.archived",
+			Actor:       "operator",
+			SessionID:   archived.ID,
+			Summary:     "Session archived explicitly by operator",
+			StateEffect: "Session Archived",
+		}, false); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "Session archived")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Session: %s\n", archived.ID)
+	fmt.Fprintf(r.stdout, "Status: %s\n", archived.Status)
+	fmt.Fprintf(r.stdout, "Task: %s\n", emptyFallback(archived.TaskID))
 
 	return nil
 }
@@ -1273,8 +1653,15 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 					item.Worktree.BranchName,
 					item.Worktree.WorktreePath,
 				)
+				if hint := worktreeHint(item.Task.ID, item.Worktree); hint != "" {
+					label := "note"
+					if item.Worktree.Status == worktree.StatusNeedsRepair {
+						label = "repair"
+					}
+					fmt.Fprintf(r.stdout, "    %s=%s\n", label, hint)
+				}
 			}
-			fmt.Fprintf(r.stdout, "    next=%s\n", recommendTaskAction(item.Task.Status, item.Steps))
+			fmt.Fprintf(r.stdout, "    next=%s\n", recommendTaskAction(item.Task.Status, item.Steps, item.Worktree))
 			for _, taskStep := range item.Steps {
 				fmt.Fprintf(
 					r.stdout,
@@ -1312,11 +1699,14 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "  aom session show")
 	fmt.Fprintln(r.stdout, "  aom session spawn")
 	fmt.Fprintln(r.stdout, "  aom session list")
+	fmt.Fprintln(r.stdout, "  aom session stop")
+	fmt.Fprintln(r.stdout, "  aom session archive")
 	fmt.Fprintln(r.stdout, "  aom status")
 	fmt.Fprintln(r.stdout, "  aom task close")
 	fmt.Fprintln(r.stdout, "  aom task create")
 	fmt.Fprintln(r.stdout, "  aom task show")
 	fmt.Fprintln(r.stdout, "  aom task update")
+	fmt.Fprintln(r.stdout, "  aom worktree repair")
 }
 
 func findAgent(agents []agent.Record, name string) (*agent.Record, error) {
@@ -1440,20 +1830,29 @@ func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, taskRecord 
 	if mapping == nil {
 		return nil, result.Project.RepoPath, nil
 	}
-	if mapping.Status != "Ready" {
+	if mapping, err = worktreeService.Reconcile(mapping.TaskID, result.Project.RepoPath, false); err != nil {
+		return nil, "", err
+	}
+	if mapping != nil && mapping.Status == worktree.StatusNeedsRepair {
+		return mapping, "", fmt.Errorf("worktree for task %q needs repair: %s", taskRecord.ID, worktreeHint(taskRecord.ID, mapping))
+	}
+	if mapping.Status != worktree.StatusReady && mapping.Status != worktree.StatusActive {
 		mapping, err = worktreeService.EnsureProvisioned(mapping.TaskID, result.Project.RepoPath)
 		if err != nil {
 			return nil, "", err
 		}
 	}
-	if mapping == nil || mapping.Status != "Ready" || strings.TrimSpace(mapping.WorktreePath) == "" {
+	if mapping == nil || (mapping.Status != worktree.StatusReady && mapping.Status != worktree.StatusActive) || strings.TrimSpace(mapping.WorktreePath) == "" {
 		return mapping, result.Project.RepoPath, nil
 	}
 
 	return mapping, mapping.WorktreePath, nil
 }
 
-func recommendTaskAction(status string, steps []step.Record) string {
+func recommendTaskAction(status string, steps []step.Record, mapping *worktree.Record) string {
+	if mapping != nil && mapping.Status == worktree.StatusNeedsRepair {
+		return "repair the task worktree before continuing"
+	}
 	if status == "Done" {
 		return "task is closed; archive later if needed"
 	}
@@ -1485,7 +1884,7 @@ func recommendTaskAction(status string, steps []step.Record) string {
 	return "inspect steps and choose the next operator action"
 }
 
-func (r Runner) loadTaskViews(result *project.OpenResult) ([]taskView, error) {
+func (r Runner) loadTaskViews(result *project.OpenResult, sessions []session.Record) ([]taskView, error) {
 	taskService, taskDB, err := r.app.OpenTaskService(result.DBPath)
 	if err != nil {
 		return nil, err
@@ -1526,14 +1925,48 @@ func (r Runner) loadTaskViews(result *project.OpenResult) ([]taskView, error) {
 	defer worktreeDB.Close()
 
 	for i := range views {
-		mapping, err := worktreeService.GetByTask(views[i].Task.ID)
+		mapping, err := worktreeService.Reconcile(views[i].Task.ID, result.Project.RepoPath, hasActiveTaskSession(sessions, views[i].Task.ID))
 		if err != nil {
 			return nil, err
+		}
+		if mapping == nil {
+			mapping, err = worktreeService.GetByTask(views[i].Task.ID)
+			if err != nil {
+				return nil, err
+			}
 		}
 		views[i].Worktree = mapping
 	}
 
 	return views, nil
+}
+
+func worktreeHint(taskID string, mapping *worktree.Record) string {
+	if mapping == nil {
+		return ""
+	}
+
+	switch mapping.Status {
+	case worktree.StatusNeedsRepair:
+		return fmt.Sprintf("run \"aom worktree repair %s\" or inspect the git worktree path before continuing", taskID)
+	case worktree.StatusActive:
+		return "task worktree is currently bound to a live session"
+	default:
+		return ""
+	}
+}
+
+func hasActiveTaskSession(sessions []session.Record, taskID string) bool {
+	for _, item := range sessions {
+		if item.TaskID != taskID {
+			continue
+		}
+		switch item.Status {
+		case "Booting", "Idle", "Working", "WaitingApproval", "WaitingHandoff", "Blocked":
+			return true
+		}
+	}
+	return false
 }
 
 func (r Runner) syncTaskArtifacts(result *project.OpenResult, taskID string, event artifact.Event, seed bool) error {
@@ -1565,7 +1998,7 @@ func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, t
 		Worktree:              view.Worktree,
 		CreatedBy:             "operator",
 		UpdatedBy:             updatedBy,
-		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps),
+		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps, view.Worktree),
 	}
 	if seed {
 		return service.SeedTaskArtifacts(params)
@@ -1628,9 +2061,20 @@ func (r Runner) loadTaskView(result *project.OpenResult, taskID string) (*taskVi
 	}
 	defer worktreeDB.Close()
 
-	mapping, err := worktreeService.GetByTask(record.ID)
+	sessions, err := r.loadProjectSessions(result)
 	if err != nil {
 		return nil, err
+	}
+
+	mapping, err := worktreeService.Reconcile(record.ID, result.Project.RepoPath, hasActiveTaskSession(sessions, record.ID))
+	if err != nil {
+		return nil, err
+	}
+	if mapping == nil {
+		mapping, err = worktreeService.GetByTask(record.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &taskView{
@@ -1678,7 +2122,7 @@ func (r Runner) loadSessionByIdentifier(identifier string) (*session.Record, err
 		return nil, err
 	}
 	if record != nil {
-		return record, nil
+		return r.reconcileSessionRecord(sessionService, *record)
 	}
 
 	sessions, err := sessionService.ListByProject(result.Project.ID)
@@ -1703,7 +2147,39 @@ func (r Runner) loadProjectSessions(result *project.OpenResult) ([]session.Recor
 	}
 	defer sqlDB.Close()
 
-	return sessionService.ListByProject(result.Project.ID)
+	sessions, err := sessionService.ListByProject(result.Project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	reconciled := make([]session.Record, 0, len(sessions))
+	for _, item := range sessions {
+		record, err := r.reconcileSessionRecord(sessionService, item)
+		if err != nil {
+			return nil, err
+		}
+		reconciled = append(reconciled, *record)
+	}
+
+	return reconciled, nil
+}
+
+func (r Runner) reconcileSessionRecord(sessionService *session.Service, record session.Record) (*session.Record, error) {
+	if sessionService == nil {
+		return nil, fmt.Errorf("session service is required")
+	}
+
+	availability := r.app.Tmux.Availability()
+	if !availability.Available {
+		return &record, nil
+	}
+
+	paneExists, err := r.app.Tmux.PaneExists(record.TmuxPane)
+	if err != nil {
+		return nil, err
+	}
+
+	return sessionService.ReconcileBinding(record, paneExists)
 }
 
 func (r Runner) loadTaskCount(result *project.OpenResult) (int, error) {

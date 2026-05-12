@@ -150,7 +150,7 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 	if params.Worktree != nil {
 		worktreePath = params.Worktree.WorktreePath
 		worktreeBranch = params.Worktree.BranchName
-		if params.Worktree.Status == "Ready" && strings.TrimSpace(params.Worktree.WorktreePath) != "" {
+		if usesWorktreeArtifactRoot(params.Worktree) {
 			artifactRoot = filepath.Join(params.Worktree.WorktreePath, ".agent")
 		}
 	}
@@ -455,10 +455,18 @@ func (s *Service) appendEvent(params SyncParams, event Event) error {
 }
 
 func (s *Service) taskDir(params SyncParams) string {
-	if params.Worktree != nil && params.Worktree.Status == "Ready" && strings.TrimSpace(params.Worktree.WorktreePath) != "" {
+	if usesWorktreeArtifactRoot(params.Worktree) {
 		return filepath.Join(params.Worktree.WorktreePath, ".agent")
 	}
 	return filepath.Join(s.repoPath, ".aom", s.stateDir, params.Task.ID)
+}
+
+func usesWorktreeArtifactRoot(mapping *worktree.Record) bool {
+	if mapping == nil || strings.TrimSpace(mapping.WorktreePath) == "" {
+		return false
+	}
+
+	return mapping.Status == worktree.StatusReady || mapping.Status == worktree.StatusActive
 }
 
 func renderCompletedWork(steps []step.Record) string {

@@ -243,6 +243,53 @@ func (m *Manager) CapturePane(paneID string) (string, error) {
 	return string(output), nil
 }
 
+// PaneExists reports whether the given pane target is still live in tmux.
+func (m *Manager) PaneExists(paneID string) (bool, error) {
+	availability := m.Availability()
+	if !availability.Available {
+		return false, fmt.Errorf("tmux is not available in the current environment")
+	}
+	if strings.TrimSpace(paneID) == "" {
+		return false, nil
+	}
+
+	output, err := m.exec(
+		availability.BinaryPath,
+		"display-message",
+		"-p",
+		"-t",
+		paneID,
+		"#{pane_id}",
+	)
+	if err != nil {
+		return false, nil
+	}
+
+	return strings.TrimSpace(string(output)) == strings.TrimSpace(paneID), nil
+}
+
+// KillPane intentionally removes a pane from the tmux workspace.
+func (m *Manager) KillPane(paneID string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if strings.TrimSpace(paneID) == "" {
+		return fmt.Errorf("pane id is required")
+	}
+
+	if _, err := m.exec(
+		availability.BinaryPath,
+		"kill-pane",
+		"-t",
+		paneID,
+	); err != nil {
+		return fmt.Errorf("kill tmux pane %q: %w", paneID, err)
+	}
+
+	return nil
+}
+
 func combinedOutput(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).CombinedOutput()
 }

@@ -115,6 +115,12 @@ Implemented in the first slice:
 - best-effort git worktree provisioning now runs on top of the persisted mapping; git-backed repos move planned worktrees to `Ready`
 - task-bound session spawn now uses the provisioned worktree path when the mapping is `Ready`, with repo-root fallback retained for non-git or unprovisioned cases
 - canonical task artifacts now move into `<worktree>/.agent/` when the mapped worktree is `Ready`, while non-git or unprovisioned tasks still use the repo-root fallback
+- worktree reconciliation now detects stale git/path drift and marks persisted mappings as `NeedsRepair`
+- `status` and `task show` now surface explicit repair hints and task-level next actions when a worktree mapping is stale
+- task-bound session spawn now promotes healthy provisioned worktrees from `Ready` to `Active`
+- canonical task artifacts now continue to use `<worktree>/.agent/` while worktrees are `Active`, not only when they are merely `Ready`
+- session views now reconcile persisted tmux pane bindings against live tmux state and downgrade missing panes to `Detached`
+- worktree summaries now fall back from `Active` to `Ready` when no live task-bound session remains after reconciliation
 
 ## Current CLI Surface
 
@@ -127,11 +133,15 @@ Implemented commands:
 - `aom task update`
 - `aom task close`
 - `aom task show`
+- `aom worktree repair`
 - `aom step list`
 - `aom step update`
 - `aom session spawn`
 - `aom session list`
 - `aom session show`
+- `aom session replace`
+- `aom session stop`
+- `aom session archive`
 - `aom attach`
 - `aom capture`
 
@@ -155,6 +165,14 @@ Current behavior notes:
 - when the project repo is a valid git worktree host, `task create` and `plan --create` now provision the linked worktree immediately and mark the mapping `Ready`
 - `session spawn --task` now launches from the mapped worktree path when available and records the chosen path in the durable session record
 - worktree-backed tasks now write `task.md`, `state.md`, `index.md`, `log.md`, and mode-dependent artifacts inside the real task worktree under `.agent/`
+- `status` and `task show` now reconcile persisted worktree mappings against both the filesystem and `git worktree list --porcelain`
+- stale worktree mappings now surface as `NeedsRepair` with explicit operator repair hints instead of silently looking healthy
+- task-bound session launch now moves healthy worktrees into `Active` so operator-visible state distinguishes idle worktrees from live ones
+- `worktree repair <task-id>` now recovers missing or pruned git-backed task worktrees, restores `.agent/` artifacts into the repaired path, and appends a canonical `worktree.repaired` event
+- `open`, `status`, `session list`, `session show`, and task views now reconcile tmux pane liveness and persist `Detached` when the pane binding is gone
+- `session stop` now intentionally terminates a live tmux pane when present, marks the durable record `Stopped`, and keeps the worktree intact
+- `session archive` now transitions eligible inactive sessions to `Archived` while preserving audit history
+- `session replace` now spawns a replacement session in the same task/worktree context, preserves continuity through task artifacts, and records a canonical `session.replaced` event
 - `session spawn --mock` launches a mock runtime transcript for live local flow verification
 - `session spawn` otherwise uses a placeholder shell command, not a real provider CLI yet
 - `attach` and `capture` operate through the tmux manager abstraction
@@ -239,6 +257,23 @@ Last verified state before this handoff:
   - inspect `.aom/tasks/TASK-1778509234475738000/{task,state,index,log,requirements,tasks}.md`
   - `aom session spawn backend-main --task TASK-1778509474319106000 --mock`
   - inspect `.aom/tasks/TASK-1778509474319106000/{index,log}.md`
+- current repo verification on macOS:
+  - `go test ./...`
+  - focused worktree repair coverage in `internal/worktree` and `internal/cli`
+  - live local `worktree repair` smoke flow on macOS:
+    - `aom task create "Repair flow live check" --role backend --agent backend-main`
+    - remove the provisioned `.aom/worktrees/<task>/` path manually
+    - `aom status`
+    - `aom worktree repair <task-id>`
+    - `aom task show <task-id>`
+  - focused session/worktree reconciliation coverage:
+    - missing tmux pane drives `Idle -> Detached`
+    - detached task-bound session removes the `Active` worktree claim and returns the mapping to `Ready`
+  - focused explicit shutdown/archive coverage:
+    - `session stop` moves a live task-bound session to `Stopped` and returns the worktree to `Ready`
+    - `session archive` moves a stopped session to `Archived`
+  - focused replacement coverage:
+    - `session replace <old> --agent <new-agent> --reason ...` creates a new session in the same task/worktree, keeps the worktree `Active`, and stops the superseded session when possible
 
 Suggested verification commands on a new machine:
 
@@ -296,9 +331,9 @@ Recommended first implementation slice:
 3. start task-to-worktree mapping so task-bound sessions launch in isolated paths
 
 Current next recommended slice:
-1. add repair handling when persisted worktree mappings drift from the filesystem or git registration state
-2. teach `open`/`status` to surface worktree repair hints explicitly when mappings are stale
-3. start reconciling session/worktree state transitions such as `Ready -> Active` and `NeedsRepair`
+1. decide whether replacement should also transition the superseded session to `Archived` automatically in some cases instead of leaving it `Stopped`
+2. decide whether worktree repair should be best-effort automatic in limited safe cases or remain fully operator-driven
+3. extend repair handling for harder drift cases such as an on-disk path that still exists but is no longer a registered git worktree
 
 ## Suggested First Checks On Another Machine
 

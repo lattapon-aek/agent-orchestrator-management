@@ -33,6 +33,7 @@ type CreateParams struct {
 type Service struct {
 	repo  *Repository
 	idGen IDGenerator
+	now   func() time.Time
 }
 
 // NewService creates a session service backed by the provided database.
@@ -49,6 +50,7 @@ func NewServiceWithIDGenerator(db *sql.DB, idGen IDGenerator) *Service {
 	return &Service{
 		repo:  NewRepository(db),
 		idGen: idGen,
+		now:   time.Now,
 	}
 }
 
@@ -138,6 +140,91 @@ func (s *Service) ListByProject(projectID string) ([]Record, error) {
 	}
 
 	return s.repo.ListByProjectID(strings.TrimSpace(projectID))
+}
+
+// ReconcileBinding updates one session to reflect whether its tmux pane is still live.
+func (s *Service) ReconcileBinding(record Record, paneExists bool) (*Record, error) {
+	if strings.TrimSpace(record.ID) == "" {
+		return nil, fmt.Errorf("session id is required")
+	}
+
+	next := record
+	changed := false
+
+	if paneExists {
+		now := s.now()
+		next.LastSeenAt = &now
+		changed = true
+		if record.Status == "Detached" {
+			next.Status = "Idle"
+		}
+	} else if shouldMarkDetached(record) {
+		next.Status = "Detached"
+		changed = true
+	}
+
+	if !changed {
+		return &record, nil
+	}
+
+	return s.Save(next)
+}
+
+// Stop marks a session as intentionally stopped.
+func (s *Service) Stop(record Record) (*Record, error) {
+	if strings.TrimSpace(record.ID) == "" {
+		return nil, fmt.Errorf("session id is required")
+	}
+	if !canStop(record.Status) {
+		return nil, fmt.Errorf("session %q cannot transition from %s to Stopped", record.ID, record.Status)
+	}
+
+	record.Status = "Stopped"
+	return s.Save(record)
+}
+
+// Archive marks an inactive session as archived.
+func (s *Service) Archive(record Record) (*Record, error) {
+	if strings.TrimSpace(record.ID) == "" {
+		return nil, fmt.Errorf("session id is required")
+	}
+	if !canArchive(record.Status) {
+		return nil, fmt.Errorf("session %q cannot transition from %s to Archived", record.ID, record.Status)
+	}
+
+	record.Status = "Archived"
+	return s.Save(record)
+}
+
+func shouldMarkDetached(record Record) bool {
+	if strings.TrimSpace(record.TmuxPane) == "" || strings.TrimSpace(record.TmuxSessionName) == "" {
+		return false
+	}
+
+	switch record.Status {
+	case "Booting", "Idle", "Working", "WaitingApproval", "WaitingHandoff", "Blocked":
+		return true
+	default:
+		return false
+	}
+}
+
+func canStop(status string) bool {
+	switch status {
+	case "Idle", "WaitingHandoff", "Detached":
+		return true
+	default:
+		return false
+	}
+}
+
+func canArchive(status string) bool {
+	switch status {
+	case "Created", "Failed", "Stopped":
+		return true
+	default:
+		return false
+	}
 }
 
 func defaultIDGenerator() IDGenerator {

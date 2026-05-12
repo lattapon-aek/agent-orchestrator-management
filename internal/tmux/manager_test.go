@@ -236,3 +236,61 @@ func TestManagerCapturePaneReturnsOutput(t *testing.T) {
 		t.Fatalf("output = %q, want capture text", output)
 	}
 }
+
+func TestManagerPaneExistsReturnsTrueForLivePane(t *testing.T) {
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			return []byte("%7\n"), nil
+		},
+		nil,
+	)
+
+	exists, err := manager.PaneExists("%7")
+	if err != nil {
+		t.Fatalf("PaneExists failed: %v", err)
+	}
+	if !exists {
+		t.Fatal("PaneExists = false, want true")
+	}
+}
+
+func TestManagerPaneExistsReturnsFalseWhenPaneIsMissing(t *testing.T) {
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			return nil, errors.New("pane not found")
+		},
+		nil,
+	)
+
+	exists, err := manager.PaneExists("%7")
+	if err != nil {
+		t.Fatalf("PaneExists failed: %v", err)
+	}
+	if exists {
+		t.Fatal("PaneExists = true, want false")
+	}
+}
+
+func TestManagerKillPaneInvokesTmuxKillPane(t *testing.T) {
+	var calls [][]string
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return nil, nil
+		},
+		nil,
+	)
+
+	if err := manager.KillPane("%7"); err != nil {
+		t.Fatalf("KillPane failed: %v", err)
+	}
+	if len(calls) != 1 {
+		t.Fatalf("call count = %d, want 1", len(calls))
+	}
+	if calls[0][1] != "kill-pane" {
+		t.Fatalf("call = %v, want kill-pane", calls[0])
+	}
+}

@@ -654,6 +654,7 @@ aom session replace SESS-001 --agent backend-codex
 Should show:
 
 - old session id
+- old session outcome
 - new session id
 - replacement reason
 - continuity quality

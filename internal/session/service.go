@@ -29,7 +29,7 @@ type CreateParams struct {
 	TmuxPane        string
 }
 
-// Service owns session creation and listing behavior for Milestone 2.
+// Service owns session lifecycle persistence and state transitions.
 type Service struct {
 	repo  *Repository
 	idGen IDGenerator

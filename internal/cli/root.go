@@ -955,19 +955,20 @@ func (r Runner) executeSessionSpawn(args []string) error {
 	if err != nil {
 		return err
 	}
-	return r.executeResolvedSessionSpawn(result, agentRecord, params)
+	_, err = r.executeResolvedSessionSpawn(result, agentRecord, params)
+	return err
 }
 
-func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRecord *agent.Record, params sessionSpawnParams) error {
+func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRecord *agent.Record, params sessionSpawnParams) (*session.Record, error) {
 	var err error
 	var taskRecord *task.Record
 	if params.taskID != "" {
 		taskRecord, err = r.loadTaskByID(result, params.taskID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if taskRecord == nil {
-			return fmt.Errorf("task %q not found", params.taskID)
+			return nil, fmt.Errorf("task %q not found", params.taskID)
 		}
 	}
 
@@ -976,35 +977,35 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 	if taskRecord != nil {
 		taskWorktree, executionPath, err = r.resolveTaskExecutionPath(result, *taskRecord)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	var stepRecord *step.Record
 	if params.stepID != "" {
 		if taskRecord == nil {
-			return fmt.Errorf("--step requires --task in the current milestone")
+			return nil, fmt.Errorf("--step requires --task in the current milestone")
 		}
 		stepRecord, err = r.loadStepByID(result, params.stepID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if stepRecord == nil {
-			return fmt.Errorf("step %q not found", params.stepID)
+			return nil, fmt.Errorf("step %q not found", params.stepID)
 		}
 		if stepRecord.TaskID != taskRecord.ID {
-			return fmt.Errorf("step %q does not belong to task %q", stepRecord.ID, taskRecord.ID)
+			return nil, fmt.Errorf("step %q does not belong to task %q", stepRecord.ID, taskRecord.ID)
 		}
 	}
 
 	workspace, err := r.app.Tmux.EnsureWorkspace(result.SessionPrefix, result.Project.RepoPath)
 	if err != nil {
-		return fmt.Errorf("ensure tmux workspace: %w", err)
+		return nil, fmt.Errorf("ensure tmux workspace: %w", err)
 	}
 
 	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer sqlDB.Close()
 
@@ -1021,7 +1022,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		TmuxSessionName: workspace.Name,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if taskRecord != nil {
@@ -1033,13 +1034,13 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 			Summary:     fmt.Sprintf("Session record created for %s using %s launch mode", agentRecord.Name, launchModeLabel(params.mockRuntime)),
 			StateEffect: "Session Booting",
 		}); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, sessionLaunchCommand(*record, params.mockRuntime))
 	if err != nil {
-		return r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
+		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
 	}
 
 	record.Status = "Idle"
@@ -1049,18 +1050,18 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 
 	record, err = sessionService.Save(*record)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if taskRecord != nil {
 		worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		taskWorktree, err = worktreeService.Reconcile(taskRecord.ID, result.Project.RepoPath, true)
 		worktreeDB.Close()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -1073,7 +1074,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 			Summary:     fmt.Sprintf("Session pane attached for %s and ready for operator inspection", agentRecord.Name),
 			StateEffect: fmt.Sprintf("Session %s", record.Status),
 		}); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -1082,7 +1083,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		"@aom_agent":      record.AgentName,
 		"@aom_role":       record.RoleName,
 	}); err != nil {
-		return r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane annotation failed after session launch", err)
+		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane annotation failed after session launch", err)
 	}
 
 	fmt.Fprintln(r.stdout, "Session spawned")
@@ -1106,7 +1107,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 	fmt.Fprintf(r.stdout, "Window: %s\n", record.TmuxWindow)
 	fmt.Fprintf(r.stdout, "Pane: %s\n", record.TmuxPane)
 
-	return nil
+	return record, nil
 }
 
 func (r Runner) executeSessionReplace(args []string) error {
@@ -1300,22 +1301,28 @@ func (r Runner) replaceSession(result *project.OpenResult, oldRecord session.Rec
 	}
 
 	oldStatusBefore := oldRecord.Status
-	if err := r.executeResolvedSessionSpawn(result, agentRecord, spawnParams); err != nil {
-		return err
-	}
-
-	newSession, err := r.findReplacementSession(result, oldRecord.ID, oldRecord.TaskID, agentRecord.Name)
+	newSession, err := r.executeResolvedSessionSpawn(result, agentRecord, spawnParams)
 	if err != nil {
 		return err
 	}
 
 	stoppedStatus := oldRecord.Status
+	oldSessionOutcome := fmt.Sprintf("left running (%s requires operator intervention)", oldRecord.Status)
+	oldSessionHint := ""
+	stopWarning := ""
 	if stoppableReplacementSession(oldRecord.Status) {
-		stopped, err := r.stopSessionRecord(result, oldRecord, false)
+		stopped, warning, err := r.stopSessionRecord(result, oldRecord, false)
 		if err != nil {
 			return err
 		}
 		stoppedStatus = stopped.Status
+		stopWarning = warning
+		oldSessionOutcome = fmt.Sprintf("stopped (%s)", stopped.Status)
+		if warning != "" {
+			oldSessionOutcome = fmt.Sprintf("stopped with warning (%s)", stopped.Status)
+		}
+	} else {
+		oldSessionHint = fmt.Sprintf("run \"aom session stop %s\" after inspecting whether the previous session should be shut down", oldRecord.ID)
 	}
 
 	if strings.TrimSpace(oldRecord.TaskID) != "" {
@@ -1338,48 +1345,68 @@ func (r Runner) replaceSession(result *project.OpenResult, oldRecord session.Rec
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintf(r.stdout, "Old session: %s\n", oldRecord.ID)
 	fmt.Fprintf(r.stdout, "Old status: %s\n", oldStatusBefore)
+	fmt.Fprintf(r.stdout, "Old session result: %s\n", oldSessionOutcome)
 	fmt.Fprintf(r.stdout, "New session: %s\n", newSession.ID)
 	fmt.Fprintf(r.stdout, "Agent: %s\n", newSession.AgentName)
 	fmt.Fprintf(r.stdout, "Reason: %s\n", emptyFallback(params.reason))
+	if stopWarning != "" {
+		fmt.Fprintf(r.stdout, "Warning: %s\n", stopWarning)
+	}
+	if oldSessionHint != "" {
+		fmt.Fprintf(r.stdout, "Action hint: %s\n", oldSessionHint)
+	}
 	fmt.Fprintln(r.stdout, "Continuity quality: artifact-backed")
 	fmt.Fprintln(r.stdout, "Next recommended action: inspect the replacement session and continue work from the same task context")
 
 	return nil
 }
 
-func (r Runner) stopSessionRecord(result *project.OpenResult, record session.Record, print bool) (*session.Record, error) {
+func (r Runner) stopSessionRecord(result *project.OpenResult, record session.Record, print bool) (*session.Record, string, error) {
+	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
+	if err != nil {
+		return nil, "", err
+	}
+	defer sqlDB.Close()
+
+	recordRefreshed, err := r.reconcileSessionRecord(sessionService, record)
+	if err != nil {
+		return nil, "", err
+	}
+	record = *recordRefreshed
+
+	warning := ""
 	if strings.TrimSpace(record.TmuxPane) != "" && record.Status != "Detached" {
 		paneExists, err := r.app.Tmux.PaneExists(record.TmuxPane)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if paneExists {
 			if err := r.app.Tmux.KillPane(record.TmuxPane); err != nil {
-				return nil, err
+				warning = fmt.Sprintf("tmux pane cleanup failed for %s: %v", record.TmuxPane, err)
 			}
 		}
 	}
 
-	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
-	if err != nil {
-		return nil, err
-	}
-	defer sqlDB.Close()
-
 	stopped, err := sessionService.Stop(record)
 	if err != nil {
-		return nil, err
+		return nil, warning, err
 	}
 
 	if strings.TrimSpace(stopped.TaskID) != "" {
+		summary := "Session stopped explicitly by operator"
+		stateEffect := "Session Stopped"
+		if warning != "" {
+			summary = fmt.Sprintf("%s (tmux cleanup warning: %s)", summary, warning)
+			stateEffect = "Session Stopped with tmux cleanup warning"
+		}
 		if err := r.syncTaskArtifacts(result, stopped.TaskID, artifact.Event{
 			Type:        "session.stopped",
 			Actor:       "operator",
 			SessionID:   stopped.ID,
-			Summary:     "Session stopped explicitly by operator",
-			StateEffect: "Session Stopped",
+			Summary:     summary,
+			StateEffect: stateEffect,
 		}, false); err != nil {
-			return nil, err
+			return nil, warning, err
 		}
 	}
 
@@ -1389,29 +1416,12 @@ func (r Runner) stopSessionRecord(result *project.OpenResult, record session.Rec
 		fmt.Fprintf(r.stdout, "Session: %s\n", stopped.ID)
 		fmt.Fprintf(r.stdout, "Status: %s\n", stopped.Status)
 		fmt.Fprintf(r.stdout, "Task: %s\n", emptyFallback(stopped.TaskID))
-	}
-
-	return stopped, nil
-}
-
-func (r Runner) findReplacementSession(result *project.OpenResult, oldSessionID, taskID, agentName string) (*session.Record, error) {
-	sessions, err := r.loadProjectSessions(result)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := len(sessions) - 1; i >= 0; i-- {
-		item := sessions[i]
-		if item.ID == oldSessionID {
-			continue
+		if warning != "" {
+			fmt.Fprintf(r.stdout, "Warning: %s\n", warning)
 		}
-		if item.TaskID != taskID || item.AgentName != agentName {
-			continue
-		}
-		return &item, nil
 	}
 
-	return nil, fmt.Errorf("replacement session was not found after spawn")
+	return stopped, warning, nil
 }
 
 func stoppableReplacementSession(status string) bool {
@@ -1436,23 +1446,11 @@ func (r Runner) executeSessionStop(args []string) error {
 		return err
 	}
 
-	if strings.TrimSpace(record.TmuxPane) != "" && record.Status != "Detached" {
-		paneExists, err := r.app.Tmux.PaneExists(record.TmuxPane)
-		if err != nil {
-			return err
-		}
-		if paneExists {
-			if err := r.app.Tmux.KillPane(record.TmuxPane); err != nil {
-				return err
-			}
-		}
-	}
-
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
 		return err
 	}
-	_, err = r.stopSessionRecord(result, *record, true)
+	_, _, err = r.stopSessionRecord(result, *record, true)
 	return err
 }
 
@@ -2132,8 +2130,7 @@ func (r Runner) loadSessionByIdentifier(identifier string) (*session.Record, err
 
 	for _, item := range sessions {
 		if item.AgentName == identifier {
-			sessionCopy := item
-			return &sessionCopy, nil
+			return r.reconcileSessionRecord(sessionService, item)
 		}
 	}
 

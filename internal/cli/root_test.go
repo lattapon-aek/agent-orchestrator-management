@@ -1488,6 +1488,73 @@ func TestExecuteStatusReconcilesDetachedSessionAndDowngradesWorktreeToReady(t *t
 	}
 }
 
+func TestExecuteSessionShowByAgentNameReconcilesDetachedSession(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	firstHasSession := true
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				return []byte("@1 %5\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				return nil, errors.New("pane not found")
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "backend-main", "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "show", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session show by agent failed: %v", err)
+	}
+	if out := stdout.String(); !strings.Contains(out, "Status: Detached") {
+		t.Fatalf("stdout = %q, want detached status in agent-name session show", out)
+	}
+}
+
 func TestExecuteSessionStopMarksStoppedAndDowngradesWorktree(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is required for session stop integration test")
@@ -1630,6 +1697,141 @@ func TestExecuteSessionStopMarksStoppedAndDowngradesWorktree(t *testing.T) {
 	}
 	if !strings.Contains(string(logData), "session.stopped") {
 		t.Fatalf("log.md = %q, want session.stopped event", string(logData))
+	}
+}
+
+func TestExecuteSessionStopMarksStoppedWhenKillPaneFails(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for session stop integration test")
+	}
+
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(output))
+		}
+	}
+
+	runGit("init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	runGit("add", "README.md")
+	runGit("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "init")
+
+	firstHasSession := true
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				return []byte("@1 %5\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				return []byte("%5\n"), nil
+			case "kill-pane":
+				return nil, errors.New("pane busy")
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "create", "Stop despite pane cleanup failure", "--role", "backend", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create failed: %v", err)
+	}
+	taskID := extractEntityID(stdout.String(), "Task: ")
+	if taskID == "" {
+		t.Fatalf("could not extract task id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "backend-main", "--task", taskID, "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "stop", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session stop failed: %v", err)
+	}
+	stopOut := stdout.String()
+	if !strings.Contains(stopOut, "Session stopped") {
+		t.Fatalf("stdout = %q, want stop confirmation", stopOut)
+	}
+	if !strings.Contains(stopOut, "Status: Stopped") {
+		t.Fatalf("stdout = %q, want stopped status", stopOut)
+	}
+	if !strings.Contains(stopOut, "Warning: tmux pane cleanup failed") {
+		t.Fatalf("stdout = %q, want pane cleanup warning", stopOut)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"status"}, &stdout, &stderr); err != nil {
+		t.Fatalf("status failed: %v", err)
+	}
+	statusOut := stdout.String()
+	if !strings.Contains(statusOut, "status=Stopped") {
+		t.Fatalf("stdout = %q, want stopped session in status", statusOut)
+	}
+	if !strings.Contains(statusOut, "worktree=Ready | branch=aom/") {
+		t.Fatalf("stdout = %q, want worktree downgraded to Ready", statusOut)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "show", taskID}, &stdout, &stderr); err != nil {
+		t.Fatalf("task show failed: %v", err)
+	}
+	worktreePath := extractLineValue(stdout.String(), "Worktree path: ")
+	if worktreePath == "" {
+		t.Fatalf("could not extract worktree path from %q", stdout.String())
+	}
+	logData, err := os.ReadFile(filepath.Join(worktreePath, ".agent", "log.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(log.md) failed: %v", err)
+	}
+	if !strings.Contains(string(logData), "tmux cleanup warning") {
+		t.Fatalf("log.md = %q, want pane cleanup warning captured in canonical log", string(logData))
 	}
 }
 
@@ -1827,6 +2029,9 @@ func TestExecuteSessionReplaceSupersedesOldSessionInSameTaskWorktree(t *testing.
 	if !strings.Contains(replaceOut, "Session replaced") {
 		t.Fatalf("stdout = %q, want replace confirmation", replaceOut)
 	}
+	if !strings.Contains(replaceOut, "Old session result: stopped (Stopped)") {
+		t.Fatalf("stdout = %q, want explicit old session outcome", replaceOut)
+	}
 	newSessionID := extractEntityID(replaceOut, "New session: ")
 	if newSessionID == "" {
 		t.Fatalf("could not extract new session id from %q", replaceOut)
@@ -1884,6 +2089,157 @@ func TestExecuteSessionReplaceSupersedesOldSessionInSameTaskWorktree(t *testing.
 	}
 	if !strings.Contains(string(logData), "session.replaced") {
 		t.Fatalf("log.md = %q, want session.replaced event", string(logData))
+	}
+}
+
+func TestExecuteSessionReplaceLeavesWorkingSessionRunning(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for session replace integration test")
+	}
+
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(output))
+		}
+	}
+
+	runGit("init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	runGit("add", "README.md")
+	runGit("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "init")
+
+	firstHasSession := true
+	var splitCount int
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				splitCount++
+				if splitCount == 1 {
+					return []byte("@1 %5\n"), nil
+				}
+				return []byte("@1 %6\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				target := args[len(args)-2]
+				if target == "%5" {
+					return []byte("%5\n"), nil
+				}
+				if target == "%6" {
+					return []byte("%6\n"), nil
+				}
+				return nil, errors.New("pane not found")
+			case "kill-pane":
+				return nil, nil
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "create", "Replace working session", "--role", "backend", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create failed: %v", err)
+	}
+	taskID := extractEntityID(stdout.String(), "Task: ")
+	if taskID == "" {
+		t.Fatalf("could not extract task id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "backend-main", "--task", taskID, "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+	oldSessionID := extractSessionID(stdout.String())
+	if oldSessionID == "" {
+		t.Fatalf("could not extract old session id from %q", stdout.String())
+	}
+
+	projectResult, err := project.NewService().Open(".")
+	if err != nil {
+		t.Fatalf("project open failed: %v", err)
+	}
+	sessionService, sqlDB, err := app.New().OpenSessionService(projectResult.DBPath)
+	if err != nil {
+		t.Fatalf("open session service failed: %v", err)
+	}
+	record, err := sessionService.Get(oldSessionID)
+	if err != nil {
+		sqlDB.Close()
+		t.Fatalf("load session failed: %v", err)
+	}
+	if record == nil {
+		sqlDB.Close()
+		t.Fatalf("session %q not found", oldSessionID)
+	}
+	record.Status = "Working"
+	if _, err := sessionService.Save(*record); err != nil {
+		sqlDB.Close()
+		t.Fatalf("save working session failed: %v", err)
+	}
+	sqlDB.Close()
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "replace", oldSessionID, "--agent", "reviewer-main", "--reason", "provider limit", "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session replace failed: %v", err)
+	}
+	replaceOut := stdout.String()
+	if !strings.Contains(replaceOut, "Old session result: left running (Working requires operator intervention)") {
+		t.Fatalf("stdout = %q, want explicit left-running outcome", replaceOut)
+	}
+	if !strings.Contains(replaceOut, "Action hint: run \"aom session stop ") {
+		t.Fatalf("stdout = %q, want explicit action hint for left-running session", replaceOut)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "show", oldSessionID}, &stdout, &stderr); err != nil {
+		t.Fatalf("old session show failed: %v", err)
+	}
+	if out := stdout.String(); !strings.Contains(out, "Status: Working") {
+		t.Fatalf("stdout = %q, want old working session to remain running", out)
 	}
 }
 

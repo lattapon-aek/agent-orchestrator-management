@@ -170,9 +170,9 @@ Current behavior notes:
 - task-bound session launch now moves healthy worktrees into `Active` so operator-visible state distinguishes idle worktrees from live ones
 - `worktree repair <task-id>` now recovers missing or pruned git-backed task worktrees, restores `.agent/` artifacts into the repaired path, and appends a canonical `worktree.repaired` event
 - `open`, `status`, `session list`, `session show`, and task views now reconcile tmux pane liveness and persist `Detached` when the pane binding is gone
-- `session stop` now intentionally terminates a live tmux pane when present, marks the durable record `Stopped`, and keeps the worktree intact
+- `session stop` now intentionally terminates a live tmux pane when present, marks the durable record `Stopped`, keeps the worktree intact, and records tmux cleanup warnings in canonical task log events when pane teardown fails
 - `session archive` now transitions eligible inactive sessions to `Archived` while preserving audit history
-- `session replace` now spawns a replacement session in the same task/worktree context, preserves continuity through task artifacts, and records a canonical `session.replaced` event
+- `session replace` now spawns a replacement session in the same task/worktree context, preserves continuity through task artifacts, records a canonical `session.replaced` event, and prints explicit operator action hints when the old session is intentionally left running
 - `session spawn --mock` launches a mock runtime transcript for live local flow verification
 - `session spawn` otherwise uses a placeholder shell command, not a real provider CLI yet
 - `attach` and `capture` operate through the tmux manager abstraction
@@ -271,9 +271,11 @@ Last verified state before this handoff:
     - detached task-bound session removes the `Active` worktree claim and returns the mapping to `Ready`
   - focused explicit shutdown/archive coverage:
     - `session stop` moves a live task-bound session to `Stopped` and returns the worktree to `Ready`
+    - `session stop` still persists `Stopped` and appends the cleanup warning to `log.md` when tmux pane teardown fails
     - `session archive` moves a stopped session to `Archived`
   - focused replacement coverage:
     - `session replace <old> --agent <new-agent> --reason ...` creates a new session in the same task/worktree, keeps the worktree `Active`, and stops the superseded session when possible
+    - when the old session is still `Working`, replacement output now leaves it running intentionally and prints a concrete `aom session stop <old-session-id>` hint for the operator
 
 Suggested verification commands on a new machine:
 

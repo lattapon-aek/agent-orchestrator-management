@@ -1,0 +1,11 @@
+name: {{ .Name }}
+repo: {{ .RepoPath }}
+default_branch: {{ .DefaultBranch }}
+
+runtime:
+  terminal: tmux
+  session_prefix: {{ .SessionPrefix }}
+
+context:
+  state_dir: tasks
+  checkpoint_required: true

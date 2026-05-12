@@ -1,6 +1,7 @@
 package project
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -35,5 +36,74 @@ func TestServiceOpenSyncsConfigToDB(t *testing.T) {
 	}
 	if result.SessionPrefix != "my-app" {
 		t.Fatalf("session prefix = %q, want %q", result.SessionPrefix, "my-app")
+	}
+	if result.StateDir != "tasks" {
+		t.Fatalf("state dir = %q, want %q", result.StateDir, "tasks")
+	}
+}
+
+func TestServiceInitUsesCustomTemplateDir(t *testing.T) {
+	repoRoot := t.TempDir()
+	templateDir := filepath.Join(repoRoot, "project-init-templates")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	files := map[string]string{
+		"project.yaml.tmpl":   "name: {{ .Name }}\nrepo: {{ .RepoPath }}\ndefault_branch: {{ .DefaultBranch }}\n\nruntime:\n  terminal: tmux\n  session_prefix: {{ .SessionPrefix }}\n\ncontext:\n  state_dir: tasks\n  checkpoint_required: true\n",
+		"agents.yaml.tmpl":    "roles:\n  custom:\n    class: builder\n    worktree_mode: dedicated-writer\n    checkpoint_expectation: required\n    default_session_mode: interactive\n\nagents:\n  custom-main:\n    runtime: codex\n    role: custom\n    enabled: true\n",
+		"resources.yaml.tmpl": "skills: {}\nmcp_servers: {}\nrole_bindings: {}\n",
+		"policy.yaml.tmpl":    "policy:\n  deny_commands: []\n  require_approval: []\n  session_defaults:\n    approval_scope: per-session\n    yolo_mode: disabled\n  owner_exceptions:\n    enabled: true\n    log_required: true\n",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(templateDir, name), []byte(content), 0o644); err != nil {
+			t.Fatalf("WriteFile(%q) failed: %v", name, err)
+		}
+	}
+
+	service := NewService()
+	if _, err := service.Init(InitParams{
+		Name:        "my-app",
+		RepoPath:    repoRoot,
+		TemplateDir: templateDir,
+	}); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	result, err := service.Open(repoRoot)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+
+	if len(result.Agents) != 1 {
+		t.Fatalf("agent count = %d, want 1", len(result.Agents))
+	}
+	if result.Agents[0].Name != "custom-main" {
+		t.Fatalf("agent name = %q, want custom-main", result.Agents[0].Name)
+	}
+}
+
+func TestServiceInitUsesPresetTemplate(t *testing.T) {
+	repoRoot := t.TempDir()
+
+	service := NewService()
+	if _, err := service.Init(InitParams{
+		Name:         "my-app",
+		RepoPath:     repoRoot,
+		TemplateName: "minimal",
+	}); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	result, err := service.Open(repoRoot)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+
+	if len(result.Agents) != 1 {
+		t.Fatalf("agent count = %d, want 1", len(result.Agents))
+	}
+	if result.Agents[0].Name != "backend-main" {
+		t.Fatalf("agent name = %q, want backend-main", result.Agents[0].Name)
 	}
 }

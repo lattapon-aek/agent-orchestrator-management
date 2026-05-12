@@ -1,0 +1,511 @@
+package artifact
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/session"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
+)
+
+// Event is one canonical AOM task timeline event.
+type Event struct {
+	Type        string
+	Actor       string
+	StepID      string
+	SessionID   string
+	Summary     string
+	StateEffect string
+}
+
+// SyncParams describes the task state needed to write continuity artifacts.
+type SyncParams struct {
+	Task                  task.Record
+	Steps                 []step.Record
+	ActiveSession         *session.Record
+	CreatedBy             string
+	UpdatedBy             string
+	RecommendedNextAction string
+}
+
+// Service writes task-local operational memory artifacts.
+type Service struct {
+	repoPath   string
+	stateDir   string
+	now        func() time.Time
+	eventIDGen func() string
+}
+
+// NewService creates an artifact service for one project root.
+func NewService(repoPath, stateDir string) *Service {
+	return &Service{
+		repoPath:   repoPath,
+		stateDir:   stateDir,
+		now:        time.Now,
+		eventIDGen: defaultEventIDGenerator,
+	}
+}
+
+// SeedTaskArtifacts creates the initial task artifact set and appends seed events.
+func (s *Service) SeedTaskArtifacts(params SyncParams) error {
+	if err := s.writeArtifacts(params); err != nil {
+		return err
+	}
+
+	if err := s.appendEvent(params.Task.ID, Event{
+		Type:        "task.created",
+		Actor:       defaultActor(params.CreatedBy),
+		Summary:     fmt.Sprintf("Task created in %s mode", params.Task.Mode),
+		StateEffect: fmt.Sprintf("Task %s", params.Task.Status),
+	}); err != nil {
+		return err
+	}
+
+	for _, item := range params.Steps {
+		if err := s.appendEvent(params.Task.ID, Event{
+			Type:        "step.proposed",
+			Actor:       "aom",
+			StepID:      item.ID,
+			Summary:     fmt.Sprintf("Step seeded: %s", item.Title),
+			StateEffect: fmt.Sprintf("Step %s", item.Status),
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RefreshTaskArtifacts rewrites the current task state artifacts without changing the timeline.
+func (s *Service) RefreshTaskArtifacts(params SyncParams) error {
+	return s.writeArtifacts(params)
+}
+
+// AppendEvent records one canonical task log event.
+func (s *Service) AppendEvent(taskID string, event Event) error {
+	return s.appendEvent(taskID, event)
+}
+
+func (s *Service) writeArtifacts(params SyncParams) error {
+	if strings.TrimSpace(params.Task.ID) == "" {
+		return fmt.Errorf("task id is required")
+	}
+	if strings.TrimSpace(params.Task.Title) == "" {
+		return fmt.Errorf("task title is required")
+	}
+
+	dir := s.taskDir(params.Task.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create artifact dir %q: %w", dir, err)
+	}
+
+	files := map[string]string{
+		"task.md":  s.renderTaskMarkdown(params),
+		"state.md": s.renderStateMarkdown(params),
+		"index.md": s.renderIndexMarkdown(params),
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
+		}
+	}
+
+	if err := s.ensureLogFile(params.Task.ID); err != nil {
+		return err
+	}
+
+	modeArtifacts := s.modeArtifacts(params)
+	if err := s.removeUnusedModeArtifacts(dir, modeArtifacts); err != nil {
+		return err
+	}
+	for name, content := range modeArtifacts {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) renderTaskMarkdown(params SyncParams) string {
+	artifactRoot := fmt.Sprintf(".aom/%s/%s", s.stateDir, params.Task.ID)
+	return fmt.Sprintf(`# Task
+
+## Identity
+- Task ID: %s
+- Title: %s
+- Task Mode: %s
+- Status: %s
+- Created By: %s
+- Assigned Role: %s
+- Assigned Agent: %s
+- Worktree: not provisioned yet
+- Artifact Root: %s
+
+## Goal
+%s
+
+## Scope
+- Complete the steps tracked for this task
+
+## Out of Scope
+- Worktree isolation and provider-native runtime integration remain outside this slice
+
+## Constraints
+- Keep continuity state in AOM artifacts
+- Follow the current task and step workflow state machine
+
+## Success Criteria
+- Planned steps are completed or explicitly resolved
+- Task status reflects the final operator decision
+- Relevant verification is captured before closure
+`,
+		params.Task.ID,
+		params.Task.Title,
+		params.Task.Mode,
+		params.Task.Status,
+		defaultActor(params.CreatedBy),
+		emptyFallback(params.Task.PreferredRole),
+		emptyFallback(params.Task.PreferredAgent),
+		artifactRoot,
+		params.Task.Title,
+	)
+}
+
+func (s *Service) renderStateMarkdown(params SyncParams) string {
+	activeStep := selectActiveStep(params.Steps)
+	currentSessionID := "-"
+	currentRuntime := "-"
+	if params.ActiveSession != nil {
+		currentSessionID = params.ActiveSession.ID
+		currentRuntime = params.ActiveSession.Runtime
+	}
+	currentStep := "-"
+	stepStatus := "-"
+	if activeStep != nil {
+		currentStep = fmt.Sprintf("%s %s", activeStep.ID, activeStep.Title)
+		stepStatus = activeStep.Status
+	}
+
+	return fmt.Sprintf(`# Current State
+
+## Status
+- Task Status: %s
+- Step Status: %s
+
+## Ownership
+- Current Owner: %s
+- Current Runtime: %s
+- Current Session: %s
+- Current Step: %s
+
+## Goal
+%s
+
+## Completed Work
+%s
+
+## Remaining Work
+%s
+
+## Touched Files
+- None recorded yet
+
+## Constraints
+- Stay within the current task scope
+- Preserve continuity through markdown artifacts
+
+## Open Questions
+- None recorded yet
+
+## Next Action
+%s
+
+## Last Updated By
+- Actor: %s
+- Session: %s
+`,
+		params.Task.Status,
+		stepStatus,
+		currentOwner(params.Task, activeStep),
+		currentRuntime,
+		currentSessionID,
+		currentStep,
+		params.Task.Title,
+		renderCompletedWork(params.Steps),
+		renderRemainingWork(params.Steps),
+		emptyFallback(params.RecommendedNextAction),
+		defaultActor(params.UpdatedBy),
+		currentSessionID,
+	)
+}
+
+func (s *Service) renderIndexMarkdown(params SyncParams) string {
+	activeStep := selectActiveStep(params.Steps)
+	activeStepLine := "-"
+	if activeStep != nil {
+		activeStepLine = fmt.Sprintf("%s %s", activeStep.ID, activeStep.Title)
+	}
+
+	activeSession := "-"
+	runtime := "-"
+	recoveryStatus := "No active session"
+	if params.ActiveSession != nil {
+		activeSession = params.ActiveSession.ID
+		runtime = params.ActiveSession.Runtime
+		recoveryStatus = "Live"
+	}
+
+	return fmt.Sprintf(`# Task Index
+
+## Identity
+- Task ID: %s
+- Title: %s
+- Mode: %s
+- Status: %s
+
+## Active Control
+- Active Step: %s
+- Assigned Role: %s
+- Assigned Agent: %s
+- Active Session: %s
+- Runtime: %s
+- Worktree Status: NotProvisioned
+- Continuity Readiness: Good
+
+## Artifacts
+%s
+
+## Checkpoint
+- Latest Checkpoint: -
+- Last Checkpoint At: -
+
+## Attention
+- Unresolved Review Items: 0
+- Pending Approvals: 0
+- Session Recovery Status: %s
+
+## Recommended Next Action
+%s
+`,
+		params.Task.ID,
+		params.Task.Title,
+		params.Task.Mode,
+		params.Task.Status,
+		activeStepLine,
+		emptyFallback(params.Task.PreferredRole),
+		emptyFallback(params.Task.PreferredAgent),
+		activeSession,
+		runtime,
+		s.renderArtifactInventory(params.Task.Mode),
+		recoveryStatus,
+		emptyFallback(params.RecommendedNextAction),
+	)
+}
+
+func (s *Service) renderArtifactInventory(mode string) string {
+	lines := []string{
+		"- task.md: present",
+		"- state.md: present",
+		"- log.md: present",
+		"- handoff.md: absent",
+		"- review-notes.md: absent",
+	}
+
+	switch mode {
+	case "Requirements-first":
+		lines = append(lines, "- requirements.md: present", "- design.md: n/a", "- tasks.md: present")
+	case "Design-first":
+		lines = append(lines, "- requirements.md: n/a", "- design.md: present", "- tasks.md: present")
+	default:
+		lines = append(lines, "- requirements.md: n/a", "- design.md: n/a", "- tasks.md: n/a")
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (s *Service) modeArtifacts(params SyncParams) map[string]string {
+	switch params.Task.Mode {
+	case "Requirements-first":
+		return map[string]string{
+			"requirements.md": "# Requirements\n\n## Summary\n- Capture the accepted requirements for this task.\n",
+			"tasks.md":        s.renderTasksMarkdown(params.Steps),
+		}
+	case "Design-first":
+		return map[string]string{
+			"design.md": "# Design\n\n## Summary\n- Capture the accepted design constraints for this task.\n",
+			"tasks.md":  s.renderTasksMarkdown(params.Steps),
+		}
+	default:
+		return nil
+	}
+}
+
+func (s *Service) renderTasksMarkdown(steps []step.Record) string {
+	var builder strings.Builder
+	builder.WriteString("# Planned Tasks\n\n## Steps\n")
+	if len(steps) == 0 {
+		builder.WriteString("- No planned steps yet\n")
+		return builder.String()
+	}
+
+	for _, item := range steps {
+		builder.WriteString(fmt.Sprintf("- %s | %s | %s\n", item.ID, item.StepType, item.Title))
+	}
+	return builder.String()
+}
+
+func (s *Service) removeUnusedModeArtifacts(dir string, keep map[string]string) error {
+	candidates := []string{"requirements.md", "design.md", "tasks.md"}
+	for _, name := range candidates {
+		if _, ok := keep[name]; ok {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) ensureLogFile(taskID string) error {
+	path := filepath.Join(s.taskDir(taskID), "log.md")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat log.md: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte("# Task Log\n\n## Events\n"), 0o644); err != nil {
+		return fmt.Errorf("write log.md: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) appendEvent(taskID string, event Event) error {
+	if err := s.ensureLogFile(taskID); err != nil {
+		return err
+	}
+
+	timestamp := s.now().Format(time.RFC3339)
+	entry := fmt.Sprintf(
+		"\n### %s | %s | %s\n- Actor: %s\n- Task: %s\n%s%s- Summary: %s\n- State Effect: %s\n",
+		timestamp,
+		s.eventIDGen(),
+		event.Type,
+		defaultActor(event.Actor),
+		taskID,
+		optionalLine("Step", event.StepID),
+		optionalLine("Session", event.SessionID),
+		event.Summary,
+		event.StateEffect,
+	)
+
+	path := filepath.Join(s.taskDir(taskID), "log.md")
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("open log.md for append: %w", err)
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(entry); err != nil {
+		return fmt.Errorf("append log.md: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) taskDir(taskID string) string {
+	return filepath.Join(s.repoPath, ".aom", s.stateDir, taskID)
+}
+
+func renderCompletedWork(steps []step.Record) string {
+	completed := make([]string, 0)
+	for _, item := range steps {
+		if item.Status == "Completed" || item.Status == "Skipped" || item.Status == "Canceled" {
+			completed = append(completed, fmt.Sprintf("- %s | %s", item.ID, item.Title))
+		}
+	}
+	if len(completed) == 0 {
+		return "- None recorded yet"
+	}
+	return strings.Join(completed, "\n")
+}
+
+func renderRemainingWork(steps []step.Record) string {
+	remaining := make([]string, 0)
+	for _, item := range steps {
+		if item.Status == "Completed" || item.Status == "Skipped" || item.Status == "Canceled" {
+			continue
+		}
+		remaining = append(remaining, fmt.Sprintf("- %s | %s | status=%s", item.ID, item.Title, item.Status))
+	}
+	if len(remaining) == 0 {
+		return "- No remaining planned work"
+	}
+	return strings.Join(remaining, "\n")
+}
+
+func selectActiveStep(steps []step.Record) *step.Record {
+	for _, status := range []string{"InProgress", "Ready", "Confirmed", "Proposed", "Blocked", "NeedsAttention"} {
+		for _, item := range steps {
+			if item.Status == status {
+				stepCopy := item
+				return &stepCopy
+			}
+		}
+	}
+	return nil
+}
+
+func currentOwner(taskRecord task.Record, activeStep *step.Record) string {
+	if activeStep != nil {
+		if strings.TrimSpace(activeStep.AgentName) != "" {
+			return activeStep.AgentName
+		}
+		if strings.TrimSpace(activeStep.RoleName) != "" {
+			return activeStep.RoleName
+		}
+	}
+	if strings.TrimSpace(taskRecord.PreferredAgent) != "" {
+		return taskRecord.PreferredAgent
+	}
+	if strings.TrimSpace(taskRecord.PreferredRole) != "" {
+		return taskRecord.PreferredRole
+	}
+	return "-"
+}
+
+func optionalLine(label, value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return fmt.Sprintf("- %s: %s\n", label, value)
+}
+
+func emptyFallback(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
+}
+
+func defaultActor(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "aom"
+	}
+	return strings.TrimSpace(value)
+}
+
+func defaultEventIDGenerator() string {
+	return "EVT-" + strconvFormatInt(time.Now().UnixNano())
+}
+
+func strconvFormatInt(value int64) string {
+	return fmt.Sprintf("%d", value)
+}

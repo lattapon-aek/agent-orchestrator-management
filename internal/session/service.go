@@ -19,6 +19,7 @@ type CreateParams struct {
 	AgentID         string
 	AgentName       string
 	RoleName        string
+	TaskID          string
 	Runtime         string
 	Status          string
 	RepoPath        string
@@ -80,6 +81,7 @@ func (s *Service) Create(params CreateParams) (*Record, error) {
 		AgentID:         strings.TrimSpace(params.AgentID),
 		AgentName:       strings.TrimSpace(params.AgentName),
 		RoleName:        strings.TrimSpace(params.RoleName),
+		TaskID:          strings.TrimSpace(params.TaskID),
 		Runtime:         strings.TrimSpace(params.Runtime),
 		Status:          status,
 		RepoPath:        strings.TrimSpace(params.RepoPath),

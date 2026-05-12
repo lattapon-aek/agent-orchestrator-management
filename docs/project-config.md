@@ -67,7 +67,7 @@ runtime:
   session_prefix: myapp
 
 context:
-  state_dir: .agent
+  state_dir: tasks
   checkpoint_required: true
 ```
 
@@ -84,14 +84,14 @@ context:
 - `runtime.session_prefix`
   - prefix used for tmux session naming
 - `context.state_dir`
-  - artifact directory used for operational memory
+  - artifact directory name used under `.aom/` for task continuity state
 - `context.checkpoint_required`
   - whether checkpoints are expected before handoff or task completion
 
 ### Locked MVP Decisions
 
 - `runtime.terminal` is `tmux`
-- `context.state_dir` is `.agent`
+- `context.state_dir` default is `tasks`
 
 ## agents.yaml
 

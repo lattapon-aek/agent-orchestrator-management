@@ -1,128 +1,108 @@
 package project
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/config"
-	"gopkg.in/yaml.v3"
+	"runtime"
+	"text/template"
 )
 
-type baselineProjectConfig struct {
-	Project   config.ProjectFile
-	Agents    config.AgentsFile
-	Resources config.ResourcesFile
-	Policy    config.PolicyFile
+//go:embed templates/project-init/*.tmpl
+var projectInitTemplates embed.FS
+
+type projectTemplateData struct {
+	Name          string
+	RepoPath      string
+	DefaultBranch string
+	SessionPrefix string
 }
 
-func baselineConfig(name, repoPath, defaultBranch, sessionPrefix string) baselineProjectConfig {
-	return baselineProjectConfig{
-		Project: config.ProjectFile{
-			Name:          name,
-			Repo:          repoPath,
-			DefaultBranch: defaultBranch,
-			Runtime: config.RuntimeConfig{
-				Terminal:      "tmux",
-				SessionPrefix: sessionPrefix,
-			},
-			Context: config.ContextConfig{
-				StateDir:           ".agent",
-				CheckpointRequired: true,
-			},
-		},
-		Agents: config.AgentsFile{
-			Roles: map[string]config.RoleConfig{
-				"orchestrator": {
-					Class:                 "orchestrator",
-					WorktreeMode:          "read-only",
-					CheckpointExpectation: "required",
-					DefaultSessionMode:    "interactive",
-				},
-				"backend": {
-					Class:                 "builder",
-					WorktreeMode:          "dedicated-writer",
-					CheckpointExpectation: "required",
-					DefaultSessionMode:    "interactive",
-				},
-				"reviewer": {
-					Class:                 "reviewer",
-					WorktreeMode:          "read-only",
-					CheckpointExpectation: "required",
-					DefaultSessionMode:    "interactive",
-				},
-			},
-			Agents: map[string]config.AgentConfig{
-				"orchestrator-main": {
-					Runtime: "claude",
-					Role:    "orchestrator",
-					Enabled: true,
-				},
-				"backend-main": {
-					Runtime: "codex",
-					Role:    "backend",
-					Enabled: true,
-				},
-				"reviewer-main": {
-					Runtime: "claude",
-					Role:    "reviewer",
-					Enabled: true,
-				},
-			},
-		},
-		Resources: config.ResourcesFile{
-			Skills:       map[string]config.SkillConfig{},
-			MCPServers:   map[string]config.MCPServerConfig{},
-			RoleBindings: map[string]config.RoleBindingConfig{},
-		},
-		Policy: config.PolicyFile{
-			Policy: config.PolicyConfig{
-				DenyCommands: []string{
-					"rm -rf",
-					"git push --force",
-					"curl * | sh",
-					"npm publish",
-					"terraform apply",
-				},
-				RequireApproval: []string{
-					"delete file",
-					"database migration",
-					"deploy",
-					"read secrets",
-					"network access",
-				},
-				SessionDefaults: config.SessionDefaultsConfig{
-					ApprovalScope: "per-session",
-					YoloMode:      "disabled",
-				},
-				OwnerExceptions: config.OwnerExceptionsConfig{
-					Enabled:     true,
-					LogRequired: true,
-				},
-			},
-		},
-	}
-}
-
-func writeConfigFiles(aomPath string, cfg baselineProjectConfig) error {
-	files := map[string]any{
-		"project.yaml":   cfg.Project,
-		"agents.yaml":    cfg.Agents,
-		"resources.yaml": cfg.Resources,
-		"policy.yaml":    cfg.Policy,
+func writeConfigFiles(aomPath, name, repoPath, defaultBranch, sessionPrefix, templateDir string) error {
+	data := projectTemplateData{
+		Name:          name,
+		RepoPath:      repoPath,
+		DefaultBranch: defaultBranch,
+		SessionPrefix: sessionPrefix,
 	}
 
-	for name, value := range files {
-		data, err := yaml.Marshal(value)
+	files := map[string]string{
+		"project.yaml":   "templates/project-init/project.yaml.tmpl",
+		"agents.yaml":    "templates/project-init/agents.yaml.tmpl",
+		"resources.yaml": "templates/project-init/resources.yaml.tmpl",
+		"policy.yaml":    "templates/project-init/policy.yaml.tmpl",
+	}
+
+	for outputName, templatePath := range files {
+		rendered, err := renderTemplate(templatePath, templateDir, data)
 		if err != nil {
-			return fmt.Errorf("marshal %s: %w", name, err)
+			return fmt.Errorf("render %s: %w", outputName, err)
 		}
 
-		path := filepath.Join(aomPath, name)
-		if err := os.WriteFile(path, data, 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", name, err)
+		path := filepath.Join(aomPath, outputName)
+		if err := os.WriteFile(path, rendered, 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", outputName, err)
 		}
 	}
 
 	return nil
+}
+
+func renderTemplate(templatePath, templateDir string, data projectTemplateData) ([]byte, error) {
+	source, err := readTemplateSource(templatePath, templateDir)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpl, err := template.New(filepath.Base(templatePath)).Parse(string(source))
+	if err != nil {
+		return nil, err
+	}
+
+	var rendered bytes.Buffer
+	if err := tmpl.Execute(&rendered, data); err != nil {
+		return nil, err
+	}
+
+	return rendered.Bytes(), nil
+}
+
+func readTemplateSource(templatePath, templateDir string) ([]byte, error) {
+	if templateDir == "" {
+		return projectInitTemplates.ReadFile(templatePath)
+	}
+
+	customPath := filepath.Join(templateDir, filepath.Base(templatePath))
+	data, err := os.ReadFile(customPath)
+	if err != nil {
+		return nil, fmt.Errorf("read custom template %q: %w", customPath, err)
+	}
+
+	return data, nil
+}
+
+func resolvePresetTemplateDir(name string) (string, error) {
+	name = filepath.Clean(name)
+	if name == "." || name == "" {
+		return "", fmt.Errorf("template preset is required")
+	}
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("resolve preset template path: runtime caller is unavailable")
+	}
+
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
+	templateDir := filepath.Join(repoRoot, "templates", "project-init", name)
+	info, err := os.Stat(templateDir)
+	if err != nil {
+		return "", fmt.Errorf("stat preset template dir %q: %w", templateDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("preset template dir %q is not a directory", templateDir)
+	}
+
+	return templateDir, nil
 }

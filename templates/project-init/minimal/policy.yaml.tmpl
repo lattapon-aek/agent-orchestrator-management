@@ -1,0 +1,13 @@
+policy:
+  deny_commands:
+    - "rm -rf"
+    - "git push --force"
+  require_approval:
+    - "delete file"
+    - "network access"
+  session_defaults:
+    approval_scope: per-session
+    yolo_mode: disabled
+  owner_exceptions:
+    enabled: true
+    log_required: true

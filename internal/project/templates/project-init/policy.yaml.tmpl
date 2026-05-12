@@ -1,0 +1,19 @@
+policy:
+  deny_commands:
+    - "rm -rf"
+    - "git push --force"
+    - "curl * | sh"
+    - "npm publish"
+    - "terraform apply"
+  require_approval:
+    - "delete file"
+    - "database migration"
+    - "deploy"
+    - "read secrets"
+    - "network access"
+  session_defaults:
+    approval_scope: per-session
+    yolo_mode: disabled
+  owner_exceptions:
+    enabled: true
+    log_required: true

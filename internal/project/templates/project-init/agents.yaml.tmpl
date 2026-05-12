@@ -1,0 +1,34 @@
+roles:
+  orchestrator:
+    class: orchestrator
+    worktree_mode: read-only
+    checkpoint_expectation: required
+    default_session_mode: interactive
+
+  backend:
+    class: builder
+    worktree_mode: dedicated-writer
+    checkpoint_expectation: required
+    default_session_mode: interactive
+
+  reviewer:
+    class: reviewer
+    worktree_mode: read-only
+    checkpoint_expectation: required
+    default_session_mode: interactive
+
+agents:
+  orchestrator-main:
+    runtime: claude
+    role: orchestrator
+    enabled: true
+
+  backend-main:
+    runtime: codex
+    role: backend
+    enabled: true
+
+  reviewer-main:
+    runtime: claude
+    role: reviewer
+    enabled: true

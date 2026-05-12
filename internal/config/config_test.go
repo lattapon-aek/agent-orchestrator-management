@@ -24,7 +24,7 @@ runtime:
   session_prefix: myapp
 
 context:
-  state_dir: .agent
+  state_dir: tasks
   checkpoint_required: true
 `)
 
@@ -195,7 +195,7 @@ func validConfig(root string) *ProjectConfig {
 				SessionPrefix: "myapp",
 			},
 			Context: ContextConfig{
-				StateDir:           ".agent",
+				StateDir:           "tasks",
 				CheckpointRequired: true,
 			},
 		},

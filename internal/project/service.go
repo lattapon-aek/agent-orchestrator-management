@@ -22,6 +22,8 @@ type InitParams struct {
 	RepoPath      string
 	DefaultBranch string
 	SessionPrefix string
+	TemplateName  string
+	TemplateDir   string
 }
 
 // InitResult describes project init output.
@@ -37,6 +39,7 @@ type OpenResult struct {
 	Project        Record
 	Agents         []agent.Record
 	DBPath         string
+	StateDir       string
 	TerminalDriver string
 	SessionPrefix  string
 }
@@ -77,13 +80,40 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 		sessionPrefix = sanitizeName(name)
 	}
 
+	templateDir := strings.TrimSpace(params.TemplateDir)
+	templateName := strings.TrimSpace(params.TemplateName)
+	if templateDir != "" && templateName != "" {
+		return nil, fmt.Errorf("template_dir and template preset cannot both be set")
+	}
+	if templateName != "" {
+		templateDir, err = resolvePresetTemplateDir(templateName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if templateDir != "" {
+		templateDir, err = filepath.Abs(templateDir)
+		if err != nil {
+			return nil, fmt.Errorf("resolve template dir: %w", err)
+		}
+		if info, err := os.Stat(templateDir); err != nil {
+			return nil, fmt.Errorf("stat template dir %q: %w", templateDir, err)
+		} else if !info.IsDir() {
+			return nil, fmt.Errorf("template dir %q is not a directory", templateDir)
+		}
+	}
+
 	aomPath := filepath.Join(repoAbsPath, aomDirName)
 	if err := os.MkdirAll(aomPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create .aom directory: %w", err)
 	}
 
-	cfg := baselineConfig(name, repoAbsPath, defaultBranch, sessionPrefix)
-	if err := writeConfigFiles(aomPath, cfg); err != nil {
+	if err := writeConfigFiles(aomPath, name, repoAbsPath, defaultBranch, sessionPrefix, templateDir); err != nil {
+		return nil, err
+	}
+
+	cfg, err := config.LoadProjectConfig(repoAbsPath)
+	if err != nil {
 		return nil, err
 	}
 
@@ -163,6 +193,7 @@ func (s *Service) Open(repoPath string) (*OpenResult, error) {
 		Project:        record,
 		Agents:         agents,
 		DBPath:         dbPath,
+		StateDir:       cfg.Project.Context.StateDir,
 		TerminalDriver: cfg.Project.Runtime.Terminal,
 		SessionPrefix:  cfg.Project.Runtime.SessionPrefix,
 	}, nil

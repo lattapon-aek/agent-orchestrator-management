@@ -1,3 +1,4 @@
 .cache/
+.aom/
 bin/
 .tmp/

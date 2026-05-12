@@ -1,0 +1,12 @@
+roles:
+  backend:
+    class: builder
+    worktree_mode: dedicated-writer
+    checkpoint_expectation: required
+    default_session_mode: interactive
+
+agents:
+  backend-main:
+    runtime: codex
+    role: backend
+    enabled: true

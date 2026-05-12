@@ -66,6 +66,8 @@ aom project init my-app --repo /repos/my-app
 - required flag: `--repo`
 - optional flag: `--default-branch`
 - optional flag: `--session-prefix`
+- optional flag: `--template`
+- optional flag: `--template-dir`
 
 ### Behavior
 
@@ -75,6 +77,9 @@ aom project init my-app --repo /repos/my-app
   - `agents.yaml`
   - `resources.yaml`
   - `policy.yaml`
+- when `--template` is provided, load the named preset from `templates/project-init/<name>`
+- when `--template-dir` is provided, render those files from the provided template directory instead of the built-in starter templates
+- `--template` and `--template-dir` cannot be used together
 - initialize or open `sessions.db`
 - register project in the database
 
@@ -182,6 +187,7 @@ Requests orchestrator planning for a new piece of work without immediately spawn
 ```bash
 aom plan "fix login validation"
 aom plan "add registration endpoint" --mode requirements-first
+aom plan "fix login validation" --create
 ```
 
 ### Inputs
@@ -190,6 +196,7 @@ aom plan "add registration endpoint" --mode requirements-first
 - optional flag: `--mode`
 - optional flag: `--role`
 - optional flag: `--agent`
+- optional flag: `--create`
 
 ### Behavior
 
@@ -197,6 +204,7 @@ aom plan "add registration endpoint" --mode requirements-first
 - recommend task mode
 - recommend steps
 - recommend role or agent assignment
+- when `--create` is provided, persist the accepted plan as a new task and seed its planned steps
 
 ### Output
 
@@ -319,6 +327,9 @@ aom task create "add registration endpoint" --mode requirements-first
   - `index.md`
   - `log.md`
 - create initial step proposals if planning requires them
+
+Current implementation note:
+- until the worktree milestone is implemented, canonical task artifacts are seeded under `.aom/tasks/<task-id>/`
 
 ### Output
 
@@ -466,6 +477,7 @@ Starts a specialist session for a task or step.
 ```bash
 aom session spawn backend-claude --task TASK-001
 aom session spawn reviewer-main --task TASK-001 --step STEP-003
+aom session spawn reviewer-main --mock
 ```
 
 ### Inputs
@@ -475,6 +487,7 @@ aom session spawn reviewer-main --task TASK-001 --step STEP-003
 - optional flag: `--step`
 - optional flag: `--attach`
 - optional flag: `--headless`
+- optional flag: `--mock`
 
 ### Behavior
 
@@ -483,8 +496,10 @@ aom session spawn reviewer-main --task TASK-001 --step STEP-003
 - ensure worktree exists
 - create session record
 - start runtime in the correct worktree
+- when `--mock` is provided, launch a mock transcript shell instead of a provider runtime for local flow verification
 - bind tmux pane
 - inject initial context envelope
+- when `--task` is provided, refresh task continuity artifacts with the active session and append a canonical `session.created` event
 
 ### Output
 

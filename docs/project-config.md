@@ -19,6 +19,11 @@ The recommended repository layout is:
   sessions.db
   logs/
   templates/
+  agents/
+    <agent-name>/
+      profile.md
+  worktrees/
+    <task-slug>/
 ```
 
 ### File Responsibilities
@@ -171,6 +176,115 @@ agents:
 - `runtime`
 - `role`
 - `enabled`
+
+### Optional Agent Fields
+
+- `identity_template`
+  - path to the agent identity profile relative to the project root
+  - when absent, AOM checks for a profile at `.aom/agents/<name>/profile.md` automatically
+  - when neither is found, no identity file is delivered to the worktree
+
+## Runtime Identity Files
+
+### Purpose
+
+Each runtime reads a different configuration file to establish an agent's role and behavioral context:
+
+| Runtime | Identity File |
+|---------|--------------|
+| `claude` | `CLAUDE.md` |
+| `codex`  | `AGENTS.md` |
+| `gemini` | `GEMINI.md` |
+| `kiro`   | `.kiro/rules/*.md` |
+
+These files tell the runtime who it is, what its role constraints are, and what conventions to follow. Without them, two agents of the same runtime are indistinguishable from each other.
+
+### Storage Model
+
+Agent identity profiles are stored **project-level** under `.aom/agents/`:
+
+```text
+.aom/
+  agents/
+    backend-codex/
+      profile.md        ← authoritative identity (AOM-owned)
+    backend-claude/
+      profile.md
+    reviewer-main/
+      profile.md
+    orchestrator-main/
+      profile.md
+```
+
+This keeps all agent identities inspectable from one location, scoped to the project rather than scattered across worktrees.
+
+### Delivery Model
+
+Runtimes discover their config file by traversing up from their CWD. Because task worktrees live at `.aom/worktrees/<task-slug>/`, the runtime's traversal path is:
+
+```
+.aom/worktrees/<task-slug>/   ← CWD
+.aom/worktrees/               ← parent
+.aom/                         ← grandparent — runtime would find CLAUDE.md here
+<project-root>/               ← great-grandparent
+```
+
+The per-agent profile at `.aom/agents/<name>/profile.md` is NOT on this traversal path. AOM bridges this gap by **materializing** the profile into the worktree at spawn time:
+
+```
+on session spawn:
+  read .aom/agents/<name>/profile.md
+  write → <worktree>/CLAUDE.md   (for claude runtime)
+        → <worktree>/AGENTS.md   (for codex runtime)
+        → <worktree>/GEMINI.md   (for gemini runtime)
+```
+
+The identity file is written once at the worktree root before the runtime process starts. The runtime finds it at `./` on first lookup. The authoritative source remains `.aom/agents/<name>/profile.md` — the worktree copy is a spawn-time materialization, not the canonical home.
+
+### Profile Structure
+
+Profiles should be written in the convention that the target runtime expects. Recommended structure:
+
+```markdown
+# Role: Backend Engineer
+
+You are working as the backend implementation specialist for this project.
+
+## Your Identity
+- Agent: backend-codex
+- Role: backend
+- Runtime: codex
+
+## Your Responsibilities
+- Implement features according to task.md and state.md
+- Write tests for all implementation changes
+- Update state.md as you progress
+- Write handoff.md and append handoff.prepared to log.md when done
+
+## Constraints
+- Stay within the task scope defined in task.md
+- Do not modify artifacts in .agent/ except state.md and handoff.md
+- Signal completion via log.md — do not rely on terminal output
+
+## Working Protocol
+Always begin a session by reading:
+1. .agent/task.md — what to do
+2. .agent/state.md — where the work currently stands
+3. .agent/index.md — overall task health
+```
+
+### Concurrent Sessions
+
+One agent can have multiple concurrent sessions across different tasks:
+
+```
+backend-codex session A → TASK-001 worktree (isolated)
+backend-codex session B → TASK-002 worktree (isolated)
+```
+
+Each session gets its own worktree, its own `.agent/` artifacts, and its own identity materialization. No conflicts.
+
+Two sessions of the same agent on the same task worktree are subject to the one-writer-per-worktree guardrail — a second `dedicated-writer` session is blocked. Read-only roles (reviewer, qa) are not subject to this restriction.
 
 ### Role Field Rules
 

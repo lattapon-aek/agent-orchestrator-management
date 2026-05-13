@@ -60,6 +60,14 @@ Its job is to make specialist agents behave like a well-managed team inside one 
 - Tasks are active-workflow oriented, not backlog-heavy in the MVP.
 - Task closure is explicit by the operator.
 
+### Note on "operator"
+
+Throughout this document, "operator" refers to the entity with workflow authority.
+In the current milestone this is a human. In the AI orchestrator model, it may be
+an AI orchestrator session (runtime: claude, role: orchestrator) acting on behalf
+of the human project owner. All state transitions remain explicit CLI commands
+regardless of whether the operator is human or AI.
+
 ## Interaction Model
 
 ### Main surfaces
@@ -141,8 +149,12 @@ The orchestrator should not:
 
 - act as the default quality judge of code
 - silently rewrite task intent
-- close tasks automatically
-- take away direct control from the operator
+- close tasks in a hidden or non-inspectable way
+- take away direct control from the human project owner
+
+When the orchestrator is an AI session, it may close tasks and make routing
+decisions explicitly through CLI commands. All actions remain inspectable via
+artifacts and log.md.
 
 ### Specialist agents
 

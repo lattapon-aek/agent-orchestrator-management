@@ -352,6 +352,7 @@ Each event should contain at least:
 - `task.created`
 - `task.mode_changed`
 - `task.closed`
+- `task.completed`       — agent signals self-contained task work is done
 - `step.proposed`
 - `step.confirmed`
 - `step.completed`
@@ -366,9 +367,10 @@ Each event should contain at least:
 - `approval.approved`
 - `approval.denied`
 - `checkpoint.created`
-- `handoff.prepared`
+- `handoff.prepared`     — agent signals handoff.md is ready for next owner
 - `handoff.accepted`
 - `operator.intervention`
+- `orchestrator.prompt`  — orchestrator sent a prompt to a session via session send
 - `reanalysis.completed`
 
 ### Rules
@@ -663,6 +665,61 @@ Acts as the structured step plan for planning-heavy task modes.
 - Step status should align with the step state machine.
 - Dependencies should remain explicit and simple.
 - This file is the source of planned execution steps for structured modes.
+
+## Agent Completion Protocol
+
+This section defines the convention agents must follow to signal task completion
+to the orchestrator. AOM does not poll terminal output — it reads artifacts.
+
+### When an agent completes its assigned work
+
+The agent must:
+
+1. Write or update `.agent/handoff.md` with completed work summary
+2. Write or update `.agent/state.md` with final state
+3. Append one of the following events to `.agent/log.md`:
+
+For normal completion (work done, ready for next owner):
+
+```
+### <timestamp> | <evt-id> | handoff.prepared
+- Actor: <agent-name>
+- Session: <session-id>
+- Task: <task-id>
+- Summary: Work complete. Handoff packet ready for next owner.
+- State Effect: Handoff Ready
+```
+
+For self-contained completion (no handoff needed):
+
+```
+### <timestamp> | <evt-id> | task.completed
+- Actor: <agent-name>
+- Session: <session-id>
+- Task: <task-id>
+- Summary: Task work complete.
+- State Effect: Step Completed
+```
+
+### Why this matters
+
+The orchestrator session reads log.md to detect completion instead of parsing
+terminal output. This keeps the orchestrator context small and decoupled from
+execution details. Each sub-agent maintains focused context only for its own task
+in its own worktree.
+
+### AOM responsibility
+
+AOM seeds a handoff.md template when a task-bound session is spawned. The template
+provides the required sections so the agent only needs to fill in the content.
+(Not yet implemented — see docs/current-status.md AI Orchestrator Path.)
+
+### Session reuse after completion
+
+After signaling completion via handoff.prepared, the session may remain alive in
+WaitingHandoff state. The orchestrator may resume the same session for the next
+task via `aom session send` without spawning a new one. This preserves the agent's
+native conversation context across tasks.
 
 ## Freshness and Continuity Rules
 

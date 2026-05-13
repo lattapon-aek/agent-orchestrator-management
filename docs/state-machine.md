@@ -605,3 +605,13 @@ This state model is complete enough for Milestone 0 if:
 - one complete session replacement flow can be described without ambiguity
 - worktree continuity remains valid even when tmux or runtime continuity is lost
 - the operator remains the final decision point for closure, recovery, replacement, and workflow change
+
+### Note on "operator"
+
+Throughout this state machine, "operator" refers to the entity with workflow
+authority. In the current milestone this is a human. In the AI orchestrator model,
+an AI orchestrator session (runtime: claude, role: orchestrator) may act as the
+operator for routine decisions such as task closure and session routing. The human
+project owner retains override authority at all times. All state transitions are
+driven by explicit CLI commands regardless of whether the acting authority is human
+or AI.

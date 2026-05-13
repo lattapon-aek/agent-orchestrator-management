@@ -562,6 +562,36 @@ Should show:
 - continuity state
 - latest checkpoint summary
 
+## aom session send
+
+### Purpose
+
+Sends a prompt or message into a live session pane via tmux send-keys. Used by
+the AI orchestrator to deliver task briefs and instructions to sub-agent sessions
+without requiring manual terminal interaction.
+
+### Example
+
+```bash
+aom session send SESS-001 "read .agent/task.md and begin work"
+aom session send SESS-001 "your next task is ready — read .agent/task.md"
+```
+
+### Behavior
+
+- load session record and verify pane binding is live
+- send the message text to the tmux pane via send-keys
+- append `orchestrator.prompt` event to task log if session is task-bound
+- fail clearly if pane is not live
+
+### Output
+
+Should show:
+
+- session id
+- message delivered
+- pane target
+
 ## aom session resume
 
 ### Purpose
@@ -999,4 +1029,5 @@ For the MVP:
 6. `aom reanalyze` is first-class.
 7. `aom review` exists in MVP as a workflow wrapper.
 8. Worktree provisioning happens during task creation and session flow, not through agent self-management.
-9. Task close is an explicit operator action.
+9. Task close is an explicit operator action. "Operator" may be a human or an AI
+   orchestrator session — both drive explicit CLI commands, never hidden mutations.

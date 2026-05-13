@@ -390,6 +390,76 @@ Still out of scope at the current handoff point:
 - provider-native resume flows
 - richer review and unresolved review-item handling under Milestone 6
 
+## AI Orchestrator Path
+
+The system has been validated as a viable foundation for AI-driven orchestration,
+where a Claude Code session acts as the orchestrator and manages sub-agent sessions
+(codex, claude, kiro) as workers. The artifact layer (.agent/*.md) serves as the
+structured interface between orchestrator and sub-agents. The orchestrator reads
+only artifact summaries, not raw terminal output.
+
+### Core insight
+
+Each sub-agent maintains focused context only for its own task in its own worktree.
+The orchestrator context stays small because it reads handoff.md and state.md
+summaries rather than execution details.
+
+### Session reuse model
+
+After a sub-agent signals completion, the orchestrator may resume the same session
+(same tmux pane, same agent conversation) for the next task via `aom session send`
+instead of spawning a new session. This preserves native conversation context across
+tasks. The state machine already supports this: Working → WaitingHandoff → Idle →
+Working. If the pane has died, artifact-backed continuity kicks in via session
+replace.
+
+### Gaps — Tier 1 (minimal viable AI orchestration)
+
+- `aom session send <session-id> <message>` — inject prompt into pane via tmux
+  send-keys (new CLI command + new tmux.Manager.SendKeys method)
+- `aom session resume <session-id> --task <task-id>` — bind new task to existing
+  WaitingHandoff session and deliver initial brief (new CLI command)
+- `claude` runtime support in `internal/runtime/launch.go` under `--real` mode
+  (mirrors the codex implementation)
+- `handoff.md` template seeding in `internal/artifact/service.go` when a task-bound
+  session is spawned (schema defined in docs/artifact-schemas.md, not yet implemented)
+- Completion event convention: agents append `task.completed` or `handoff.prepared`
+  to log.md when work is done; see docs/artifact-schemas.md Agent Completion Protocol
+- Runtime identity file materialization: on `session spawn`, AOM should read
+  `.aom/agents/<name>/profile.md` and write it into the task worktree as the
+  appropriate runtime config file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) so each
+  agent session has its own role identity; without this, two sessions of the same
+  runtime are indistinguishable to the agent; see docs/project-config.md Runtime
+  Identity Files section for the storage model and delivery design
+
+### Gaps — Tier 2 (ergonomic orchestration)
+
+- `aom session wait <session-id> --until <event-type> [--timeout 30m]` — poll
+  log.md until a target event appears or timeout is reached
+- Initial context delivery: task-bound session spawn should note the .agent/task.md
+  path in the launch message so the agent knows its brief on startup
+
+### Gaps — Tier 3 (robust orchestration)
+
+- Continuity readiness scoring populated in index.md (field exists in schema,
+  logic not yet in artifact/service.go)
+- `aom task reanalyze <task-id>` — refresh index.md and recommend next action
+  after manual intervention (planned in Milestone 7)
+- Orchestrator actor type in log events: distinguish `"actor": "orchestrator-ai"`
+  from `"actor": "operator"` for audit clarity
+- Provider-native resume for pane recovery: try `claude --continue` or codex
+  equivalent before falling back to artifact-backed session replacement (Milestone 10)
+
+### Recommended implementation order
+
+1. `claude` runtime in `--real` (small, mirrors codex)
+2. `aom session send` command
+3. `handoff.md` seeding + completion event convention
+4. Verify minimal E2E loop: spawn claude → send brief → wait for handoff.prepared
+   → read handoff.md → decide next step
+5. `aom session resume` command
+6. `aom session wait` command
+
 ## Immediate Next Step
 
 Next milestone to continue:
@@ -409,6 +479,26 @@ Planned validation-oriented slice after that:
 1. extend the real-runtime validation path beyond `codex` only if a concrete next runtime is agreed
 2. verify follow-up runtime slices on macOS or Linux before treating them as stable workflows
 3. use findings from those smoke paths to inform later Milestone 6 and Milestone 10 work
+
+## System Diagrams
+
+Visual reference for architecture, state machines, and key flows:
+- `docs/system-diagrams.md`
+
+Diagrams included:
+1. System Architecture
+2. Package Dependency Direction
+3. Three-Layer Truth Model
+4. Task State Machine
+5. Session State Machine
+6. Worktree State Machine
+7. Step State Machine
+8. Session Spawn Flow (sequence)
+9. AI Orchestrator Loop (sequence)
+10. Artifact Lifecycle
+11. Operator Definition (Human vs AI)
+12. Runtime Identity File Delivery
+13. Multi-Session Agent Model
 
 ## Suggested First Checks On Another Machine
 

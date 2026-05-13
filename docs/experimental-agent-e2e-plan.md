@@ -241,3 +241,62 @@ If the experimental slice proves unstable:
 1. keep placeholder and mock flows as the official verification path
 2. record launch constraints in `current-status`
 3. defer real runtime integration until Milestone 10
+
+## AI Orchestrator Extension
+
+After codex experimental E2E is verified, the natural next slice is enabling
+Claude Code itself to act as the orchestrator session that manages sub-agents.
+
+### Why this follows from codex verification
+
+The codex E2E proves the core loop:
+- session spawn in a real worktree
+- task artifact continuity
+- attach and capture behavior
+
+The AI orchestrator extension adds three things on top:
+
+1. `claude` runtime support under `--real` (mirrors the codex implementation)
+2. `aom session send` command (new CLI + tmux.Manager.SendKeys)
+3. `handoff.md` completion protocol (agents signal done via log.md event)
+
+### The orchestrator loop
+
+```
+orchestrator (claude session):
+  1. aom plan + task create
+  2. aom session spawn <worker-agent> --task <id> --real
+  3. aom session send <id> "read .agent/task.md and begin"
+  4. poll: watch .agent/log.md for handoff.prepared or task.completed
+  5. read .agent/handoff.md for result summary
+  6. decide: close task, hand off to reviewer, or loop back
+  7. aom task update / session replace / session resume as needed
+```
+
+### Session reuse model
+
+After a sub-agent signals completion, the orchestrator may resume the same session
+for the next task without spawning a new one. This preserves the agent's native
+conversation context. The state machine supports this:
+Working → WaitingHandoff → Idle → Working
+
+```bash
+# agent signals done
+# orchestrator resumes same session with new task
+aom session send SESS-001 "your next task is ready — read .agent/task.md"
+```
+
+### What does NOT change
+
+All existing artifact, worktree, session replace, repair, checkpoint, and handoff
+behavior remains unchanged. Only the input mechanism (session send) and completion
+signal (log.md event + handoff.md) are new.
+
+### Scope boundary
+
+This is still pre-Milestone-10 exploratory work, not a formal runtime adapter:
+- no provider-native resume protocol
+- no structured output parsing from terminal
+- no multi-provider abstraction layer
+
+For full details see `docs/current-status.md` AI Orchestrator Path section.

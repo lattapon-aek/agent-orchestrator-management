@@ -19,6 +19,8 @@ The current project priorities are:
 - prioritize state continuity over autonomy
 - support project-scoped governance for roles, skills, and MCP
 - use durable markdown artifacts as operating memory
+- support AI-driven orchestration where a Claude Code session manages sub-agent
+  sessions as workers through the artifact layer and session send mechanism
 
 Before implementing, read:
 
@@ -130,8 +132,15 @@ The orchestrator is a dispatcher plus state gate.
 Do not implement it as:
 
 - a default code reviewer
-- an autonomous manager that closes tasks on its own
-- a hidden black-box planner that bypasses the operator
+- a hidden or non-inspectable manager that bypasses the operator
+- a black-box planner that silently changes task intent
+
+When the orchestrator is an AI session (runtime: claude, role: orchestrator), it
+may close tasks and make routing decisions explicitly through CLI commands. This is
+a supported use case. All transitions must still be explicit and logged.
+
+The human project owner retains override authority. "Autonomous" means hidden or
+non-inspectable, not AI-driven.
 
 ### Workflow model
 

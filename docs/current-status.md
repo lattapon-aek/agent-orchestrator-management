@@ -167,12 +167,16 @@ Current behavior notes:
 - worktree-backed tasks now write `task.md`, `state.md`, `index.md`, `log.md`, and mode-dependent artifacts inside the real task worktree under `.agent/`
 - `status` and `task show` now reconcile persisted worktree mappings against both the filesystem and `git worktree list --porcelain`
 - stale worktree mappings now surface as `NeedsRepair` with explicit operator repair hints instead of silently looking healthy
+- stale worktree hints now distinguish `MissingPath`, `UnregisteredArtifactOnlyPath`, and `UnregisteredDirtyPath` so operator next actions are more specific in `status` and `task show`
 - task-bound session launch now moves healthy worktrees into `Active` so operator-visible state distinguishes idle worktrees from live ones
 - `worktree repair <task-id>` now recovers missing or pruned git-backed task worktrees, restores `.agent/` artifacts into the repaired path, and appends a canonical `worktree.repaired` event
+- `worktree repair <task-id>` now also recreates an unregistered worktree path automatically when the existing path is safe to replace because it is empty or contains only `.agent/`
+- unregistered worktree paths with non-artifact content now remain operator-repair cases; AOM surfaces a manual cleanup hint instead of deleting the path automatically
 - `open`, `status`, `session list`, `session show`, and task views now reconcile tmux pane liveness and persist `Detached` when the pane binding is gone
 - `session stop` now intentionally terminates a live tmux pane when present, marks the durable record `Stopped`, keeps the worktree intact, and records tmux cleanup warnings in canonical task log events when pane teardown fails
 - `session archive` now transitions eligible inactive sessions to `Archived` while preserving audit history
 - `session replace` now spawns a replacement session in the same task/worktree context, preserves continuity through task artifacts, records a canonical `session.replaced` event, and prints explicit operator action hints when the old session is intentionally left running
+- `session replace` now auto-archives superseded sessions that have already reconciled to `Detached`, while still stopping replaceable idle sessions and leaving active `Working` sessions for explicit operator intervention
 - `session spawn --mock` launches a mock runtime transcript for live local flow verification
 - `session spawn` otherwise uses a placeholder shell command, not a real provider CLI yet
 - `attach` and `capture` operate through the tmux manager abstraction
@@ -266,6 +270,10 @@ Last verified state before this handoff:
     - `aom status`
     - `aom worktree repair <task-id>`
     - `aom task show <task-id>`
+  - focused drift classification and safe repair coverage:
+    - missing worktree paths surface a recreate-specific repair hint and next action
+    - unregistered artifact-only worktree paths now auto-repair when the path is empty or contains only `.agent/`
+    - unregistered worktree paths with non-artifact content now surface a manual cleanup requirement instead of auto-repair
   - focused session/worktree reconciliation coverage:
     - missing tmux pane drives `Idle -> Detached`
     - detached task-bound session removes the `Active` worktree claim and returns the mapping to `Ready`
@@ -275,6 +283,7 @@ Last verified state before this handoff:
     - `session archive` moves a stopped session to `Archived`
   - focused replacement coverage:
     - `session replace <old> --agent <new-agent> --reason ...` creates a new session in the same task/worktree, keeps the worktree `Active`, and stops the superseded session when possible
+    - if the old session has already reconciled to `Detached`, replacement now archives it automatically after the replacement session is created
     - when the old session is still `Working`, replacement output now leaves it running intentionally and prints a concrete `aom session stop <old-session-id>` hint for the operator
 
 Suggested verification commands on a new machine:
@@ -333,9 +342,9 @@ Recommended first implementation slice:
 3. start task-to-worktree mapping so task-bound sessions launch in isolated paths
 
 Current next recommended slice:
-1. decide whether replacement should also transition the superseded session to `Archived` automatically in some cases instead of leaving it `Stopped`
-2. decide whether worktree repair should be best-effort automatic in limited safe cases or remain fully operator-driven
-3. extend repair handling for harder drift cases such as an on-disk path that still exists but is no longer a registered git worktree
+1. decide whether repair and replacement outcomes should append richer canonical detail such as classified drift kind or supersession policy reason in `log.md`
+2. decide whether additional replacement end states beyond `Detached -> Archived` are worth automating, or whether other cases should remain explicitly operator-driven
+3. decide whether dirty unregistered worktree paths need a dedicated inspect/report command instead of relying on `status`, `task show`, and repair hints alone
 
 ## Suggested First Checks On Another Machine
 

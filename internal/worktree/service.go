@@ -16,6 +16,13 @@ const (
 	StatusNeedsRepair = "NeedsRepair"
 )
 
+const (
+	DriftNone                         = ""
+	DriftMissingPath                  = "MissingPath"
+	DriftUnregisteredArtifactOnlyPath = "UnregisteredArtifactOnlyPath"
+	DriftUnregisteredDirtyPath        = "UnregisteredDirtyPath"
+)
+
 // CreateParams describes the minimum input needed to create a planned worktree mapping.
 type CreateParams struct {
 	ProjectID     string
@@ -27,11 +34,13 @@ type CreateParams struct {
 
 // Service owns worktree mapping behavior for Milestone 5.
 type Service struct {
-	repo     *Repository
-	lookPath func(string) (string, error)
-	runGit   func(repoPath string, args ...string) ([]byte, error)
-	stat     func(string) (os.FileInfo, error)
-	mkdirAll func(string, os.FileMode) error
+	repo      *Repository
+	lookPath  func(string) (string, error)
+	runGit    func(repoPath string, args ...string) ([]byte, error)
+	stat      func(string) (os.FileInfo, error)
+	readDir   func(string) ([]os.DirEntry, error)
+	mkdirAll  func(string, os.FileMode) error
+	removeAll func(string) error
 }
 
 // NewService creates a worktree service backed by the provided database.
@@ -43,8 +52,10 @@ func NewService(db *sql.DB) *Service {
 			cmd := exec.Command("git", append([]string{"-C", repoPath}, args...)...)
 			return cmd.CombinedOutput()
 		},
-		stat:     os.Stat,
-		mkdirAll: os.MkdirAll,
+		stat:      os.Stat,
+		readDir:   os.ReadDir,
+		mkdirAll:  os.MkdirAll,
+		removeAll: os.RemoveAll,
 	}
 }
 
@@ -196,6 +207,19 @@ func (s *Service) Repair(taskID, repoPath string) (*Record, error) {
 
 	switch {
 	case pathExists && !registered:
+		safeToRecreate, err := s.safeToRecreate(record.WorktreePath)
+		if err != nil {
+			return nil, err
+		}
+		if safeToRecreate {
+			if err := s.removeAll(record.WorktreePath); err != nil {
+				return nil, fmt.Errorf("remove stale worktree path %q: %w", record.WorktreePath, err)
+			}
+			if err := s.addWorktree(repoPath, record); err != nil {
+				return nil, err
+			}
+			break
+		}
 		return nil, fmt.Errorf("worktree path %q exists but is not registered; manual cleanup is required before repair", record.WorktreePath)
 	case !pathExists && !registered:
 		if err := s.mkdirAll(filepath.Dir(record.WorktreePath), 0o755); err != nil {
@@ -263,6 +287,51 @@ func (s *Service) Reconcile(taskID, repoPath string, hasActiveSession bool) (*Re
 	return s.repo.GetByTaskID(taskID)
 }
 
+// DriftKind classifies the current repair condition for one persisted worktree mapping.
+func (s *Service) DriftKind(taskID, repoPath string) (string, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return DriftNone, fmt.Errorf("task id is required")
+	}
+	repoPath = strings.TrimSpace(repoPath)
+	if repoPath == "" {
+		return DriftNone, fmt.Errorf("repo path is required")
+	}
+
+	record, err := s.repo.GetByTaskID(taskID)
+	if err != nil {
+		return DriftNone, err
+	}
+	if record == nil || record.Status != StatusNeedsRepair || !s.gitAvailable(repoPath) {
+		return DriftNone, nil
+	}
+
+	pathExists, err := s.pathExists(record.WorktreePath)
+	if err != nil {
+		return DriftNone, fmt.Errorf("stat worktree path for task %q: %w", taskID, err)
+	}
+	if !pathExists {
+		return DriftMissingPath, nil
+	}
+
+	registered, err := s.isRegistered(repoPath, record.WorktreePath)
+	if err != nil {
+		return DriftNone, err
+	}
+	if !registered {
+		safeToRecreate, err := s.safeToRecreate(record.WorktreePath)
+		if err != nil {
+			return DriftNone, err
+		}
+		if safeToRecreate {
+			return DriftUnregisteredArtifactOnlyPath, nil
+		}
+		return DriftUnregisteredDirtyPath, nil
+	}
+
+	return DriftNone, nil
+}
+
 func (s *Service) gitAvailable(repoPath string) bool {
 	if _, err := s.lookPath("git"); err != nil {
 		return false
@@ -322,6 +391,26 @@ func (s *Service) addWorktree(repoPath string, record *Record) error {
 	}
 
 	return nil
+}
+
+func (s *Service) safeToRecreate(worktreePath string) (bool, error) {
+	entries, err := s.readDir(worktreePath)
+	if err != nil {
+		return false, fmt.Errorf("inspect stale worktree path %q: %w", worktreePath, err)
+	}
+	if len(entries) == 0 {
+		return true, nil
+	}
+	if len(entries) > 1 {
+		return false, nil
+	}
+
+	entry := entries[0]
+	if entry.Name() != ".agent" || !entry.IsDir() {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (s *Service) branchExists(repoPath, branchName string) (bool, error) {

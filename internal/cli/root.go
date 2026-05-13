@@ -636,16 +636,21 @@ func (r Runner) executeTaskShow(args []string) error {
 			return err
 		}
 	}
+	driftKind := worktree.DriftNone
 	if mapping != nil {
+		driftKind, err = worktreeService.DriftKind(taskRecord.ID, result.Project.RepoPath)
+		if err != nil {
+			return err
+		}
 		fmt.Fprintf(r.stdout, "Worktree status: %s\n", mapping.Status)
 		fmt.Fprintf(r.stdout, "Worktree branch: %s\n", mapping.BranchName)
 		fmt.Fprintf(r.stdout, "Worktree path: %s\n", mapping.WorktreePath)
-		if hint := worktreeHint(taskRecord.ID, mapping); hint != "" {
+		if hint := worktreeHint(taskRecord.ID, mapping, driftKind); hint != "" {
 			fmt.Fprintf(r.stdout, "Worktree hint: %s\n", hint)
 		}
 	}
 	fmt.Fprintf(r.stdout, "Steps: %d\n", len(steps))
-	fmt.Fprintf(r.stdout, "Recommended next action: %s\n", recommendTaskAction(taskRecord.Status, steps, mapping))
+	fmt.Fprintf(r.stdout, "Recommended next action: %s\n", recommendTaskAction(taskRecord.Status, steps, mapping, driftKind))
 
 	return nil
 }
@@ -1310,7 +1315,22 @@ func (r Runner) replaceSession(result *project.OpenResult, oldRecord session.Rec
 	oldSessionOutcome := fmt.Sprintf("left running (%s requires operator intervention)", oldRecord.Status)
 	oldSessionHint := ""
 	stopWarning := ""
-	if stoppableReplacementSession(oldRecord.Status) {
+	if archivableReplacementSession(oldRecord.Status) {
+		stopped, warning, err := r.stopSessionRecord(result, oldRecord, false)
+		if err != nil {
+			return err
+		}
+		archived, err := r.archiveSessionRecord(result, *stopped, false, "Superseded session archived automatically after replacement")
+		if err != nil {
+			return err
+		}
+		stoppedStatus = archived.Status
+		stopWarning = warning
+		oldSessionOutcome = fmt.Sprintf("archived (%s)", archived.Status)
+		if warning != "" {
+			oldSessionOutcome = fmt.Sprintf("archived with warning (%s)", archived.Status)
+		}
+	} else if stoppableReplacementSession(oldRecord.Status) {
 		stopped, warning, err := r.stopSessionRecord(result, oldRecord, false)
 		if err != nil {
 			return err
@@ -1424,13 +1444,52 @@ func (r Runner) stopSessionRecord(result *project.OpenResult, record session.Rec
 	return stopped, warning, nil
 }
 
+func (r Runner) archiveSessionRecord(result *project.OpenResult, record session.Record, print bool, summary string) (*session.Record, error) {
+	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
+	if err != nil {
+		return nil, err
+	}
+	defer sqlDB.Close()
+
+	archived, err := sessionService.Archive(record)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.TrimSpace(archived.TaskID) != "" {
+		if err := r.syncTaskArtifacts(result, archived.TaskID, artifact.Event{
+			Type:        "session.archived",
+			Actor:       "operator",
+			SessionID:   archived.ID,
+			Summary:     summary,
+			StateEffect: "Session Archived",
+		}, false); err != nil {
+			return nil, err
+		}
+	}
+
+	if print {
+		fmt.Fprintln(r.stdout, "Session archived")
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintf(r.stdout, "Session: %s\n", archived.ID)
+		fmt.Fprintf(r.stdout, "Status: %s\n", archived.Status)
+		fmt.Fprintf(r.stdout, "Task: %s\n", emptyFallback(archived.TaskID))
+	}
+
+	return archived, nil
+}
+
 func stoppableReplacementSession(status string) bool {
 	switch status {
-	case "Idle", "WaitingHandoff", "Detached":
+	case "Idle", "WaitingHandoff":
 		return true
 	default:
 		return false
 	}
+}
+
+func archivableReplacementSession(status string) bool {
+	return status == "Detached"
 }
 
 func (r Runner) executeSessionStop(args []string) error {
@@ -1472,36 +1531,8 @@ func (r Runner) executeSessionArchive(args []string) error {
 		return err
 	}
 
-	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
-	if err != nil {
-		return err
-	}
-	defer sqlDB.Close()
-
-	archived, err := sessionService.Archive(*record)
-	if err != nil {
-		return err
-	}
-
-	if strings.TrimSpace(archived.TaskID) != "" {
-		if err := r.syncTaskArtifacts(result, archived.TaskID, artifact.Event{
-			Type:        "session.archived",
-			Actor:       "operator",
-			SessionID:   archived.ID,
-			Summary:     "Session archived explicitly by operator",
-			StateEffect: "Session Archived",
-		}, false); err != nil {
-			return err
-		}
-	}
-
-	fmt.Fprintln(r.stdout, "Session archived")
-	fmt.Fprintln(r.stdout, "")
-	fmt.Fprintf(r.stdout, "Session: %s\n", archived.ID)
-	fmt.Fprintf(r.stdout, "Status: %s\n", archived.Status)
-	fmt.Fprintf(r.stdout, "Task: %s\n", emptyFallback(archived.TaskID))
-
-	return nil
+	_, err = r.archiveSessionRecord(result, *record, true, "Session archived explicitly by operator")
+	return err
 }
 
 func (r Runner) executeAttach(args []string) error {
@@ -1569,9 +1600,10 @@ func (r Runner) executeCapture(args []string) error {
 }
 
 type taskView struct {
-	Task     task.Record
-	Steps    []step.Record
-	Worktree *worktree.Record
+	Task          task.Record
+	Steps         []step.Record
+	Worktree      *worktree.Record
+	WorktreeDrift string
 }
 
 func (r Runner) printProjectSummary(title string, result *project.OpenResult, workspace *tmux.Workspace, sessions []session.Record, taskCount int, taskViews []taskView) {
@@ -1651,7 +1683,7 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 					item.Worktree.BranchName,
 					item.Worktree.WorktreePath,
 				)
-				if hint := worktreeHint(item.Task.ID, item.Worktree); hint != "" {
+				if hint := worktreeHint(item.Task.ID, item.Worktree, item.WorktreeDrift); hint != "" {
 					label := "note"
 					if item.Worktree.Status == worktree.StatusNeedsRepair {
 						label = "repair"
@@ -1659,7 +1691,7 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 					fmt.Fprintf(r.stdout, "    %s=%s\n", label, hint)
 				}
 			}
-			fmt.Fprintf(r.stdout, "    next=%s\n", recommendTaskAction(item.Task.Status, item.Steps, item.Worktree))
+			fmt.Fprintf(r.stdout, "    next=%s\n", recommendTaskAction(item.Task.Status, item.Steps, item.Worktree, item.WorktreeDrift))
 			for _, taskStep := range item.Steps {
 				fmt.Fprintf(
 					r.stdout,
@@ -1832,7 +1864,11 @@ func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, taskRecord 
 		return nil, "", err
 	}
 	if mapping != nil && mapping.Status == worktree.StatusNeedsRepair {
-		return mapping, "", fmt.Errorf("worktree for task %q needs repair: %s", taskRecord.ID, worktreeHint(taskRecord.ID, mapping))
+		driftKind, err := worktreeService.DriftKind(taskRecord.ID, result.Project.RepoPath)
+		if err != nil {
+			return nil, "", err
+		}
+		return mapping, "", fmt.Errorf("worktree for task %q needs repair: %s", taskRecord.ID, worktreeHint(taskRecord.ID, mapping, driftKind))
 	}
 	if mapping.Status != worktree.StatusReady && mapping.Status != worktree.StatusActive {
 		mapping, err = worktreeService.EnsureProvisioned(mapping.TaskID, result.Project.RepoPath)
@@ -1847,9 +1883,18 @@ func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, taskRecord 
 	return mapping, mapping.WorktreePath, nil
 }
 
-func recommendTaskAction(status string, steps []step.Record, mapping *worktree.Record) string {
+func recommendTaskAction(status string, steps []step.Record, mapping *worktree.Record, driftKind string) string {
 	if mapping != nil && mapping.Status == worktree.StatusNeedsRepair {
-		return "repair the task worktree before continuing"
+		switch driftKind {
+		case worktree.DriftMissingPath:
+			return "recreate the missing task worktree before continuing"
+		case worktree.DriftUnregisteredArtifactOnlyPath:
+			return "run worktree repair to recreate the unregistered task worktree"
+		case worktree.DriftUnregisteredDirtyPath:
+			return "inspect the existing task worktree path and clean it up manually before continuing"
+		default:
+			return "repair the task worktree before continuing"
+		}
 	}
 	if status == "Done" {
 		return "task is closed; archive later if needed"
@@ -1934,19 +1979,34 @@ func (r Runner) loadTaskViews(result *project.OpenResult, sessions []session.Rec
 			}
 		}
 		views[i].Worktree = mapping
+		if mapping != nil {
+			views[i].WorktreeDrift, err = worktreeService.DriftKind(views[i].Task.ID, result.Project.RepoPath)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	return views, nil
 }
 
-func worktreeHint(taskID string, mapping *worktree.Record) string {
+func worktreeHint(taskID string, mapping *worktree.Record, driftKind string) string {
 	if mapping == nil {
 		return ""
 	}
 
 	switch mapping.Status {
 	case worktree.StatusNeedsRepair:
-		return fmt.Sprintf("run \"aom worktree repair %s\" or inspect the git worktree path before continuing", taskID)
+		switch driftKind {
+		case worktree.DriftMissingPath:
+			return fmt.Sprintf("run \"aom worktree repair %s\" to recreate the missing git worktree path before continuing", taskID)
+		case worktree.DriftUnregisteredArtifactOnlyPath:
+			return fmt.Sprintf("run \"aom worktree repair %s\" to recreate the unregistered worktree path; the existing path only contains AOM-owned content", taskID)
+		case worktree.DriftUnregisteredDirtyPath:
+			return fmt.Sprintf("inspect the existing worktree path and clean up non-artifact content manually before running \"aom worktree repair %s\"", taskID)
+		default:
+			return fmt.Sprintf("run \"aom worktree repair %s\" or inspect the git worktree path before continuing", taskID)
+		}
 	case worktree.StatusActive:
 		return "task worktree is currently bound to a live session"
 	default:
@@ -1996,7 +2056,7 @@ func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, t
 		Worktree:              view.Worktree,
 		CreatedBy:             "operator",
 		UpdatedBy:             updatedBy,
-		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps, view.Worktree),
+		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps, view.Worktree, view.WorktreeDrift),
 	}
 	if seed {
 		return service.SeedTaskArtifacts(params)
@@ -2074,11 +2134,19 @@ func (r Runner) loadTaskView(result *project.OpenResult, taskID string) (*taskVi
 			return nil, err
 		}
 	}
+	driftKind := worktree.DriftNone
+	if mapping != nil {
+		driftKind, err = worktreeService.DriftKind(record.ID, result.Project.RepoPath)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return &taskView{
-		Task:     *record,
-		Steps:    steps,
-		Worktree: mapping,
+		Task:          *record,
+		Steps:         steps,
+		Worktree:      mapping,
+		WorktreeDrift: driftKind,
 	}, nil
 }
 

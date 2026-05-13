@@ -12,6 +12,7 @@ import (
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/app"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/project"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/tmux"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/worktree"
 )
 
 func TestExecuteProjectInitCreatesAOMStructure(t *testing.T) {
@@ -1258,11 +1259,24 @@ func TestExecuteStatusMarksStaleWorktreeNeedsRepair(t *testing.T) {
 	if !strings.Contains(statusOut, "worktree=NeedsRepair | branch=aom/") {
 		t.Fatalf("stdout = %q, want worktree needs-repair summary", statusOut)
 	}
-	if !strings.Contains(statusOut, "repair=run \"aom worktree repair "+taskID+"\" or inspect the git worktree path before continuing") {
-		t.Fatalf("stdout = %q, want repair hint", statusOut)
+	if !strings.Contains(statusOut, "repair=run \"aom worktree repair "+taskID+"\" to recreate the missing git worktree path before continuing") {
+		t.Fatalf("stdout = %q, want missing-path repair hint", statusOut)
 	}
-	if !strings.Contains(statusOut, "next=repair the task worktree before continuing") {
-		t.Fatalf("stdout = %q, want repair next action", statusOut)
+	if !strings.Contains(statusOut, "next=recreate the missing task worktree before continuing") {
+		t.Fatalf("stdout = %q, want missing-path next action", statusOut)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "show", taskID}, &stdout, &stderr); err != nil {
+		t.Fatalf("task show failed: %v", err)
+	}
+	showOut := stdout.String()
+	if !strings.Contains(showOut, "Worktree hint: run \"aom worktree repair "+taskID+"\" to recreate the missing git worktree path before continuing") {
+		t.Fatalf("stdout = %q, want missing-path task hint", showOut)
+	}
+	if !strings.Contains(showOut, "Recommended next action: recreate the missing task worktree before continuing") {
+		t.Fatalf("stdout = %q, want missing-path task next action", showOut)
 	}
 }
 
@@ -2092,6 +2106,168 @@ func TestExecuteSessionReplaceSupersedesOldSessionInSameTaskWorktree(t *testing.
 	}
 }
 
+func TestExecuteSessionReplaceArchivesDetachedSession(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for session replace integration test")
+	}
+
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(output))
+		}
+	}
+
+	runGit("init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	runGit("add", "README.md")
+	runGit("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "init")
+
+	firstHasSession := true
+	splitCount := 0
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				splitCount++
+				if splitCount == 1 {
+					return []byte("@1 %5\n"), nil
+				}
+				return []byte("@1 %6\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				target := args[len(args)-2]
+				if target == "%5" {
+					return nil, errors.New("pane not found")
+				}
+				if target == "%6" {
+					return []byte("%6\n"), nil
+				}
+				return nil, errors.New("pane not found")
+			case "kill-pane":
+				t.Fatalf("kill-pane should not run for detached replacement")
+				return nil, nil
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "create", "Replace detached session", "--role", "backend", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create failed: %v", err)
+	}
+	taskID := extractEntityID(stdout.String(), "Task: ")
+	if taskID == "" {
+		t.Fatalf("could not extract task id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "backend-main", "--task", taskID, "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+	oldSessionID := extractSessionID(stdout.String())
+	if oldSessionID == "" {
+		t.Fatalf("could not extract old session id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "replace", oldSessionID, "--agent", "reviewer-main", "--reason", "recover detached pane", "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session replace failed: %v", err)
+	}
+	replaceOut := stdout.String()
+	if !strings.Contains(replaceOut, "Old session result: archived (Archived)") {
+		t.Fatalf("stdout = %q, want archived old session outcome", replaceOut)
+	}
+	newSessionID := extractEntityID(replaceOut, "New session: ")
+	if newSessionID == "" {
+		t.Fatalf("could not extract new session id from %q", replaceOut)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "show", oldSessionID}, &stdout, &stderr); err != nil {
+		t.Fatalf("old session show failed: %v", err)
+	}
+	if out := stdout.String(); !strings.Contains(out, "Status: Archived") {
+		t.Fatalf("stdout = %q, want archived old session", out)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"status"}, &stdout, &stderr); err != nil {
+		t.Fatalf("status failed: %v", err)
+	}
+	statusOut := stdout.String()
+	if !strings.Contains(statusOut, "status=Archived") {
+		t.Fatalf("stdout = %q, want archived old session in summary", statusOut)
+	}
+	if !strings.Contains(statusOut, newSessionID) {
+		t.Fatalf("stdout = %q, want replacement session in summary", statusOut)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "show", taskID}, &stdout, &stderr); err != nil {
+		t.Fatalf("task show failed: %v", err)
+	}
+	worktreePath := extractLineValue(stdout.String(), "Worktree path: ")
+	if worktreePath == "" {
+		t.Fatalf("could not extract worktree path from %q", stdout.String())
+	}
+	logData, err := os.ReadFile(filepath.Join(worktreePath, ".agent", "log.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(log.md) failed: %v", err)
+	}
+	if !strings.Contains(string(logData), "session.archived") {
+		t.Fatalf("log.md = %q, want session.archived event", string(logData))
+	}
+	if !strings.Contains(string(logData), "session.replaced") {
+		t.Fatalf("log.md = %q, want session.replaced event", string(logData))
+	}
+}
+
 func TestExecuteSessionReplaceLeavesWorkingSessionRunning(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is required for session replace integration test")
@@ -2652,4 +2828,32 @@ func samePath(left, right string) (bool, error) {
 	}
 
 	return filepath.Clean(leftEval) == filepath.Clean(rightEval), nil
+}
+
+func TestWorktreeHintClassifiesUnregisteredPaths(t *testing.T) {
+	mapping := &worktree.Record{Status: worktree.StatusNeedsRepair}
+
+	artifactOnly := worktreeHint("TASK-001", mapping, worktree.DriftUnregisteredArtifactOnlyPath)
+	if !strings.Contains(artifactOnly, `run "aom worktree repair TASK-001"`) || !strings.Contains(artifactOnly, "only contains AOM-owned content") {
+		t.Fatalf("artifactOnly hint = %q, want repair-now guidance", artifactOnly)
+	}
+
+	dirty := worktreeHint("TASK-001", mapping, worktree.DriftUnregisteredDirtyPath)
+	if !strings.Contains(dirty, "clean up non-artifact content manually") {
+		t.Fatalf("dirty hint = %q, want manual cleanup guidance", dirty)
+	}
+}
+
+func TestRecommendTaskActionClassifiesUnregisteredPaths(t *testing.T) {
+	mapping := &worktree.Record{Status: worktree.StatusNeedsRepair}
+
+	artifactOnly := recommendTaskAction("Ready", nil, mapping, worktree.DriftUnregisteredArtifactOnlyPath)
+	if artifactOnly != "run worktree repair to recreate the unregistered task worktree" {
+		t.Fatalf("artifactOnly next action = %q", artifactOnly)
+	}
+
+	dirty := recommendTaskAction("Ready", nil, mapping, worktree.DriftUnregisteredDirtyPath)
+	if dirty != "inspect the existing task worktree path and clean it up manually before continuing" {
+		t.Fatalf("dirty next action = %q", dirty)
+	}
 }

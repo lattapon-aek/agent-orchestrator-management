@@ -120,6 +120,102 @@ func TestServiceInitUsesPresetTemplate(t *testing.T) {
 	}
 }
 
+func TestServiceInitFiltersSelectedAgents(t *testing.T) {
+	repoRoot := t.TempDir()
+
+	service := NewService()
+	if _, err := service.Init(InitParams{
+		Name:     "my-app",
+		RepoPath: repoRoot,
+		AgentSelections: []InitAgentSelection{
+			{Name: "backend-main"},
+			{Name: "reviewer-main"},
+		},
+	}); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	result, err := service.Open(repoRoot)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	if len(result.Agents) != 2 {
+		t.Fatalf("agent count = %d, want 2", len(result.Agents))
+	}
+	for _, agentRecord := range result.Agents {
+		if agentRecord.Name == "orchestrator-main" {
+			t.Fatalf("unexpected filtered-out agent still present: %q", agentRecord.Name)
+		}
+	}
+}
+
+func TestServicePreviewInitAgentsReturnsTemplateAgents(t *testing.T) {
+	repoRoot := t.TempDir()
+
+	service := NewService()
+	options, err := service.PreviewInitAgents(InitParams{
+		Name:     "my-app",
+		RepoPath: repoRoot,
+	})
+	if err != nil {
+		t.Fatalf("PreviewInitAgents failed: %v", err)
+	}
+
+	if len(options) != 3 {
+		t.Fatalf("option count = %d, want 3", len(options))
+	}
+	if options[0].Name != "backend-main" {
+		t.Fatalf("first option = %q, want backend-main", options[0].Name)
+	}
+	if options[1].Name != "orchestrator-main" {
+		t.Fatalf("second option = %q, want orchestrator-main", options[1].Name)
+	}
+	if options[2].Name != "reviewer-main" {
+		t.Fatalf("third option = %q, want reviewer-main", options[2].Name)
+	}
+}
+
+func TestServiceInitSupportsInlineAgentSelection(t *testing.T) {
+	repoRoot := t.TempDir()
+
+	service := NewService()
+	if _, err := service.Init(InitParams{
+		Name:     "my-app",
+		RepoPath: repoRoot,
+		AgentSelections: []InitAgentSelection{
+			{Name: "backend-main"},
+			{Name: "frontend-main", Role: "builder", Runtime: "claude", Inline: true},
+		},
+	}); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	result, err := service.Open(repoRoot)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	if len(result.Agents) != 2 {
+		t.Fatalf("agent count = %d, want 2", len(result.Agents))
+	}
+
+	found := false
+	for _, agentRecord := range result.Agents {
+		if agentRecord.Name != "frontend-main" {
+			continue
+		}
+		found = true
+		if agentRecord.Role != "builder" {
+			t.Fatalf("frontend role = %q, want builder", agentRecord.Role)
+		}
+		if agentRecord.Runtime != "claude" {
+			t.Fatalf("frontend runtime = %q, want claude", agentRecord.Runtime)
+		}
+	}
+	if !found {
+		t.Fatal("frontend-main was not created")
+	}
+}
+
 func TestServiceInitDoesNotOverwriteExistingAgentProfile(t *testing.T) {
 	repoRoot := t.TempDir()
 

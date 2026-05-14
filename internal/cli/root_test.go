@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,6 +56,206 @@ func TestExecuteProjectInitCreatesAOMStructure(t *testing.T) {
 
 	if got := stdout.String(); !strings.Contains(got, "Project initialized") {
 		t.Fatalf("stdout = %q, want project initialized message", got)
+	}
+}
+
+func TestExecuteProjectInitFiltersSelectedAgents(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	err = Execute([]string{"project", "init", "my-app", "--repo", repoRoot, "--agents", "backend-main,reviewer-main"}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "backend-main:") || !strings.Contains(content, "reviewer-main:") {
+		t.Fatalf("agents.yaml = %q, want selected agents", content)
+	}
+	if strings.Contains(content, "orchestrator-main:") {
+		t.Fatalf("agents.yaml = %q, do not want filtered-out agent", content)
+	}
+}
+
+func TestExecuteProjectInitSupportsInlineAgentDefinitions(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	err = Execute([]string{"project", "init", "my-app", "--repo", repoRoot, "--agents", "backend-main,frontend-main:builder:claude,reviewer-main"}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "frontend-main:") || !strings.Contains(content, "runtime: claude") || !strings.Contains(content, "role: builder") {
+		t.Fatalf("agents.yaml = %q, want inline frontend agent", content)
+	}
+}
+
+func TestExecuteProjectInitInteractiveAgentSelection(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	runner := Runner{
+		app:    app.New(),
+		stdin:  strings.NewReader("backend-main,reviewer-main\n"),
+		stdout: &stdout,
+		stderr: &stderr,
+		isTTY: func(io.Reader) bool {
+			return true
+		},
+	}
+
+	if err := runner.Execute([]string{"project", "init", "my-app", "--repo", repoRoot}); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "backend-main:") || !strings.Contains(content, "reviewer-main:") {
+		t.Fatalf("agents.yaml = %q, want selected agents", content)
+	}
+	if strings.Contains(content, "orchestrator-main:") {
+		t.Fatalf("agents.yaml = %q, do not want filtered-out agent", content)
+	}
+
+	if got := stdout.String(); !strings.Contains(got, "Select agents to enable") {
+		t.Fatalf("stdout = %q, want interactive prompt", got)
+	}
+}
+
+func TestExecuteProjectInitInteractiveSupportsInlineAgentSelection(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	runner := Runner{
+		app:    app.New(),
+		stdin:  strings.NewReader("orchestrator-main,frontend-main:builder:codex\n"),
+		stdout: &stdout,
+		stderr: &stderr,
+		isTTY: func(io.Reader) bool {
+			return true
+		},
+	}
+
+	if err := runner.Execute([]string{"project", "init", "my-app", "--repo", repoRoot}); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "frontend-main:") || !strings.Contains(content, "runtime: codex") || !strings.Contains(content, "role: builder") {
+		t.Fatalf("agents.yaml = %q, want inline frontend agent", content)
+	}
+	if !strings.Contains(stdout.String(), "name:role:runtime") {
+		t.Fatalf("stdout = %q, want inline syntax hint", stdout.String())
+	}
+}
+
+func TestExecuteProjectInitInteractiveBlankSelectionKeepsDefaultAgents(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	runner := Runner{
+		app:    app.New(),
+		stdin:  strings.NewReader("\n"),
+		stdout: &stdout,
+		stderr: &stderr,
+		isTTY: func(io.Reader) bool {
+			return true
+		},
+	}
+
+	if err := runner.Execute([]string{"project", "init", "my-app", "--repo", repoRoot}); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "backend-main:") || !strings.Contains(content, "reviewer-main:") || !strings.Contains(content, "orchestrator-main:") {
+		t.Fatalf("agents.yaml = %q, want default full agent set", content)
 	}
 }
 

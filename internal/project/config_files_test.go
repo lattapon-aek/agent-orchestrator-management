@@ -14,7 +14,7 @@ func TestWriteConfigFilesRendersTemplates(t *testing.T) {
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
 
-	err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", "")
+	err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", "", nil)
 	if err != nil {
 		t.Fatalf("writeConfigFiles failed: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestWriteConfigFilesUsesCustomTemplateDir(t *testing.T) {
 		}
 	}
 
-	err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", templateDir)
+	err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", templateDir, nil)
 	if err != nil {
 		t.Fatalf("writeConfigFiles failed: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExistingGitignore(t
 		t.Fatalf("WriteFile(.gitignore) failed: %v", err)
 	}
 
-	if err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", ""); err != nil {
+	if err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", "", nil); err != nil {
 		t.Fatalf("writeConfigFiles failed: %v", err)
 	}
 
@@ -108,6 +108,125 @@ func TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExistingGitignore(t
 	}
 	if strings.Count(content, ".agent/") != 1 {
 		t.Fatalf(".gitignore = %q, want one .agent entry", content)
+	}
+}
+
+func TestWriteConfigFilesFiltersSelectedAgents(t *testing.T) {
+	root := t.TempDir()
+	aomPath := filepath.Join(root, ".aom")
+	if err := os.MkdirAll(aomPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	if err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", "", []InitAgentSelection{
+		{Name: "backend-main"},
+		{Name: "reviewer-main"},
+	}); err != nil {
+		t.Fatalf("writeConfigFiles failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(aomPath, "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "backend-main:") || !strings.Contains(content, "reviewer-main:") {
+		t.Fatalf("agents.yaml = %q, want selected agents", content)
+	}
+	if strings.Contains(content, "orchestrator-main:") {
+		t.Fatalf("agents.yaml = %q, do not want filtered-out agent", content)
+	}
+	if strings.Contains(content, "orchestrator:\n") {
+		t.Fatalf("agents.yaml = %q, do not want unreferenced role", content)
+	}
+}
+
+func TestWriteConfigFilesAddsInlineAgentUsingExistingRole(t *testing.T) {
+	root := t.TempDir()
+	aomPath := filepath.Join(root, ".aom")
+	if err := os.MkdirAll(aomPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	if err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", "", []InitAgentSelection{
+		{Name: "backend-main"},
+		{Name: "frontend-main", Role: "backend", Runtime: "claude", Inline: true},
+	}); err != nil {
+		t.Fatalf("writeConfigFiles failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(aomPath, "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "frontend-main:") || !strings.Contains(content, "runtime: claude") || !strings.Contains(content, "role: backend") {
+		t.Fatalf("agents.yaml = %q, want inline frontend agent", content)
+	}
+	if strings.Count(content, "backend:\n") != 1 {
+		t.Fatalf("agents.yaml = %q, want reused backend role only once", content)
+	}
+}
+
+func TestWriteConfigFilesAddsDefaultRoleForInlineAgent(t *testing.T) {
+	root := t.TempDir()
+	aomPath := filepath.Join(root, ".aom")
+	if err := os.MkdirAll(aomPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+
+	if err := writeConfigFiles(aomPath, "my-app", root, "main", "my-app", "", []InitAgentSelection{
+		{Name: "frontend-main", Role: "builder", Runtime: "CLAUDE", Inline: true},
+	}); err != nil {
+		t.Fatalf("writeConfigFiles failed: %v", err)
+	}
+
+	agentsData, err := os.ReadFile(filepath.Join(aomPath, "agents.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	content := string(agentsData)
+	if !strings.Contains(content, "frontend-main:") || !strings.Contains(content, "runtime: claude") || !strings.Contains(content, "role: builder") {
+		t.Fatalf("agents.yaml = %q, want normalized inline frontend agent", content)
+	}
+	if !strings.Contains(content, "builder:") || !strings.Contains(content, "class: builder") || !strings.Contains(content, "worktree_mode: dedicated-writer") {
+		t.Fatalf("agents.yaml = %q, want default inline role config", content)
+	}
+}
+
+func TestParseInitAgentSelectionsRejectsInvalidEntries(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+		want  string
+	}{
+		{
+			name:  "invalid bare name",
+			input: []string{"frontend_main"},
+			want:  `agent name "frontend_main" must be alphanumeric with hyphens only`,
+		},
+		{
+			name:  "invalid runtime",
+			input: []string{"frontend-main:builder:unknown"},
+			want:  `agent "frontend-main" runtime "unknown" is not supported`,
+		},
+		{
+			name:  "duplicate agent",
+			input: []string{"frontend-main:builder:claude", "frontend-main:backend:codex"},
+			want:  `agent "frontend-main" was selected more than once`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseInitAgentSelections(tt.input)
+			if err == nil {
+				t.Fatal("ParseInitAgentSelections returned nil error")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("error = %q, want substring %q", err, tt.want)
+			}
+		})
 	}
 }
 

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/agent"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/config"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/db"
+	"gopkg.in/yaml.v3"
 )
 
 const aomDirName = ".aom"
@@ -16,14 +18,30 @@ const aomDirName = ".aom"
 // Service owns project initialization and registration flows.
 type Service struct{}
 
+// InitAgentOption describes one selectable agent from a project-init template.
+type InitAgentOption struct {
+	Name    string
+	Role    string
+	Runtime string
+}
+
+// InitAgentSelection describes one requested agent selection during project init.
+type InitAgentSelection struct {
+	Name    string
+	Role    string
+	Runtime string
+	Inline  bool
+}
+
 // InitParams describes project init input.
 type InitParams struct {
-	Name          string
-	RepoPath      string
-	DefaultBranch string
-	SessionPrefix string
-	TemplateName  string
-	TemplateDir   string
+	Name            string
+	RepoPath        string
+	DefaultBranch   string
+	SessionPrefix   string
+	TemplateName    string
+	TemplateDir     string
+	AgentSelections []InitAgentSelection
 }
 
 // InitResult describes project init output.
@@ -81,27 +99,9 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 		sessionPrefix = sanitizeName(name)
 	}
 
-	templateDir := strings.TrimSpace(params.TemplateDir)
-	templateName := strings.TrimSpace(params.TemplateName)
-	if templateDir != "" && templateName != "" {
-		return nil, fmt.Errorf("template_dir and template preset cannot both be set")
-	}
-	if templateName != "" {
-		templateDir, err = resolvePresetTemplateDir(templateName)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if templateDir != "" {
-		templateDir, err = filepath.Abs(templateDir)
-		if err != nil {
-			return nil, fmt.Errorf("resolve template dir: %w", err)
-		}
-		if info, err := os.Stat(templateDir); err != nil {
-			return nil, fmt.Errorf("stat template dir %q: %w", templateDir, err)
-		} else if !info.IsDir() {
-			return nil, fmt.Errorf("template dir %q is not a directory", templateDir)
-		}
+	templateDir, err := resolveInitTemplateDir(params.TemplateName, params.TemplateDir)
+	if err != nil {
+		return nil, err
 	}
 
 	aomPath := filepath.Join(repoAbsPath, aomDirName)
@@ -109,7 +109,7 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 		return nil, fmt.Errorf("create .aom directory: %w", err)
 	}
 
-	if err := writeConfigFiles(aomPath, name, repoAbsPath, defaultBranch, sessionPrefix, templateDir); err != nil {
+	if err := writeConfigFiles(aomPath, name, repoAbsPath, defaultBranch, sessionPrefix, templateDir, params.AgentSelections); err != nil {
 		return nil, err
 	}
 
@@ -150,6 +150,65 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 		AOMPath:     aomPath,
 		DBPath:      dbPath,
 	}, nil
+}
+
+// PreviewInitAgents returns the available agents from the chosen init template.
+func (s *Service) PreviewInitAgents(params InitParams) ([]InitAgentOption, error) {
+	name := strings.TrimSpace(params.Name)
+	if name == "" {
+		return nil, fmt.Errorf("project name is required")
+	}
+	repoPath := strings.TrimSpace(params.RepoPath)
+	if repoPath == "" {
+		return nil, fmt.Errorf("repo path is required")
+	}
+
+	repoAbsPath, err := filepath.Abs(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo path: %w", err)
+	}
+
+	defaultBranch := strings.TrimSpace(params.DefaultBranch)
+	if defaultBranch == "" {
+		defaultBranch = "main"
+	}
+	sessionPrefix := strings.TrimSpace(params.SessionPrefix)
+	if sessionPrefix == "" {
+		sessionPrefix = sanitizeName(name)
+	}
+
+	templateDir, err := resolveInitTemplateDir(params.TemplateName, params.TemplateDir)
+	if err != nil {
+		return nil, err
+	}
+
+	rendered, err := renderAgentsConfig(projectTemplateData{
+		Name:          name,
+		RepoPath:      repoAbsPath,
+		DefaultBranch: defaultBranch,
+		SessionPrefix: sessionPrefix,
+	}, templateDir, nil)
+	if err != nil {
+		return nil, fmt.Errorf("render agents template: %w", err)
+	}
+
+	var cfg initAgentsConfig
+	if err := yaml.Unmarshal(rendered, &cfg); err != nil {
+		return nil, fmt.Errorf("unmarshal agents template: %w", err)
+	}
+
+	options := make([]InitAgentOption, 0, len(cfg.Agents))
+	for agentName, agentCfg := range cfg.Agents {
+		options = append(options, InitAgentOption{
+			Name:    agentName,
+			Role:    agentCfg.Role,
+			Runtime: agentCfg.Runtime,
+		})
+	}
+	sort.Slice(options, func(i, j int) bool {
+		return options[i].Name < options[j].Name
+	})
+	return options, nil
 }
 
 // Open loads config, opens the DB, and syncs config-backed state for an existing project.
@@ -222,4 +281,33 @@ func sanitizeName(value string) string {
 	}
 
 	return result
+}
+
+func resolveInitTemplateDir(templateName, templateDir string) (string, error) {
+	templateDir = strings.TrimSpace(templateDir)
+	templateName = strings.TrimSpace(templateName)
+	if templateDir != "" && templateName != "" {
+		return "", fmt.Errorf("template_dir and template preset cannot both be set")
+	}
+	if templateName != "" {
+		resolved, err := resolvePresetTemplateDir(templateName)
+		if err != nil {
+			return "", err
+		}
+		templateDir = resolved
+	}
+	if templateDir == "" {
+		return "", nil
+	}
+
+	resolved, err := filepath.Abs(templateDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve template dir: %w", err)
+	}
+	if info, err := os.Stat(resolved); err != nil {
+		return "", fmt.Errorf("stat template dir %q: %w", resolved, err)
+	} else if !info.IsDir() {
+		return "", fmt.Errorf("template dir %q is not a directory", resolved)
+	}
+	return resolved, nil
 }

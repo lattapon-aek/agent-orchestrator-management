@@ -9,6 +9,9 @@ import (
 	"runtime"
 	"strings"
 	"text/template"
+
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed templates/project-init/*.tmpl
@@ -21,7 +24,12 @@ type projectTemplateData struct {
 	SessionPrefix string
 }
 
-func writeConfigFiles(aomPath, name, repoPath, defaultBranch, sessionPrefix, templateDir string) error {
+type initAgentsConfig struct {
+	Roles  map[string]config.RoleConfig  `yaml:"roles"`
+	Agents map[string]config.AgentConfig `yaml:"agents"`
+}
+
+func writeConfigFiles(aomPath, name, repoPath, defaultBranch, sessionPrefix, templateDir string, agentSelections []InitAgentSelection) error {
 	data := projectTemplateData{
 		Name:          name,
 		RepoPath:      repoPath,
@@ -37,9 +45,20 @@ func writeConfigFiles(aomPath, name, repoPath, defaultBranch, sessionPrefix, tem
 	}
 
 	for outputName, templatePath := range files {
-		rendered, err := renderTemplate(templatePath, templateDir, data)
-		if err != nil {
-			return fmt.Errorf("render %s: %w", outputName, err)
+		var (
+			rendered []byte
+			err      error
+		)
+		if outputName == "agents.yaml" {
+			rendered, err = renderAgentsConfig(data, templateDir, agentSelections)
+			if err != nil {
+				return fmt.Errorf("render %s: %w", outputName, err)
+			}
+		} else {
+			rendered, err = renderTemplate(templatePath, templateDir, data)
+			if err != nil {
+				return fmt.Errorf("render %s: %w", outputName, err)
+			}
 		}
 
 		path := filepath.Join(aomPath, outputName)
@@ -53,6 +72,14 @@ func writeConfigFiles(aomPath, name, repoPath, defaultBranch, sessionPrefix, tem
 	}
 
 	return nil
+}
+
+func renderAgentsConfig(data projectTemplateData, templateDir string, agentSelections []InitAgentSelection) ([]byte, error) {
+	rendered, err := renderTemplate("templates/project-init/agents.yaml.tmpl", templateDir, data)
+	if err != nil {
+		return nil, err
+	}
+	return filterAgentsConfig(rendered, agentSelections)
 }
 
 func ensureRootGitignore(repoPath string) error {
@@ -82,6 +109,183 @@ func ensureRootGitignore(repoPath string) error {
 		return fmt.Errorf("write .gitignore: %w", err)
 	}
 	return nil
+}
+
+func filterAgentsConfig(rendered []byte, agentSelections []InitAgentSelection) ([]byte, error) {
+	normalizedSelections, err := normalizeInitAgentSelections(agentSelections)
+	if err != nil {
+		return nil, err
+	}
+	if len(normalizedSelections) == 0 {
+		return rendered, nil
+	}
+
+	var agentsFile initAgentsConfig
+	if err := yaml.Unmarshal(rendered, &agentsFile); err != nil {
+		return nil, fmt.Errorf("unmarshal agents config: %w", err)
+	}
+
+	filteredAgents := make(map[string]config.AgentConfig, len(normalizedSelections))
+	referencedRoles := make(map[string]struct{}, len(normalizedSelections))
+	for _, selection := range normalizedSelections {
+		if selection.Inline {
+			filteredAgents[selection.Name] = config.AgentConfig{
+				Runtime: selection.Runtime,
+				Role:    selection.Role,
+				Enabled: true,
+			}
+			referencedRoles[selection.Role] = struct{}{}
+			continue
+		}
+
+		agentCfg, ok := agentsFile.Agents[selection.Name]
+		if !ok {
+			return nil, fmt.Errorf("agent %q was not found in the selected template", selection.Name)
+		}
+		filteredAgents[selection.Name] = agentCfg
+		referencedRoles[agentCfg.Role] = struct{}{}
+	}
+
+	filteredRoles := make(map[string]config.RoleConfig, len(referencedRoles))
+	for roleName := range referencedRoles {
+		roleCfg, ok := agentsFile.Roles[roleName]
+		if ok {
+			filteredRoles[roleName] = roleCfg
+			continue
+		}
+		if roleName == "" {
+			return nil, fmt.Errorf("role %q required by selected agents was not found in the selected template", roleName)
+		}
+		filteredRoles[roleName] = defaultInlineRoleConfig()
+	}
+
+	agentsFile.Agents = filteredAgents
+	agentsFile.Roles = filteredRoles
+	filtered, err := yaml.Marshal(&agentsFile)
+	if err != nil {
+		return nil, fmt.Errorf("marshal filtered agents config: %w", err)
+	}
+	return filtered, nil
+}
+
+func ParseInitAgentSelections(values []string) ([]InitAgentSelection, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	selections := make([]InitAgentSelection, 0, len(values))
+	for _, value := range values {
+		item := strings.TrimSpace(value)
+		if item == "" {
+			continue
+		}
+
+		selection, err := parseInitAgentSelection(item)
+		if err != nil {
+			return nil, err
+		}
+		selections = append(selections, selection)
+	}
+	return normalizeInitAgentSelections(selections)
+}
+
+func parseInitAgentSelection(value string) (InitAgentSelection, error) {
+	parts := strings.Split(value, ":")
+	switch len(parts) {
+	case 1:
+		name := strings.TrimSpace(parts[0])
+		if err := validateInitAgentIdentifier(name, "agent"); err != nil {
+			return InitAgentSelection{}, err
+		}
+		return InitAgentSelection{Name: name}, nil
+	case 3:
+		name := strings.TrimSpace(parts[0])
+		role := strings.TrimSpace(parts[1])
+		runtimeName := strings.ToLower(strings.TrimSpace(parts[2]))
+		if err := validateInitAgentIdentifier(name, "agent"); err != nil {
+			return InitAgentSelection{}, err
+		}
+		if strings.TrimSpace(role) == "" {
+			return InitAgentSelection{}, fmt.Errorf("agent %q role is required", name)
+		}
+		if _, ok := knownInitAgentRuntimes[runtimeName]; !ok {
+			return InitAgentSelection{}, fmt.Errorf("agent %q runtime %q is not supported", name, parts[2])
+		}
+		return InitAgentSelection{
+			Name:    name,
+			Role:    role,
+			Runtime: runtimeName,
+			Inline:  true,
+		}, nil
+	default:
+		return InitAgentSelection{}, fmt.Errorf("agent selection %q must use name or name:role:runtime", value)
+	}
+}
+
+var knownInitAgentRuntimes = map[string]struct{}{
+	"claude": {},
+	"codex":  {},
+	"gemini": {},
+	"kiro":   {},
+}
+
+func normalizeInitAgentSelections(selections []InitAgentSelection) ([]InitAgentSelection, error) {
+	if len(selections) == 0 {
+		return nil, nil
+	}
+
+	seen := make(map[string]InitAgentSelection, len(selections))
+	normalized := make([]InitAgentSelection, 0, len(selections))
+	for _, selection := range selections {
+		current := InitAgentSelection{
+			Name:   strings.TrimSpace(selection.Name),
+			Role:   strings.TrimSpace(selection.Role),
+			Inline: selection.Inline,
+		}
+		if err := validateInitAgentIdentifier(current.Name, "agent"); err != nil {
+			return nil, err
+		}
+		if current.Inline {
+			if current.Role == "" {
+				return nil, fmt.Errorf("agent %q role is required", current.Name)
+			}
+			current.Runtime = strings.ToLower(strings.TrimSpace(selection.Runtime))
+			if _, ok := knownInitAgentRuntimes[current.Runtime]; !ok {
+				return nil, fmt.Errorf("agent %q runtime %q is not supported", current.Name, selection.Runtime)
+			}
+		}
+		if existing, ok := seen[current.Name]; ok {
+			if existing == current {
+				continue
+			}
+			return nil, fmt.Errorf("agent %q was selected more than once", current.Name)
+		}
+		seen[current.Name] = current
+		normalized = append(normalized, current)
+	}
+	return normalized, nil
+}
+
+func validateInitAgentIdentifier(value, label string) error {
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("%s name is required", label)
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
+			continue
+		}
+		return fmt.Errorf("%s name %q must be alphanumeric with hyphens only", label, value)
+	}
+	return nil
+}
+
+func defaultInlineRoleConfig() config.RoleConfig {
+	return config.RoleConfig{
+		Class:                 "builder",
+		WorktreeMode:          "dedicated-writer",
+		CheckpointExpectation: "required",
+		DefaultSessionMode:    "interactive",
+	}
 }
 
 func renderTemplate(templatePath, templateDir string, data projectTemplateData) ([]byte, error) {

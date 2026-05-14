@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/tmux"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/worktree"
+	"github.com/mattn/go-isatty"
 )
 
 var newApp = app.New
@@ -28,16 +30,20 @@ var newLaunchBuilder = aomruntime.NewBuilder
 // Runner executes top-level CLI behavior.
 type Runner struct {
 	app    *app.App
+	stdin  io.Reader
 	stdout io.Writer
 	stderr io.Writer
+	isTTY  func(io.Reader) bool
 }
 
 // Execute runs the AOM CLI using the provided arguments and streams.
 func Execute(args []string, stdout, stderr io.Writer) error {
 	r := Runner{
 		app:    newApp(),
+		stdin:  os.Stdin,
 		stdout: stdout,
 		stderr: stderr,
+		isTTY:  isTTYReader,
 	}
 
 	return r.Execute(args)
@@ -337,6 +343,16 @@ func (r Runner) executeProjectInit(args []string) error {
 				return fmt.Errorf("--template-dir requires a value")
 			}
 			params.templateDir = args[i]
+		case "--agents":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--agents requires a value")
+			}
+			selections, err := project.ParseInitAgentSelections(parseCommaSeparatedValues(args[i]))
+			if err != nil {
+				return err
+			}
+			params.agentSelections = selections
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -344,6 +360,13 @@ func (r Runner) executeProjectInit(args []string) error {
 
 	if strings.TrimSpace(params.repo) == "" {
 		return fmt.Errorf("--repo is required")
+	}
+	if len(params.agentSelections) == 0 {
+		selectedAgents, err := r.promptProjectInitAgents(params)
+		if err != nil {
+			return err
+		}
+		params.agentSelections = selectedAgents
 	}
 
 	result, err := r.app.Projects.Init(params.toInitParams())
@@ -360,6 +383,56 @@ func (r Runner) executeProjectInit(args []string) error {
 	fmt.Fprintf(r.stdout, "Config: %s\n", filepath.Join(result.AOMPath, "project.yaml"))
 
 	return nil
+}
+
+func (r Runner) promptProjectInitAgents(params projectInitParams) ([]project.InitAgentSelection, error) {
+	if r.stdin == nil || r.isTTY == nil || !r.isTTY(r.stdin) {
+		return nil, nil
+	}
+
+	options, err := r.app.Projects.PreviewInitAgents(params.toInitParams())
+	if err != nil {
+		return nil, err
+	}
+	if len(options) == 0 {
+		return nil, nil
+	}
+
+	fmt.Fprintln(r.stdout, "Select agents to enable (comma-separated names or name:role:runtime, blank for all):")
+	for _, option := range options {
+		fmt.Fprintf(r.stdout, "  - %s | role=%s | runtime=%s\n", option.Name, emptyFallback(option.Role), emptyFallback(option.Runtime))
+	}
+	fmt.Fprint(r.stdout, "> ")
+
+	line, err := bufio.NewReader(r.stdin).ReadString('\n')
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("read agent selection: %w", err)
+	}
+
+	rawValues := parseCommaSeparatedValues(strings.TrimSpace(line))
+	if len(rawValues) == 0 {
+		return nil, nil
+	}
+
+	selected, err := project.ParseInitAgentSelections(rawValues)
+	if err != nil {
+		return nil, err
+	}
+
+	validNames := make(map[string]struct{}, len(options))
+	for _, option := range options {
+		validNames[option.Name] = struct{}{}
+	}
+	for _, item := range selected {
+		if item.Inline {
+			continue
+		}
+		if _, ok := validNames[item.Name]; !ok {
+			return nil, fmt.Errorf("agent %q was not found in the selected template", item.Name)
+		}
+	}
+
+	return selected, nil
 }
 
 func (r Runner) executeWorktreeRepair(args []string) error {
@@ -414,22 +487,24 @@ func (r Runner) executeWorktreeRepair(args []string) error {
 }
 
 type projectInitParams struct {
-	name          string
-	repo          string
-	defaultBranch string
-	sessionPrefix string
-	templateName  string
-	templateDir   string
+	name            string
+	repo            string
+	defaultBranch   string
+	sessionPrefix   string
+	templateName    string
+	templateDir     string
+	agentSelections []project.InitAgentSelection
 }
 
 func (p projectInitParams) toInitParams() project.InitParams {
 	return project.InitParams{
-		Name:          p.name,
-		RepoPath:      p.repo,
-		DefaultBranch: p.defaultBranch,
-		SessionPrefix: p.sessionPrefix,
-		TemplateName:  p.templateName,
-		TemplateDir:   p.templateDir,
+		Name:            p.name,
+		RepoPath:        p.repo,
+		DefaultBranch:   p.defaultBranch,
+		SessionPrefix:   p.sessionPrefix,
+		TemplateName:    p.templateName,
+		TemplateDir:     p.templateDir,
+		AgentSelections: p.agentSelections,
 	}
 }
 
@@ -2691,6 +2766,27 @@ func formatDependencies(values []string) string {
 	}
 
 	return strings.Join(values, ",")
+}
+
+func parseCommaSeparatedValues(value string) []string {
+	parts := strings.Split(value, ",")
+	normalized := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item == "" {
+			continue
+		}
+		normalized = append(normalized, item)
+	}
+	return normalized
+}
+
+func isTTYReader(reader io.Reader) bool {
+	file, ok := reader.(*os.File)
+	if !ok {
+		return false
+	}
+	return isatty.IsTerminal(file.Fd()) || isatty.IsCygwinTerminal(file.Fd())
 }
 
 func buildPlanStepSeeds(steps []plan.StepProposal) []task.StepSeed {

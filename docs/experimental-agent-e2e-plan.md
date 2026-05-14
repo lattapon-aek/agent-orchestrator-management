@@ -154,8 +154,11 @@ Expected effect:
 
 ### `aom session spawn reviewer-main --real`
 
-Expected effect in the first slice:
-- fail clearly if `reviewer-main` uses an unsupported runtime such as `claude`
+Expected effect:
+- create the durable session record
+- create the tmux pane
+- launch `claude` interactively in the pane
+- keep current artifact and lifecycle logging behavior
 
 ### `aom session replace <old> --agent backend-main --real`
 

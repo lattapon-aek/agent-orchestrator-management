@@ -403,6 +403,310 @@ func TestExecuteSessionSpawnWithRealRuntime(t *testing.T) {
 	}
 }
 
+func TestExecuteSessionSpawnWithRealClaudeRuntime(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	firstHasSession := true
+	var splitCommands []string
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				splitCommands = append(splitCommands, args[len(args)-1])
+				return []byte("@1 %5\n"), nil
+			case "set-option":
+				return nil, nil
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	restoreLaunchBuilder := stubLaunchBuilderFactory(t, aomruntime.NewBuilderWithLookPath(
+		func(string) (string, error) { return "/opt/homebrew/bin/claude", nil },
+	))
+	defer restoreLaunchBuilder()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+
+	if err := Execute([]string{"session", "spawn", "reviewer-main", "--real"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+
+	out := stdout.String()
+	if !strings.Contains(out, "Launch mode: real") {
+		t.Fatalf("stdout = %q, want real launch mode", out)
+	}
+	if len(splitCommands) != 1 {
+		t.Fatalf("len(splitCommands) = %d, want 1", len(splitCommands))
+	}
+	if splitCommands[0] != "sh -lc 'exec claude'" {
+		t.Fatalf("split command = %q, want claude exec launch", splitCommands[0])
+	}
+}
+
+func TestExecuteSessionSpawnWithTaskRealMaterializesCodexIdentityFile(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for worktree identity materialization test")
+	}
+
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(output))
+		}
+	}
+
+	runGit("init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	runGit("add", "README.md")
+	runGit("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "init")
+
+	firstHasSession := true
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				return []byte("@1 %5\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				return []byte("%5\n"), nil
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	restoreLaunchBuilder := stubLaunchBuilderFactory(t, aomruntime.NewBuilderWithLookPath(
+		func(string) (string, error) { return "/opt/homebrew/bin/codex", nil },
+	))
+	defer restoreLaunchBuilder()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "create", "Materialize codex identity", "--role", "backend", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create failed: %v", err)
+	}
+	taskID := extractEntityID(stdout.String(), "Task: ")
+	if taskID == "" {
+		t.Fatalf("could not extract task id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "backend-main", "--task", taskID, "--real"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+	sessionID := extractSessionID(stdout.String())
+	if sessionID == "" {
+		t.Fatalf("could not extract session id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "show", sessionID}, &stdout, &stderr); err != nil {
+		t.Fatalf("session show failed: %v", err)
+	}
+	worktreePath := extractLineValue(stdout.String(), "Worktree: ")
+	if worktreePath == "" {
+		t.Fatalf("could not extract worktree path from %q", stdout.String())
+	}
+
+	identityData, err := os.ReadFile(filepath.Join(worktreePath, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(AGENTS.md) failed: %v", err)
+	}
+	if !strings.Contains(string(identityData), "Agent: backend-main") {
+		t.Fatalf("AGENTS.md = %q, want backend profile content", string(identityData))
+	}
+}
+
+func TestExecuteSessionSpawnWithTaskRealMaterializesClaudeIdentityFile(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is required for worktree identity materialization test")
+	}
+
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", repoRoot}, args...)...)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, string(output))
+		}
+	}
+
+	runGit("init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(repoRoot, "README.md"), []byte("hello\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+	runGit("add", "README.md")
+	runGit("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "init")
+
+	firstHasSession := true
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				return []byte("@1 %5\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				return []byte("%5\n"), nil
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	restoreLaunchBuilder := stubLaunchBuilderFactory(t, aomruntime.NewBuilderWithLookPath(
+		func(string) (string, error) { return "/opt/homebrew/bin/claude", nil },
+	))
+	defer restoreLaunchBuilder()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "create", "Materialize orchestrator identity", "--role", "orchestrator", "--agent", "orchestrator-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create failed: %v", err)
+	}
+	taskID := extractEntityID(stdout.String(), "Task: ")
+	if taskID == "" {
+		t.Fatalf("could not extract task id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "orchestrator-main", "--task", taskID, "--real"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+	sessionID := extractSessionID(stdout.String())
+	if sessionID == "" {
+		t.Fatalf("could not extract session id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "show", sessionID}, &stdout, &stderr); err != nil {
+		t.Fatalf("session show failed: %v", err)
+	}
+	worktreePath := extractLineValue(stdout.String(), "Worktree: ")
+	if worktreePath == "" {
+		t.Fatalf("could not extract worktree path from %q", stdout.String())
+	}
+
+	identityData, err := os.ReadFile(filepath.Join(worktreePath, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(CLAUDE.md) failed: %v", err)
+	}
+	if !strings.Contains(string(identityData), "Agent: orchestrator-main") {
+		t.Fatalf("CLAUDE.md = %q, want orchestrator profile content", string(identityData))
+	}
+}
+
 func TestExecuteSessionSpawnWithRealRuntimeRejectsUnsupportedAgent(t *testing.T) {
 	repoRoot := t.TempDir()
 	oldWD, err := os.Getwd()
@@ -442,13 +746,26 @@ func TestExecuteSessionSpawnWithRealRuntimeRejectsUnsupportedAgent(t *testing.T)
 		t.Fatalf("project init failed: %v", err)
 	}
 
+	agentsPath := filepath.Join(repoRoot, ".aom", "agents.yaml")
+	agentsData, err := os.ReadFile(agentsPath)
+	if err != nil {
+		t.Fatalf("ReadFile(agents.yaml) failed: %v", err)
+	}
+	updatedAgents := strings.Replace(string(agentsData), "  reviewer-main:\n    runtime: claude", "  reviewer-main:\n    runtime: gemini", 1)
+	if updatedAgents == string(agentsData) {
+		t.Fatalf("agents.yaml = %q, want reviewer-main runtime fixture", string(agentsData))
+	}
+	if err := os.WriteFile(agentsPath, []byte(updatedAgents), 0o644); err != nil {
+		t.Fatalf("WriteFile(agents.yaml) failed: %v", err)
+	}
+
 	stdout.Reset()
 	stderr.Reset()
 	err = Execute([]string{"session", "spawn", "reviewer-main", "--real"}, &stdout, &stderr)
 	if err == nil {
 		t.Fatal("session spawn returned nil error, want unsupported runtime failure")
 	}
-	if !strings.Contains(err.Error(), `does not support runtime "claude"`) {
+	if !strings.Contains(err.Error(), `does not support runtime "gemini"`) {
 		t.Fatalf("error = %q, want unsupported runtime message", err)
 	}
 	if splitCount != 0 {
@@ -633,6 +950,20 @@ func TestExecuteSessionSpawnWithTaskRefreshesArtifacts(t *testing.T) {
 	}
 	if !strings.Contains(string(logData), "Session Idle") {
 		t.Fatalf("log.md = %q, want idle lifecycle state", string(logData))
+	}
+
+	handoffData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "tasks", taskID, "handoff.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(handoff.md) failed: %v", err)
+	}
+	if !strings.Contains(string(handoffData), "From Session: "+sessionID) {
+		t.Fatalf("handoff.md = %q, want session id", string(handoffData))
+	}
+	if !strings.Contains(string(handoffData), "From Runtime: codex") {
+		t.Fatalf("handoff.md = %q, want runtime", string(handoffData))
+	}
+	if !strings.Contains(string(handoffData), "Exact Next Action") {
+		t.Fatalf("handoff.md = %q, want exact next action section", string(handoffData))
 	}
 }
 
@@ -1547,6 +1878,110 @@ func TestExecuteAttachLogsOperatorInterventionForTaskBoundSession(t *testing.T) 
 	}
 	if !strings.Contains(string(logData), "Re-analysis required") {
 		t.Fatalf("log.md = %q, want re-analysis marker", string(logData))
+	}
+}
+
+func TestExecuteSessionSendDeliversPromptAndAppendsTaskEvent(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	firstHasSession := true
+	restoreAppFactory := stubAppFactory(t, tmux.NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			if len(args) == 0 {
+				return nil, nil
+			}
+			switch args[0] {
+			case "has-session":
+				if firstHasSession {
+					firstHasSession = false
+					return nil, errors.New("session not found")
+				}
+				return nil, nil
+			case "new-session":
+				return nil, nil
+			case "split-window":
+				return []byte("@1 %5\n"), nil
+			case "set-option":
+				return nil, nil
+			case "display-message":
+				return []byte("%5\n"), nil
+			case "send-keys":
+				return nil, nil
+			default:
+				return nil, nil
+			}
+		},
+		func(string, ...string) error { return nil },
+	))
+	defer restoreAppFactory()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "my-app", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"task", "create", "Deliver prompt into task session", "--role", "backend", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create failed: %v", err)
+	}
+	taskID := extractEntityID(stdout.String(), "Task: ")
+	if taskID == "" {
+		t.Fatalf("could not extract task id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "spawn", "backend-main", "--task", taskID, "--mock"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session spawn failed: %v", err)
+	}
+	sessionID := extractSessionID(stdout.String())
+	if sessionID == "" {
+		t.Fatalf("could not extract session id from %q", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if err := Execute([]string{"session", "send", sessionID, "read", ".agent/task.md", "and", "begin", "work"}, &stdout, &stderr); err != nil {
+		t.Fatalf("session send failed: %v", err)
+	}
+	sendOut := stdout.String()
+	if !strings.Contains(sendOut, "Prompt delivered") {
+		t.Fatalf("stdout = %q, want prompt summary", sendOut)
+	}
+	if !strings.Contains(sendOut, "Session: "+sessionID) {
+		t.Fatalf("stdout = %q, want session id", sendOut)
+	}
+	if !strings.Contains(sendOut, "Pane: %5") {
+		t.Fatalf("stdout = %q, want pane target", sendOut)
+	}
+	if !strings.Contains(sendOut, "Message: read .agent/task.md and begin work") {
+		t.Fatalf("stdout = %q, want joined message", sendOut)
+	}
+
+	logData, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "tasks", taskID, "log.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(log.md) failed: %v", err)
+	}
+	if !strings.Contains(string(logData), "orchestrator.prompt") {
+		t.Fatalf("log.md = %q, want orchestrator.prompt event", string(logData))
+	}
+	if !strings.Contains(string(logData), "Prompt delivered to session "+sessionID+": read .agent/task.md and begin work") {
+		t.Fatalf("log.md = %q, want prompt summary", string(logData))
 	}
 }
 

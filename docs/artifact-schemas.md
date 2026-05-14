@@ -712,7 +712,6 @@ in its own worktree.
 
 AOM seeds a handoff.md template when a task-bound session is spawned. The template
 provides the required sections so the agent only needs to fill in the content.
-(Not yet implemented — see docs/current-status.md AI Orchestrator Path.)
 
 ### Session reuse after completion
 

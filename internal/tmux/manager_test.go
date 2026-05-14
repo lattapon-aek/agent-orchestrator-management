@@ -237,6 +237,31 @@ func TestManagerCapturePaneReturnsOutput(t *testing.T) {
 	}
 }
 
+func TestManagerSendKeysSendsLiteralMessageThenEnter(t *testing.T) {
+	var calls [][]string
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return nil, nil
+		},
+		nil,
+	)
+
+	if err := manager.SendKeys("%7", "read .agent/task.md and begin work"); err != nil {
+		t.Fatalf("SendKeys failed: %v", err)
+	}
+	if len(calls) != 2 {
+		t.Fatalf("command call count = %d, want 2", len(calls))
+	}
+	if calls[0][1] != "send-keys" || calls[0][4] != "-l" {
+		t.Fatalf("first command = %v, want literal send-keys", calls[0])
+	}
+	if calls[1][1] != "send-keys" || calls[1][4] != "Enter" {
+		t.Fatalf("second command = %v, want Enter send-keys", calls[1])
+	}
+}
+
 func TestManagerPaneExistsReturnsTrueForLivePane(t *testing.T) {
 	manager := NewManagerWithDeps(
 		func(string) (string, error) { return "/usr/bin/tmux", nil },

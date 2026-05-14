@@ -63,13 +63,19 @@ func (b *Builder) realRuntimeShellCommand(spec SessionSpec) (string, error) {
 	runtimeName := strings.TrimSpace(spec.Runtime)
 	switch runtimeName {
 	case "codex":
-		if _, err := b.lookPath("codex"); err != nil {
-			return "", fmt.Errorf("real launch for runtime %q requires the %q CLI in PATH", runtimeName, runtimeName)
-		}
-		return "sh -lc 'exec codex'", nil
+		return b.execRuntimeCommand(runtimeName)
+	case "claude":
+		return b.execRuntimeCommand(runtimeName)
 	default:
 		return "", fmt.Errorf("real launch mode does not support runtime %q in the current milestone", runtimeName)
 	}
+}
+
+func (b *Builder) execRuntimeCommand(runtimeName string) (string, error) {
+	if _, err := b.lookPath(runtimeName); err != nil {
+		return "", fmt.Errorf("real launch for runtime %q requires the %q CLI in PATH", runtimeName, runtimeName)
+	}
+	return fmt.Sprintf("sh -lc 'exec %s'", runtimeName), nil
 }
 
 func placeholderShellCommand(spec SessionSpec) string {

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/session"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/worktree"
@@ -258,6 +259,131 @@ func TestEnsureReviewNotesTemplateDoesNotOverwriteExistingFindings(t *testing.T)
 	}
 	if string(data) != original {
 		t.Fatalf("review-notes.md was overwritten: %q", string(data))
+	}
+}
+
+func TestEnsureHandoffTemplateCreatesStructuredTemplate(t *testing.T) {
+	repoRoot := t.TempDir()
+	service := NewService(repoRoot, "tasks")
+	params := SyncParams{
+		Task: task.Record{
+			ID:             "TASK-011",
+			Title:          "Seed handoff template",
+			Mode:           "Direct",
+			PreferredRole:  "backend",
+			PreferredAgent: "backend-main",
+		},
+		Steps: []step.Record{
+			{ID: "STEP-001", TaskID: "TASK-011", StepType: "implementation", Title: "Implement slice", Status: "InProgress", RoleName: "backend"},
+		},
+	}
+
+	err := service.EnsureHandoffTemplate(params, session.Record{
+		ID:        "SESS-001",
+		AgentName: "backend-main",
+		RoleName:  "backend",
+		Runtime:   "codex",
+	})
+	if err != nil {
+		t.Fatalf("EnsureHandoffTemplate failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".aom", "tasks", "TASK-011", "handoff.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(handoff.md) failed: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "From Session: SESS-001") {
+		t.Fatalf("handoff.md = %q, want session id", content)
+	}
+	if !strings.Contains(content, "From Runtime: codex") {
+		t.Fatalf("handoff.md = %q, want runtime", content)
+	}
+	if !strings.Contains(content, "To Role: backend") {
+		t.Fatalf("handoff.md = %q, want role", content)
+	}
+	if !strings.Contains(content, "Step: STEP-001 Implement slice") {
+		t.Fatalf("handoff.md = %q, want active step", content)
+	}
+}
+
+func TestEnsureHandoffTemplateDoesNotOverwriteExistingContent(t *testing.T) {
+	repoRoot := t.TempDir()
+	service := NewService(repoRoot, "tasks")
+	params := SyncParams{
+		Task: task.Record{
+			ID:    "TASK-012",
+			Title: "Preserve handoff content",
+			Mode:  "Direct",
+		},
+	}
+
+	dir := filepath.Join(repoRoot, ".aom", "tasks", "TASK-012")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	original := "# Handoff\n\ncustom content\n"
+	path := filepath.Join(dir, "handoff.md")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("WriteFile(handoff.md) failed: %v", err)
+	}
+
+	if err := service.EnsureHandoffTemplate(params, session.Record{ID: "SESS-002"}); err != nil {
+		t.Fatalf("EnsureHandoffTemplate failed: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(handoff.md) failed: %v", err)
+	}
+	if string(data) != original {
+		t.Fatalf("handoff.md was overwritten: %q", string(data))
+	}
+}
+
+func TestMaterializeIdentityFileWritesRuntimeSpecificFilename(t *testing.T) {
+	root := t.TempDir()
+	profilePath := filepath.Join(root, "profile.md")
+	worktreePath := filepath.Join(root, "worktree")
+	if err := os.MkdirAll(worktreePath, 0o755); err != nil {
+		t.Fatalf("MkdirAll(worktree) failed: %v", err)
+	}
+	if err := os.WriteFile(profilePath, []byte("# Agent Identity\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(profile.md) failed: %v", err)
+	}
+
+	if err := MaterializeIdentityFile("backend-main", "codex", worktreePath, profilePath); err != nil {
+		t.Fatalf("MaterializeIdentityFile failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(worktreePath, "AGENTS.md"))
+	if err != nil {
+		t.Fatalf("ReadFile(AGENTS.md) failed: %v", err)
+	}
+	if string(data) != "# Agent Identity\n" {
+		t.Fatalf("AGENTS.md = %q, want copied profile", string(data))
+	}
+}
+
+func TestMaterializeIdentityFileSkipsMissingProfileAndUnsupportedRuntime(t *testing.T) {
+	root := t.TempDir()
+	worktreePath := filepath.Join(root, "worktree")
+	if err := os.MkdirAll(worktreePath, 0o755); err != nil {
+		t.Fatalf("MkdirAll(worktree) failed: %v", err)
+	}
+
+	if err := MaterializeIdentityFile("backend-main", "codex", worktreePath, filepath.Join(root, "missing-profile.md")); err != nil {
+		t.Fatalf("MaterializeIdentityFile missing profile returned error: %v", err)
+	}
+	if err := MaterializeIdentityFile("backend-main", "kiro", worktreePath, filepath.Join(root, "missing-profile.md")); err != nil {
+		t.Fatalf("MaterializeIdentityFile unsupported runtime returned error: %v", err)
+	}
+	if err := MaterializeIdentityFile("backend-main", "codex", "", filepath.Join(root, "missing-profile.md")); err != nil {
+		t.Fatalf("MaterializeIdentityFile empty worktree returned error: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(worktreePath, "AGENTS.md")); !os.IsNotExist(err) {
+		t.Fatalf("AGENTS.md unexpectedly exists: %v", err)
 	}
 }
 

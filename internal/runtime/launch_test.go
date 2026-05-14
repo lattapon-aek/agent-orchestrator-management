@@ -57,14 +57,31 @@ func TestBuilderBuildReturnsRealCodexCommand(t *testing.T) {
 	}
 }
 
+func TestBuilderBuildReturnsRealClaudeCommand(t *testing.T) {
+	builder := NewBuilderWithLookPath(func(name string) (string, error) {
+		if name == "claude" {
+			return "/opt/homebrew/bin/claude", nil
+		}
+		return "", fmt.Errorf("unexpected lookup %q", name)
+	})
+
+	command, err := builder.Build(SessionSpec{Runtime: "claude"}, LaunchModeReal)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+	if command != "sh -lc 'exec claude'" {
+		t.Fatalf("command = %q, want claude exec command", command)
+	}
+}
+
 func TestBuilderBuildRejectsUnsupportedRealRuntime(t *testing.T) {
 	builder := NewBuilderWithLookPath(func(string) (string, error) { return "", nil })
 
-	_, err := builder.Build(SessionSpec{Runtime: "claude"}, LaunchModeReal)
+	_, err := builder.Build(SessionSpec{Runtime: "gemini"}, LaunchModeReal)
 	if err == nil {
 		t.Fatal("Build returned nil error, want unsupported runtime failure")
 	}
-	if !strings.Contains(err.Error(), `does not support runtime "claude"`) {
+	if !strings.Contains(err.Error(), `does not support runtime "gemini"`) {
 		t.Fatalf("error = %q, want unsupported runtime message", err)
 	}
 }
@@ -78,5 +95,17 @@ func TestBuilderBuildRejectsMissingCodexBinary(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `requires the "codex" CLI in PATH`) {
 		t.Fatalf("error = %q, want codex PATH message", err)
+	}
+}
+
+func TestBuilderBuildRejectsMissingClaudeBinary(t *testing.T) {
+	builder := NewBuilderWithLookPath(func(string) (string, error) { return "", fmt.Errorf("missing") })
+
+	_, err := builder.Build(SessionSpec{Runtime: "claude"}, LaunchModeReal)
+	if err == nil {
+		t.Fatal("Build returned nil error, want missing claude failure")
+	}
+	if !strings.Contains(err.Error(), `requires the "claude" CLI in PATH`) {
+		t.Fatalf("error = %q, want claude PATH message", err)
 	}
 }

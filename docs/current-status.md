@@ -123,7 +123,7 @@ Implemented in the first slice:
 - worktree summaries now fall back from `Active` to `Ready` when no live task-bound session remains after reconciliation
 - `task create` and `plan --create` now fail fast on git repos without an initial commit instead of persisting partial task state
 - `status` and `task show` now surface canonical artifact root and task log paths so operators do not need to guess between repo-root and worktree artifacts
-- `session spawn --real` and `session replace --real` now launch `codex` for supported runtime roles and reject unsupported runtimes before pane creation
+- `session spawn --real` and `session replace --real` now launch `codex` or `claude` for supported runtime roles and reject unsupported runtimes before pane creation
 - the SQLite bootstrap now applies a `busy_timeout` so single-operator CLI bursts are less likely to fail with immediate `SQLITE_BUSY`
 
 ### Milestone 5
@@ -169,6 +169,19 @@ Implemented in the second slice:
 - when a shared review owner hint matches exactly one enabled project agent, AOM now auto-picks that concrete agent for preferred follow-up ownership instead of leaving the hint role-only
 - when review findings infer a single follow-up owner, AOM now also updates the latest non-review follow-up step owner hint to match that role or agent
 
+Implemented in the third slice:
+- `aom session send`
+- `tmux.Manager.SendKeys` for literal prompt delivery into live panes
+- task-bound prompt delivery now appends canonical `orchestrator.prompt` events to `log.md`
+
+Implemented in the fourth slice:
+- `claude` runtime support in `internal/runtime/launch.go` under `--real` mode
+- `session spawn --real` now supports `reviewer-main` and other `claude` agents through the same launch validation path as `codex`
+
+Implemented in the fifth slice:
+- task-bound `session spawn` now seeds a non-destructive `handoff.md` template in the canonical artifact root
+- seeded handoff templates now include current session, runtime, task, step, and a default next-action reminder for the assigned worker
+
 ## Current CLI Surface
 
 Implemented commands:
@@ -183,6 +196,7 @@ Implemented commands:
 - `aom worktree repair`
 - `aom step list`
 - `aom step update`
+- `aom session send`
 - `aom session spawn`
 - `aom session list`
 - `aom session show`
@@ -209,6 +223,9 @@ Current behavior notes:
 - task-bound `session spawn` records both boot and ready lifecycle transitions in canonical task log events
 - task-bound `session spawn` failure after durable record creation is logged canonically and leaves the session record in `Failed`
 - task-bound `session spawn` writes `session.created` before launch, then `session.ready` or `session.failed` based on the observed result
+- task-bound `session spawn` now also seeds `handoff.md` once so the active worker can fill it in before signaling `handoff.prepared`
+- `session send` delivers a literal prompt plus Enter into a live tmux pane and prints the session, pane, and message summary
+- task-bound `session send` appends canonical `orchestrator.prompt` events to `log.md`
 - `attach` records manual operator intervention for task-bound sessions and marks the task log with `Re-analysis required`
 - `task create` and `plan --create` now persist a `Planned` task-to-worktree mapping with deterministic branch and path naming under `.aom/worktrees/`
 - `task show`, `status`, `task.md`, and `index.md` now expose the planned worktree mapping
@@ -228,7 +245,7 @@ Current behavior notes:
 - `session replace` now spawns a replacement session in the same task/worktree context, preserves continuity through task artifacts, records a canonical `session.replaced` event, and prints explicit operator action hints when the old session is intentionally left running
 - `session replace` now auto-archives superseded sessions that have already reconciled to `Detached`, while still stopping replaceable idle sessions and leaving active `Working` sessions for explicit operator intervention
 - `session spawn --mock` launches a mock runtime transcript for live local flow verification
-- `session spawn --real` launches the `codex` CLI for supported runtime roles and fails before pane creation when the role runtime is unsupported or `codex` is unavailable
+- `session spawn --real` launches the `codex` or `claude` CLI for supported runtime roles and fails before pane creation when the role runtime is unsupported or the required CLI is unavailable
 - `session replace --real` uses the same runtime validation and launch path as `session spawn --real`
 - `task create` and `plan --create` fail before persisting task state when the repo is git-backed but still has an unborn default branch
 - SQLite connections now apply a `busy_timeout` to reduce transient `SQLITE_BUSY` failures during short command bursts
@@ -366,6 +383,7 @@ Last verified state before this handoff:
     - when the old session is still `Working`, replacement output now leaves it running intentionally and prints a concrete `aom session stop <old-session-id>` hint for the operator
   - focused real-runtime launch coverage:
     - `session spawn backend-main --task <task-id> --step <step-id> --real` launches `codex` in a real tmux pane on macOS
+    - `session spawn reviewer-main --real` launches `claude` in a real tmux pane on supported environments
     - unsupported runtime roles fail before pane creation
     - `session replace <session-id> --agent backend-main --real` reuses the same runtime validation path
   - focused canonical artifact-path reporting coverage:
@@ -414,8 +432,8 @@ Current state:
 What this means:
 - code and tests for tmux logic pass
 - live local tmux behavior is verified on macOS
-- narrow real-runtime launch is verified for `codex` via `session spawn --real` on macOS
-- broader multi-runtime provider-native E2E is still not complete beyond the current `codex` slice
+- narrow real-runtime launch is verified in code and tests for `codex` and `claude`; live macOS E2E is still only recorded for the earlier `codex` path
+- broader multi-runtime provider-native E2E is still not complete beyond the current narrow `codex` plus `claude` launch slice
 
 Recommended path for live E2E:
 - Linux or macOS should work best for continued live runtime validation
@@ -425,7 +443,7 @@ Recommended path for live E2E:
 ## What Is Intentionally Not Done Yet
 
 Still out of scope at the current handoff point:
-- first-class real-runtime launch for runtimes beyond the current `codex` slice
+- first-class real-runtime launch for runtimes beyond the current `codex` and `claude` slice
 - provider-native resume flows
 - richer review and unresolved review-item handling under Milestone 6
 
@@ -454,14 +472,8 @@ replace.
 
 ### Gaps — Tier 1 (minimal viable AI orchestration)
 
-- `aom session send <session-id> <message>` — inject prompt into pane via tmux
-  send-keys (new CLI command + new tmux.Manager.SendKeys method)
 - `aom session resume <session-id> --task <task-id>` — bind new task to existing
   WaitingHandoff session and deliver initial brief (new CLI command)
-- `claude` runtime support in `internal/runtime/launch.go` under `--real` mode
-  (mirrors the codex implementation)
-- `handoff.md` template seeding in `internal/artifact/service.go` when a task-bound
-  session is spawned (schema defined in docs/artifact-schemas.md, not yet implemented)
 - Completion event convention: agents append `task.completed` or `handoff.prepared`
   to log.md when work is done; see docs/artifact-schemas.md Agent Completion Protocol
 - Runtime identity file materialization: on `session spawn`, AOM should read
@@ -491,13 +503,11 @@ replace.
 
 ### Recommended implementation order
 
-1. `claude` runtime in `--real` (small, mirrors codex)
-2. `aom session send` command
-3. `handoff.md` seeding + completion event convention
-4. Verify minimal E2E loop: spawn claude → send brief → wait for handoff.prepared
+1. `handoff.md` seeding + completion event convention
+2. Verify minimal E2E loop: spawn claude → send brief → wait for handoff.prepared
    → read handoff.md → decide next step
-5. `aom session resume` command
-6. `aom session wait` command
+3. `aom session resume` command
+4. `aom session wait` command
 
 ## Immediate Next Step
 

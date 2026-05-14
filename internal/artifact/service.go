@@ -54,6 +54,34 @@ func NewService(repoPath, stateDir string) *Service {
 	}
 }
 
+// MaterializeIdentityFile copies one agent profile into the runtime-specific
+// identity filename at the worktree root when that runtime supports it.
+func MaterializeIdentityFile(agentName, runtime, worktreePath string, profileSourcePath string) error {
+	if strings.TrimSpace(worktreePath) == "" {
+		return nil
+	}
+
+	targetName := runtimeIdentityFilename(runtime)
+	if targetName == "" {
+		return nil
+	}
+
+	data, err := os.ReadFile(profileSourcePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read profile source for agent %q: %w", agentName, err)
+	}
+
+	targetPath := filepath.Join(worktreePath, targetName)
+	if err := os.WriteFile(targetPath, data, 0o644); err != nil {
+		return fmt.Errorf("write runtime identity file for agent %q: %w", agentName, err)
+	}
+
+	return nil
+}
+
 // SeedTaskArtifacts creates the initial task artifact set and appends seed events.
 func (s *Service) SeedTaskArtifacts(params SyncParams) error {
 	if err := s.writeArtifacts(params); err != nil {
@@ -106,6 +134,27 @@ func (s *Service) EnsureReviewNotesTemplate(params SyncParams, reviewer, session
 	content := s.renderReviewNotesMarkdown(params, reviewer, sessionID)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write review-notes.md: %w", err)
+	}
+	return nil
+}
+
+// EnsureHandoffTemplate creates a structured handoff.md template for one task-bound session.
+func (s *Service) EnsureHandoffTemplate(params SyncParams, activeSession session.Record) error {
+	dir := s.taskDir(params)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create artifact dir %q: %w", dir, err)
+	}
+
+	path := filepath.Join(dir, "handoff.md")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat handoff.md: %w", err)
+	}
+
+	content := s.renderHandoffTemplateMarkdown(params, activeSession)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write handoff.md: %w", err)
 	}
 	return nil
 }
@@ -401,6 +450,68 @@ func (s *Service) renderReviewNotesMarkdown(params SyncParams, reviewer, session
 	)
 }
 
+func (s *Service) renderHandoffTemplateMarkdown(params SyncParams, activeSession session.Record) string {
+	activeStep := selectActiveStep(params.Steps)
+	stepLine := "-"
+	toRole := params.Task.PreferredRole
+	if activeStep != nil {
+		stepLine = fmt.Sprintf("%s %s", activeStep.ID, activeStep.Title)
+		if strings.TrimSpace(activeStep.RoleName) != "" {
+			toRole = activeStep.RoleName
+		}
+	}
+
+	suggestedRuntime := "-"
+	if strings.TrimSpace(activeSession.Runtime) != "" {
+		suggestedRuntime = activeSession.Runtime
+	}
+
+	return fmt.Sprintf(`# Handoff
+
+## Transfer
+- From Role: %s
+- From Agent: %s
+- From Session: %s
+- From Runtime: %s
+- To Role: %s
+- Suggested Runtime: %s
+- Task: %s
+- Step: %s
+- Reason: Fill this in when the work is ready for transfer
+
+## Completed
+- Fill in what was completed in this session
+
+## Remaining
+- Fill in what still needs to happen next
+
+## Touched Files
+- Record touched files before signaling handoff.prepared
+
+## Constraints
+- Stay within the current task scope
+- Preserve continuity through markdown artifacts
+
+## Warnings
+- Record any risks, caveats, or unresolved questions
+
+## Exact Next Action
+Read .agent/task.md, .agent/state.md, and .agent/log.md before continuing.
+
+## Do Not Redo
+- Record what the next owner should not repeat
+`,
+		emptyFallback(activeSession.RoleName),
+		emptyFallback(activeSession.AgentName),
+		emptyFallback(activeSession.ID),
+		emptyFallback(activeSession.Runtime),
+		emptyFallback(toRole),
+		suggestedRuntime,
+		params.Task.ID,
+		stepLine,
+	)
+}
+
 func (s *Service) renderArtifactInventory(params SyncParams) string {
 	dir := s.taskDir(params)
 	lines := []string{
@@ -428,6 +539,19 @@ func (s *Service) artifactPresence(dir, name string) string {
 		return "present"
 	}
 	return "absent"
+}
+
+func runtimeIdentityFilename(runtimeName string) string {
+	switch strings.TrimSpace(runtimeName) {
+	case "claude":
+		return "CLAUDE.md"
+	case "codex":
+		return "AGENTS.md"
+	case "gemini":
+		return "GEMINI.md"
+	default:
+		return ""
+	}
 }
 
 func (s *Service) latestCheckpointInfo(params SyncParams) (string, string) {

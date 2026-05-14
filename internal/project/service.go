@@ -117,6 +117,9 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := seedAgentProfiles(aomPath, cfg); err != nil {
+		return nil, err
+	}
 
 	dbPath := filepath.Join(aomPath, "sessions.db")
 	sqlDB, err := db.Open(dbPath)

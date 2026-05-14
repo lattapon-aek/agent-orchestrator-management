@@ -255,6 +255,8 @@ func (r Runner) executeSession(args []string) error {
 		return r.executeSessionSpawn(args[1:])
 	case "list":
 		return r.executeSessionList(args[1:])
+	case "send":
+		return r.executeSessionSend(args[1:])
 	case "show":
 		return r.executeSessionShow(args[1:])
 	case "replace":
@@ -1053,6 +1055,16 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "session launch validation failed before session became interactive", err)
 	}
 
+	profilePath := filepath.Join(result.Project.RepoPath, ".aom", "agents", agentRecord.Name, "profile.md")
+	if err := artifact.MaterializeIdentityFile(
+		agentRecord.Name,
+		agentRecord.Runtime,
+		executionPath,
+		profilePath,
+	); err != nil {
+		return nil, fmt.Errorf("materialize identity file: %w", err)
+	}
+
 	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, launchCommand)
 	if err != nil {
 		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
@@ -1089,6 +1101,9 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 			Summary:     fmt.Sprintf("Session pane attached for %s and ready for operator inspection", agentRecord.Name),
 			StateEffect: fmt.Sprintf("Session %s", record.Status),
 		}); err != nil {
+			return nil, err
+		}
+		if err := r.ensureTaskHandoffTemplate(result, taskRecord.ID, record); err != nil {
 			return nil, err
 		}
 	}
@@ -1620,6 +1635,56 @@ func (r Runner) executeCapture(args []string) error {
 	return nil
 }
 
+func (r Runner) executeSessionSend(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("session identifier is required")
+	}
+	if len(args) == 1 {
+		return fmt.Errorf("message is required")
+	}
+
+	sessionRecord, err := r.loadSessionByIdentifier(strings.TrimSpace(args[0]))
+	if err != nil {
+		return err
+	}
+	if !sendableSessionStatus(sessionRecord.Status) || strings.TrimSpace(sessionRecord.TmuxPane) == "" {
+		return fmt.Errorf("session %q does not have a live tmux pane binding", sessionRecord.ID)
+	}
+
+	message := strings.TrimSpace(strings.Join(args[1:], " "))
+	if message == "" {
+		return fmt.Errorf("message is required")
+	}
+
+	if err := r.app.Tmux.SendKeys(sessionRecord.TmuxPane, message); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(sessionRecord.TaskID) != "" {
+		result, err := r.app.Projects.Open(".")
+		if err != nil {
+			return err
+		}
+
+		if err := r.syncTaskArtifactsWithSession(result, sessionRecord.TaskID, artifact.Event{
+			Type:        "orchestrator.prompt",
+			Actor:       "operator",
+			SessionID:   sessionRecord.ID,
+			Summary:     fmt.Sprintf("Prompt delivered to session %s: %s", sessionRecord.ID, message),
+			StateEffect: "Session Prompted",
+		}, false, sessionRecord); err != nil {
+			return err
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "Prompt delivered")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Session: %s\n", sessionRecord.ID)
+	fmt.Fprintf(r.stdout, "Pane: %s\n", sessionRecord.TmuxPane)
+	fmt.Fprintf(r.stdout, "Message: %s\n", message)
+	return nil
+}
+
 type checkpointParams struct {
 	sessionID string
 }
@@ -2098,6 +2163,7 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "  aom review")
 	fmt.Fprintln(r.stdout, "  aom step list")
 	fmt.Fprintln(r.stdout, "  aom step update")
+	fmt.Fprintln(r.stdout, "  aom session send")
 	fmt.Fprintln(r.stdout, "  aom session show")
 	fmt.Fprintln(r.stdout, "  aom session spawn")
 	fmt.Fprintln(r.stdout, "  aom session list")
@@ -2721,6 +2787,15 @@ func handoffNextAction(taskID, role, agentName string) string {
 	return fmt.Sprintf("choose an agent for role %s and spawn it against task %s", role, taskID)
 }
 
+func sendableSessionStatus(status string) bool {
+	switch strings.TrimSpace(status) {
+	case "Booting", "Idle", "Working", "WaitingApproval", "WaitingHandoff", "Blocked":
+		return true
+	default:
+		return false
+	}
+}
+
 func (r Runner) ensurePlannedWorktree(result *project.OpenResult, taskRecord task.Record) (*worktree.Record, error) {
 	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
 	if err != nil {
@@ -3092,6 +3167,34 @@ func (r Runner) refreshTaskArtifacts(result *project.OpenResult, taskID string, 
 		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps, view.Worktree, view.WorktreeDrift, view.UnresolvedReviewItems, view.ReviewOwnerHint, view.ReviewOwnerAmbiguous),
 	}
 	return service.RefreshTaskArtifacts(params)
+}
+
+func (r Runner) ensureTaskHandoffTemplate(result *project.OpenResult, taskID string, activeSession *session.Record) error {
+	if activeSession == nil {
+		return fmt.Errorf("active session is required for handoff template seeding")
+	}
+
+	view, err := r.loadTaskView(result, taskID)
+	if err != nil {
+		return err
+	}
+	if view == nil {
+		return fmt.Errorf("task %q not found for handoff template seeding", taskID)
+	}
+
+	service := artifact.NewService(result.Project.RepoPath, result.StateDir)
+	params := artifact.SyncParams{
+		Task:                  view.Task,
+		Steps:                 view.Steps,
+		ActiveSession:         activeSession,
+		Worktree:              view.Worktree,
+		CreatedBy:             "operator",
+		UpdatedBy:             "aom",
+		ReviewOwnerHint:       view.ReviewOwnerHint,
+		ReviewOwnerAmbiguous:  view.ReviewOwnerAmbiguous,
+		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps, view.Worktree, view.WorktreeDrift, view.UnresolvedReviewItems, view.ReviewOwnerHint, view.ReviewOwnerAmbiguous),
+	}
+	return service.EnsureHandoffTemplate(params, *activeSession)
 }
 
 func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, taskID string, seed bool, activeSession *session.Record, events ...artifact.Event) error {

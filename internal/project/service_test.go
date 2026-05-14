@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,17 @@ func TestServiceOpenSyncsConfigToDB(t *testing.T) {
 	}
 	if result.StateDir != "tasks" {
 		t.Fatalf("state dir = %q, want %q", result.StateDir, "tasks")
+	}
+
+	for _, agentName := range []string{"orchestrator-main", "backend-main", "reviewer-main"} {
+		path := filepath.Join(repoRoot, ".aom", "agents", agentName, "profile.md")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("ReadFile(%q) failed: %v", path, err)
+		}
+		if !strings.Contains(string(data), "Agent: "+agentName) {
+			t.Fatalf("profile %q = %q, want agent identity", path, string(data))
+		}
 	}
 }
 
@@ -105,5 +117,38 @@ func TestServiceInitUsesPresetTemplate(t *testing.T) {
 	}
 	if result.Agents[0].Name != "backend-main" {
 		t.Fatalf("agent name = %q, want backend-main", result.Agents[0].Name)
+	}
+}
+
+func TestServiceInitDoesNotOverwriteExistingAgentProfile(t *testing.T) {
+	repoRoot := t.TempDir()
+
+	service := NewService()
+	if _, err := service.Init(InitParams{
+		Name:     "my-app",
+		RepoPath: repoRoot,
+	}); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	profilePath := filepath.Join(repoRoot, ".aom", "agents", "backend-main", "profile.md")
+	original := "# Agent Identity\n\ncustom backend profile\n"
+	if err := os.WriteFile(profilePath, []byte(original), 0o644); err != nil {
+		t.Fatalf("WriteFile(profile.md) failed: %v", err)
+	}
+
+	if _, err := service.Init(InitParams{
+		Name:     "my-app",
+		RepoPath: repoRoot,
+	}); err != nil {
+		t.Fatalf("second Init failed: %v", err)
+	}
+
+	data, err := os.ReadFile(profilePath)
+	if err != nil {
+		t.Fatalf("ReadFile(profile.md) failed: %v", err)
+	}
+	if string(data) != original {
+		t.Fatalf("profile.md was overwritten: %q", string(data))
 	}
 }

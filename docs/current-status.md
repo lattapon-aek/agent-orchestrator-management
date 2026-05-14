@@ -215,6 +215,9 @@ Current behavior notes:
 - `project init` renders baseline config from template assets instead of hardcoded agent structs
 - `project init --template` lets a project pick a preset starter team from `templates/project-init/<name>`
 - `project init --template-dir` lets a project supply its own starter config templates
+- `project init --agents` can filter the starter team to selected template agents
+- `project init` now prompts for agent selection on interactive terminals when `--agents` is omitted, while non-interactive runs keep the full template agent set
+- `project init --agents` and the interactive prompt both accept inline agent definitions in `name:role:runtime` form; unknown inline roles get a minimal dedicated-writer builder role config automatically
 - `status` shows project, terminal summary, agents, sessions, detailed task rows, step summaries, and task-level recommended next action hints
 - `task create` defaults to `Direct` mode and creates one initial `Proposed` implementation step
 - `task create` and `plan --create` now seed task-local continuity artifacts under `.aom/tasks/<task-id>/`

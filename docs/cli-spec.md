@@ -68,6 +68,7 @@ aom project init my-app --repo /repos/my-app
 - optional flag: `--session-prefix`
 - optional flag: `--template`
 - optional flag: `--template-dir`
+- optional flag: `--agents`
 
 ### Behavior
 
@@ -80,6 +81,18 @@ aom project init my-app --repo /repos/my-app
 - when `--template` is provided, load the named preset from `templates/project-init/<name>`
 - when `--template-dir` is provided, render those files from the provided template directory instead of the built-in starter templates
 - `--template` and `--template-dir` cannot be used together
+- when `--agents` is provided, keep only the selected starter agents
+- `--agents` accepts both template agent names such as `backend-main` and inline agent definitions such as `frontend-main:builder:claude`
+- inline agent definitions reuse an existing role config when the named role already exists in the selected template
+- inline agent definitions create a minimal role config when the named role is missing:
+  - `class: builder`
+  - `worktree_mode: dedicated-writer`
+  - `checkpoint_expectation: required`
+  - `default_session_mode: interactive`
+- inline agent names must be alphanumeric plus hyphen
+- inline runtimes are case-insensitive and must be one of `claude`, `codex`, `gemini`, or `kiro`
+- on interactive terminals, when `--agents` is omitted, prompt for comma-separated agent selections and accept the same `name:role:runtime` inline syntax
+- on non-interactive runs, when `--agents` is omitted, keep the full template agent set
 - initialize or open `sessions.db`
 - register project in the database
 

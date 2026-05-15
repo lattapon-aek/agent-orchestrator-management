@@ -184,7 +184,7 @@ Implemented in the fifth slice:
 
 ### Post-Milestone-6 Fixes and Improvements
 
-Implemented after live multi-agent E2E testing on macOS (2026-05-14/15):
+Implemented after live multi-agent E2E testing on macOS (2026-05-14/15) and WSL E2E (2026-05-15):
 
 - `CreatePane` now uses `new-window` instead of `split-window` so each agent session gets its own full-size tmux window; previously all sessions shared one window and panes shrank until Codex TUI crashed
 - `SendKeys` now inserts a 50ms pause between literal text delivery and Enter so TUI apps (codex, claude) finish buffering before submission
@@ -194,6 +194,29 @@ Implemented after live multi-agent E2E testing on macOS (2026-05-14/15):
 - `project init` now adds `.agent/` to `.gitignore` so worktree-local artifacts are not committed to main and do not cause merge conflicts
 - `project init --agents` now accepts inline agent definitions in `name:role:runtime` form (e.g. `frontend-main:builder:claude`) allowing custom agents not in the default template
 - `aom help` output rewritten to be agent-readable: includes operator workflow sequence, grouped command reference, and key rules in under 60 lines
+- provider-native session resume is now live for both `claude` (`claude --resume <uuid>`) and `codex` (`codex resume <session-id>`); `session spawn --task` automatically looks up the previous native session ID for the task+agent pair and resumes it when one exists
+- `--fresh` flag added to `session spawn`: forces a clean context even when a previous native session ID exists; spawn output always shows the continuity decision (resume or fresh start) with a `--fresh` hint when resuming, so the orchestrator or operator can make an informed choice
+- `session spawn --real claude` now auto-detects the native session UUID from `~/.claude/projects/<worktree-hash>/` after spawn, auto-accepts the bypass-permissions dialog, and registers the UUID via `SetVendorSessionID` so the next spawn resumes automatically without requiring a manual `set-agent-id` call
+- `aom session set-agent-id <session-id> <uuid>` added as a manual fallback for registering native session IDs when auto-detection is not available
+- default branch detection in `project init` now reads the current `git` HEAD branch instead of hardcoding `main`, so projects on `master` or any other branch are handled correctly
+- `EnsureWorkspace` now names the base tmux window `aom` so it persists visibly when all agent windows are closed
+- `tmux.Manager.RenameWindow` added; `session spawn` uses it to label each agent window with the agent name for easy operator identification
+- CRLF normalization added to template rendering so config files generated on Windows use consistent LF line endings
+- `aom session wait <session-id> --event <type> [--timeout 30m]` added: polls the task's `log.md` every 3 seconds until the named event type appears or the timeout expires; enables unattended AI orchestrator loops
+- `aom task reanalyze <task-id>` added: re-syncs `index.md`/`state.md` from current system state, appends `reanalysis.completed` to `log.md`, and prints recommended next action; use after manual intervention or when the orchestrator needs to sync context
+- `aom channel append "<message>" [--agent <name>]` and `aom channel read` added: shared `.aom/channel.md` artifact lets agents post and read team-level messages without routing through the orchestrator
+- `aom broadcast "<message>" --sessions <id,id,...>` added: delivers the same prompt to multiple live sessions in one command; reports per-session delivery status
+- `aom approve <session-id>` and `aom deny <session-id> [--reason <why>]` added (M8): unblock or reject a session in `WaitingApproval`; transitions to `Idle` on approve and `Blocked` on deny, both appending canonical `approval.approved` / `approval.denied` events
+- `aom doctor` validates environment (tmux, config, writable `.aom/`, database, runtime binaries, active worktree paths); exits non-zero on failure
+- `aom runtime list` and `aom runtime inspect <runtime>` show configured runtime availability and capabilities
+- `aom session resume <session-id> --task <task-id>` added: rebinds an `Idle` or `WaitingHandoff` session to a new task without spawning a new process; sends `cd <worktree>` to the live pane, materializes the identity file in the new worktree, advances the new task's worktree to `Active`, and syncs both tasks' artifacts with canonical events
+- `aom watch --task <task-id> [--event <type>] [--timeout 30m]` added (M12): with `--event` blocks until the named event type appears in the task's `log.md` then exits (same polling as `session wait` but task-centric); without `--event` runs in tail mode — streams every new non-empty log line as it appears until timeout
+- `aom doctor` added: validates the local environment in a single pass — checks tmux binary availability, project config loading, `.aom/` write access, SQLite database presence, configured runtime binary availability (shows which agents use each runtime), and active/ready worktree path health; exits with a non-zero status when any check fails so it can be used in scripts; exits zero when all checks pass; warnings (e.g. missing sessions.db on a brand-new project) do not count as failures
+- `aom runtime list` added: shows all runtimes referenced in the project `agents.yaml`, whether the binary is found in PATH, and which agents use each runtime
+- `aom runtime inspect <runtime>` added: shows binary path, availability, launch modes, resume support (with concrete CLI invocation examples), and a table of all agents using that runtime with their role and enabled state
+- `aom watch` (without `--task`) now watches all active tasks simultaneously: in tail mode prefixes each new log line with `[TASK-xxx]`; in `--event` mode exits as soon as any active task's log shows the target event and reports which task matched; active tasks are those in `InProgress`, `Blocked`, `NeedsAttention`, or `Ready` state
+- `tailLogEvents` bug fixed: was using line-count to track position (off-by-one when files end with `\n`); now tracks by byte offset so no events are missed
+- `internal/cli/log_wait.go` extracted into its own file: contains `waitForLogEvent`, `tailLogEvents`, `scanLogForEvent`, `tailMultiTaskLogEvents`, `waitForMultiTaskLogEvent`
 
 ## Current CLI Surface
 
@@ -221,6 +244,9 @@ Implemented commands:
 - `aom checkpoint`
 - `aom handoff`
 - `aom review`
+- `aom doctor`
+- `aom runtime list`
+- `aom runtime inspect`
 
 Current behavior notes:
 - `open` ensures tmux workspace and fails clearly when tmux is unavailable
@@ -252,6 +278,9 @@ Current behavior notes:
 - stale worktree mappings now surface as `NeedsRepair` with explicit operator repair hints instead of silently looking healthy
 - stale worktree hints now distinguish `MissingPath`, `UnregisteredArtifactOnlyPath`, and `UnregisteredDirtyPath` so operator next actions are more specific in `status` and `task show`
 - task-bound session launch now moves healthy worktrees into `Active` so operator-visible state distinguishes idle worktrees from live ones
+- `aom doctor` passes after `project init`; shows `[PASS]`/`[WARN]`/`[FAIL]` per check with a summary line; exits non-zero only when at least one `[FAIL]` is present
+- `aom runtime list` shows all runtimes in `agents.yaml` with binary availability; errors when no project is found
+- `aom runtime inspect <runtime>` shows binary path, availability, resume CLI examples, and agent table
 - `worktree repair <task-id>` now recovers missing or pruned git-backed task worktrees, restores `.agent/` artifacts into the repaired path, and appends a canonical `worktree.repaired` event
 - `worktree repair <task-id>` now also recreates an unregistered worktree path automatically when the existing path is safe to replace because it is empty or contains only `.agent/`
 - unregistered worktree paths with non-artifact content now remain operator-repair cases; AOM surfaces a manual cleanup hint instead of deleting the path automatically
@@ -262,7 +291,11 @@ Current behavior notes:
 - `session replace` now auto-archives superseded sessions that have already reconciled to `Detached`, while still stopping replaceable idle sessions and leaving active `Working` sessions for explicit operator intervention
 - `session spawn --mock` launches a mock runtime transcript for live local flow verification
 - `session spawn --real` launches the `codex` or `claude` CLI for supported runtime roles and fails before pane creation when the role runtime is unsupported or the required CLI is unavailable
+- `session spawn --real` automatically resumes the previous native session for the same task+agent pair when one is registered; use `--fresh` to force a clean context instead
+- `session spawn --real claude` auto-detects and registers the native session UUID after spawn; the next spawn resumes that session without any manual step
+- `session spawn --fresh` forces a fresh agent context regardless of previously registered native session IDs
 - `session replace --real` uses the same runtime validation and launch path as `session spawn --real`
+- `session set-agent-id <session-id> <native-id>` registers a native session ID manually as a fallback when auto-detection is unavailable
 - `task create` and `plan --create` fail before persisting task state when the repo is git-backed but still has an unborn default branch
 - SQLite connections now apply a `busy_timeout` to reduce transient `SQLITE_BUSY` failures during short command bursts
 - `task show` now prints canonical `Artifact root` and `Task log` paths
@@ -313,6 +346,12 @@ Current behavior notes:
 - [internal/tmux/manager.go](../internal/tmux/manager.go)
 - [internal/worktree/service.go](../internal/worktree/service.go)
 - [internal/runtime/launch.go](../internal/runtime/launch.go)
+- [internal/cli/vendor_session.go](../internal/cli/vendor_session.go)
+- [internal/cli/log_wait.go](../internal/cli/log_wait.go)
+- [internal/cli/channel.go](../internal/cli/channel.go)
+- [internal/cli/doctor.go](../internal/cli/doctor.go)
+- [internal/cli/runtime_cmd.go](../internal/cli/runtime_cmd.go)
+- [internal/cli/log_wait.go](../internal/cli/log_wait.go)
 
 ### Tests
 
@@ -332,6 +371,7 @@ Current behavior notes:
 - [internal/cli/root_test.go](../internal/cli/root_test.go)
 - [internal/worktree/service_test.go](../internal/worktree/service_test.go)
 - [internal/runtime/launch_test.go](../internal/runtime/launch_test.go)
+- [internal/cli/log_wait_test.go](../internal/cli/log_wait_test.go)
 
 ## Verified State
 
@@ -460,9 +500,9 @@ Recommended path for live E2E:
 
 Still out of scope at the current handoff point:
 - first-class real-runtime launch for runtimes beyond the current `codex` and `claude` slice (gemini, kiro)
-- provider-native resume flows
+- provider-native resume for `gemini` and `kiro` (claude and codex resume flows are live)
 - richer review and unresolved review-item handling under Milestone 6
-- agent-to-agent communication (shared channel, broadcast, event-driven dispatch) — tracked as Milestone 12
+- richer status output formatting (columnar layout, color, compact task rows)
 
 ## AI Orchestrator Path
 
@@ -489,10 +529,8 @@ replace.
 
 ### Gaps — Tier 1 (minimal viable AI orchestration)
 
-- `aom session resume <session-id> --task <task-id>` — bind new task to existing
-  WaitingHandoff session and deliver initial brief (new CLI command)
 - Completion event convention: agents append `task.completed` or `handoff.prepared`
-  to log.md when work is done; see docs/artifact-schemas.md Agent Completion Protocol
+  to log.md when work is done; see docs/artifact-schemas.md Agent Completion Protocol — convention is defined, live E2E verified with codex and claude
 - Runtime identity file materialization: on `session spawn`, AOM should read
   `.aom/agents/<name>/profile.md` and write it into the task worktree as the
   appropriate runtime config file (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`) so each
@@ -502,8 +540,6 @@ replace.
 
 ### Gaps — Tier 2 (ergonomic orchestration)
 
-- `aom session wait <session-id> --until <event-type> [--timeout 30m]` — poll
-  log.md until a target event appears or timeout is reached
 - Initial context delivery: task-bound session spawn should note the .agent/task.md
   path in the launch message so the agent knows its brief on startup
 
@@ -511,34 +547,31 @@ replace.
 
 - Continuity readiness scoring populated in index.md (field exists in schema,
   logic not yet in artifact/service.go)
-- `aom task reanalyze <task-id>` — refresh index.md and recommend next action
-  after manual intervention (planned in Milestone 7)
 - Orchestrator actor type in log events: distinguish `"actor": "orchestrator-ai"`
   from `"actor": "operator"` for audit clarity
-- Provider-native resume for pane recovery: try `claude --continue` or codex
-  equivalent before falling back to artifact-backed session replacement (Milestone 10)
+- Provider-native resume for pane recovery: resume on spawn is now live for claude and codex; auto-rebind of a detached pane to an existing running session (without a full re-spawn) is still out of scope (Milestone 10)
 
 ### Recommended implementation order
 
-1. `handoff.md` seeding + completion event convention
-2. Verify minimal E2E loop: spawn claude → send brief → wait for handoff.prepared
-   → read handoff.md → decide next step
-3. `aom session resume` command
-4. `aom session wait` command
+1. gemini/kiro runtime support — add 2 cases to `realRuntimeShellCommand` in `internal/runtime/launch.go`
+2. M9 governance — MCP resource bindings, role skill injection at `session spawn`, policy enforcement
+3. Richer status output formatting
 
 ## Immediate Next Step
 
-Milestone 6 is substantially complete. The current work boundary is:
+Milestones 6–12 core slice are substantially complete. Remaining work:
 
-- Milestone 7 (Manual Intervention and Re-analysis) is the next unstarted milestone
-- Milestone 12 (Agent Team Collaboration) is the newly identified next major capability
+- M9: Project governance (MCP resource bindings, role skills, policy enforcement) — not started
+- M10 remainder: `aom runtime inspect` now done; gemini/kiro real-runtime launch still out of scope
+- M11: Operator UX (multi-task watch without `--task` — done; richer status formatting — not started)
+- `aom doctor` — done (validates tmux, config, runtimes, db, worktrees)
+- `aom runtime list` / `aom runtime inspect` — done
 
 Recommended next slices in priority order:
 
-1. **Milestone 7 — `aom task reanalyze`**: refresh index.md and recommend next action after manual operator intervention; record `operator.intervention` events more richly
-2. **Milestone 12 — Shared channel artifact**: add `.aom/channel.md` as a shared read/write space for multi-agent discussion; all agents can append and read without going through the orchestrator
-3. **Milestone 12 — `aom broadcast`**: send the same prompt to multiple sessions in one command
-4. **Milestone 12 — Event-driven dispatch**: `aom watch` monitors `log.md` for `handoff.prepared` or `task.completed` events and triggers next-agent routing automatically
+1. **gemini/kiro runtime support** — small change, add 2 cases to `realRuntimeShellCommand` and `runtimeResumeInfo`
+2. **M9 governance** — MCP resource binding, role skill injection, policy checks
+3. **Richer status formatting** — columnar output, color, compact task rows
 
 ## System Diagrams
 

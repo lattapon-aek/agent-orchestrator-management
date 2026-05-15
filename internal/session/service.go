@@ -183,6 +183,33 @@ func (s *Service) Stop(record Record) (*Record, error) {
 	return s.Save(record)
 }
 
+// LatestVendorSessionID returns the most recent native CLI session ID for the given
+// task and agent, so AOM can resume the prior session rather than starting fresh.
+func (s *Service) LatestVendorSessionID(taskID, agentName string) (string, error) {
+	return s.repo.LatestVendorSessionID(taskID, agentName)
+}
+
+// SetVendorSessionID registers the native CLI session ID against an AOM session record.
+// Operators call this after spawn once they know the agent's own session identifier.
+func (s *Service) SetVendorSessionID(id, vendorSessionID string) (*Record, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("session id is required")
+	}
+	v := strings.TrimSpace(vendorSessionID)
+	if v == "" {
+		return nil, fmt.Errorf("vendor session id is required")
+	}
+	record, err := s.repo.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("session %q not found", id)
+	}
+	record.VendorSessionID = v
+	return s.Save(*record)
+}
+
 // Archive marks an inactive session as archived.
 func (s *Service) Archive(record Record) (*Record, error) {
 	if strings.TrimSpace(record.ID) == "" {

@@ -140,11 +140,14 @@ func TestManagerEnsureWorkspaceCreatesSessionWhenMissing(t *testing.T) {
 	if !workspace.Created {
 		t.Fatal("workspace should be marked created")
 	}
-	if len(calls) != 2 {
-		t.Fatalf("command call count = %d, want 2", len(calls))
+	if len(calls) != 3 {
+		t.Fatalf("command call count = %d, want 3", len(calls))
 	}
 	if calls[1][1] != "new-session" {
 		t.Fatalf("second command = %v, want new-session", calls[1])
+	}
+	if calls[2][1] != "rename-window" {
+		t.Fatalf("third command = %v, want rename-window", calls[2])
 	}
 }
 
@@ -259,6 +262,40 @@ func TestManagerSendKeysSendsLiteralMessageThenEnter(t *testing.T) {
 	}
 	if calls[1][1] != "send-keys" || calls[1][4] != "Enter" {
 		t.Fatalf("second command = %v, want Enter send-keys", calls[1])
+	}
+}
+
+func TestManagerSendKeysUsesBufferForMultilineMessage(t *testing.T) {
+	var calls [][]string
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return nil, nil
+		},
+		nil,
+	)
+
+	multiline := "line one\nline two\nline three"
+	if err := manager.SendKeys("%7", multiline); err != nil {
+		t.Fatalf("SendKeys failed: %v", err)
+	}
+	// Expect: set-buffer, paste-buffer, send-keys Enter
+	if len(calls) != 3 {
+		t.Fatalf("command call count = %d, want 3 (set-buffer + paste-buffer + Enter)", len(calls))
+	}
+	if calls[0][1] != "set-buffer" {
+		t.Fatalf("first command = %v, want set-buffer", calls[0])
+	}
+	// The message must be the last arg to set-buffer.
+	if calls[0][len(calls[0])-1] != multiline {
+		t.Fatalf("set-buffer data = %q, want %q", calls[0][len(calls[0])-1], multiline)
+	}
+	if calls[1][1] != "paste-buffer" {
+		t.Fatalf("second command = %v, want paste-buffer", calls[1])
+	}
+	if calls[2][1] != "send-keys" || calls[2][len(calls[2])-1] != "Enter" {
+		t.Fatalf("third command = %v, want Enter send-keys", calls[2])
 	}
 }
 

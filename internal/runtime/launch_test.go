@@ -52,7 +52,7 @@ func TestBuilderBuildReturnsRealCodexCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
-	if command != "sh -lc 'exec codex'" {
+	if command != "sh -lc 'exec codex --sandbox workspace-write'" {
 		t.Fatalf("command = %q, want codex exec command", command)
 	}
 }
@@ -107,5 +107,69 @@ func TestBuilderBuildRejectsMissingClaudeBinary(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `requires the "claude" CLI in PATH`) {
 		t.Fatalf("error = %q, want claude PATH message", err)
+	}
+}
+
+func TestBuilderBuildResumesClaudeSession(t *testing.T) {
+	builder := NewBuilderWithLookPath(func(name string) (string, error) {
+		if name == "claude" {
+			return "/usr/bin/claude", nil
+		}
+		return "", fmt.Errorf("unexpected lookup %q", name)
+	})
+
+	command, err := builder.Build(SessionSpec{
+		Runtime:        "claude",
+		AgentSessionID: "abc-123-def",
+	}, LaunchModeReal)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+	want := "sh -lc 'exec claude --resume abc-123-def --dangerously-skip-permissions'"
+	if command != want {
+		t.Fatalf("command = %q, want %q", command, want)
+	}
+}
+
+func TestBuilderBuildResumesCodexSession(t *testing.T) {
+	builder := NewBuilderWithLookPath(func(name string) (string, error) {
+		if name == "codex" {
+			return "/usr/bin/codex", nil
+		}
+		return "", fmt.Errorf("unexpected lookup %q", name)
+	})
+
+	command, err := builder.Build(SessionSpec{
+		Runtime:        "codex",
+		AgentSessionID: "sess-xyz-789",
+	}, LaunchModeReal)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+	want := "sh -lc 'exec codex --sandbox workspace-write resume sess-xyz-789'"
+	if command != want {
+		t.Fatalf("command = %q, want %q", command, want)
+	}
+}
+
+func TestBuilderBuildFreshStartWhenNoAgentSessionID(t *testing.T) {
+	builder := NewBuilderWithLookPath(func(name string) (string, error) {
+		return "/usr/bin/" + name, nil
+	})
+
+	for _, tc := range []struct {
+		runtime string
+		want    string
+	}{
+		{"claude", "sh -lc 'exec claude --dangerously-skip-permissions'"},
+		{"codex", "sh -lc 'exec codex --sandbox workspace-write'"},
+	} {
+		command, err := builder.Build(SessionSpec{Runtime: tc.runtime}, LaunchModeReal)
+		if err != nil {
+			t.Fatalf("%s: Build failed: %v", tc.runtime, err)
+		}
+		if command != tc.want {
+			t.Fatalf("%s: command = %q, want %q", tc.runtime, command, tc.want)
+		}
 	}
 }

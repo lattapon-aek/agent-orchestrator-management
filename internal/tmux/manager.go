@@ -125,6 +125,9 @@ func (m *Manager) EnsureWorkspace(sessionPrefix, repoPath string) (*Workspace, e
 		return nil, fmt.Errorf("create tmux workspace %q: %w", target, err)
 	}
 
+	// Name the base window so it persists visibly when all agent windows are closed.
+	_, _ = m.exec(availability.BinaryPath, "rename-window", "-t", name+":0", "aom")
+
 	return &Workspace{
 		Name:    name,
 		Target:  target,
@@ -255,7 +258,12 @@ func (m *Manager) CapturePane(paneID string) (string, error) {
 	return string(output), nil
 }
 
-// SendKeys sends a literal message followed by Enter into a live tmux pane.
+// SendKeys sends a message followed by Enter into a live tmux pane.
+//
+// Single-line messages are sent using send-keys -l (literal keystroke mode).
+// Multi-line messages are loaded into a named tmux buffer and pasted so that
+// embedded newlines are delivered to the TUI as data bytes, not as Enter
+// presses. Either way, a final Enter keystroke submits the input.
 func (m *Manager) SendKeys(paneID, message string) error {
 	availability := m.Availability()
 	if !availability.Available {
@@ -268,29 +276,27 @@ func (m *Manager) SendKeys(paneID, message string) error {
 		return fmt.Errorf("message is required")
 	}
 
-	if _, err := m.exec(
-		availability.BinaryPath,
-		"send-keys",
-		"-t",
-		paneID,
-		"-l",
-		message,
-	); err != nil {
-		return fmt.Errorf("send literal keys to tmux pane %q: %w", paneID, err)
+	if strings.Contains(message, "\n") {
+		// Use set-buffer + paste-buffer so the TUI receives embedded newlines
+		// as part of the text rather than as Enter key presses.
+		const bufName = "aom-brief"
+		if _, err := m.exec(availability.BinaryPath, "set-buffer", "-b", bufName, message); err != nil {
+			return fmt.Errorf("load tmux buffer for pane %q: %w", paneID, err)
+		}
+		if _, err := m.exec(availability.BinaryPath, "paste-buffer", "-b", bufName, "-t", paneID); err != nil {
+			return fmt.Errorf("paste tmux buffer to pane %q: %w", paneID, err)
+		}
+	} else {
+		if _, err := m.exec(availability.BinaryPath, "send-keys", "-t", paneID, "-l", message); err != nil {
+			return fmt.Errorf("send literal keys to tmux pane %q: %w", paneID, err)
+		}
 	}
 
 	// Brief pause so interactive TUI apps (codex, claude) finish buffering
-	// the literal text before the Enter key arrives. Without this, complex
-	// TUI input widgets may drop the submission on fast machines.
+	// the text before the Enter key arrives.
 	time.Sleep(50 * time.Millisecond)
 
-	if _, err := m.exec(
-		availability.BinaryPath,
-		"send-keys",
-		"-t",
-		paneID,
-		"Enter",
-	); err != nil {
+	if _, err := m.exec(availability.BinaryPath, "send-keys", "-t", paneID, "Enter"); err != nil {
 		return fmt.Errorf("send enter to tmux pane %q: %w", paneID, err)
 	}
 
@@ -320,6 +326,23 @@ func (m *Manager) PaneExists(paneID string) (bool, error) {
 	}
 
 	return strings.TrimSpace(string(output)) == strings.TrimSpace(paneID), nil
+}
+
+// RenameWindow sets a human-readable name on a tmux window so operators can
+// identify which agent is running in each window at a glance.
+func (m *Manager) RenameWindow(windowID, name string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if strings.TrimSpace(windowID) == "" {
+		return fmt.Errorf("window id is required")
+	}
+	_, err := m.exec(availability.BinaryPath, "rename-window", "-t", windowID, name)
+	if err != nil {
+		return fmt.Errorf("rename tmux window %q: %w", windowID, err)
+	}
+	return nil
 }
 
 // KillPane intentionally removes a pane from the tmux workspace.

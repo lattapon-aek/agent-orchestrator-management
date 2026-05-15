@@ -496,11 +496,13 @@ aom session spawn reviewer-main --mock
 ### Inputs
 
 - positional: agent name
-- required flag: `--task`
+- optional flag: `--task`
 - optional flag: `--step`
 - optional flag: `--attach`
 - optional flag: `--headless`
-- optional flag: `--mock`
+- optional flag: `--mock` — launch a mock transcript shell for local flow verification
+- optional flag: `--real` — launch the actual runtime CLI (codex, claude) in a live tmux pane
+- optional flag: `--fresh` — force a clean context even when a previous native session exists for this task
 
 ### Behavior
 
@@ -510,9 +512,14 @@ aom session spawn reviewer-main --mock
 - create session record
 - start runtime in the correct worktree
 - when `--mock` is provided, launch a mock transcript shell instead of a provider runtime for local flow verification
+- when `--real` is provided, launch the agent's configured CLI runtime (must be in PATH)
 - bind tmux pane
 - inject initial context envelope
 - when `--task` is provided, refresh task continuity artifacts with the active session and append a canonical `session.created` event
+- when `--task` is provided and a previous native session ID exists for the same task and agent, the spawn automatically resumes that session (via `--resume` for claude, `codex resume` for codex)
+- when `--fresh` is provided, the previous native session ID is ignored and the agent starts a clean context
+- for `--real claude` spawns, AOM auto-detects the native session UUID from `~/.claude/projects/` and registers it so the next spawn can resume automatically
+- the continuity decision (resume vs. fresh) is always surfaced in spawn output so the operator or orchestrator can verify the chosen path
 
 ### Output
 
@@ -523,7 +530,31 @@ Should show:
 - task and step
 - worktree path
 - attach target
-- continuity source
+- continuity mode: resuming `<session-id>` or fresh start, with a `--fresh` hint when resuming an existing session
+
+## aom session set-agent-id
+
+### Purpose
+
+Manually registers the native CLI session ID for an AOM session so the next spawn
+can resume that conversation context. This is a fallback for cases where auto-detection
+did not succeed.
+
+### Example
+
+```bash
+aom session set-agent-id SESS-001 abc-123-def-456
+```
+
+### Inputs
+
+- positional: AOM session id
+- positional: native vendor session id (UUID for claude, session identifier for codex)
+
+### Behavior
+
+- update `vendor_session_id` on the session record
+- next `session spawn` for the same task and agent will resume this session
 
 ## aom session list
 
@@ -963,6 +994,201 @@ Should show:
 - timestamp
 - short summary
 
+## aom runtime list
+
+### Purpose
+
+Lists all runtimes configured in the project `agents.yaml` and reports binary
+availability in the current PATH environment.
+
+### Example
+
+```bash
+aom runtime list
+```
+
+### Output
+
+Should show per runtime:
+
+- runtime name
+- binary availability and path
+- which agents use that runtime
+
+## aom session wait
+
+### Purpose
+
+Polls a task's `log.md` until a specific event type appears, then exits.
+Enables unattended orchestrator loops to block on agent completion signals.
+
+### Example
+
+```bash
+aom session wait SESS-001 --event task.completed
+aom session wait SESS-001 --event handoff.prepared --timeout 1h
+```
+
+### Inputs
+
+- positional: session id
+- required flag: `--event` — event type to wait for (e.g. `task.completed`, `handoff.prepared`)
+- optional flag: `--timeout` — maximum wait duration (default 30m)
+
+### Behavior
+
+- resolve the task bound to the session
+- poll the task's `log.md` every 3 seconds
+- exit zero when a `### ... | <event-type>` heading line is detected
+- exit non-zero with a timeout error when the deadline is reached
+
+### Output
+
+Should show:
+
+- session id and task id
+- log path being polled
+- matched event line when found
+
+## aom watch
+
+### Purpose
+
+Streams new log events for monitoring. With `--task` monitors one task; without
+`--task` monitors all active tasks simultaneously (InProgress, Blocked,
+NeedsAttention, Ready). With `--event` blocks until the target event appears;
+without `--event` runs in continuous tail mode until timeout.
+
+### Example
+
+```bash
+aom watch --task TASK-001
+aom watch --task TASK-001 --event task.completed
+aom watch --event handoff.prepared --timeout 1h
+aom watch
+```
+
+### Inputs
+
+- optional flag: `--task` — restrict watch to one task; omit to watch all active tasks
+- optional flag: `--event` — event type to wait for; omit for continuous tail mode
+- optional flag: `--timeout` — maximum run duration (default 30m)
+
+### Behavior
+
+- when `--task` is provided, resolve and watch only that task's `log.md`
+- when `--task` is omitted, enumerate all tasks in active states and watch all of them
+- in event mode: exit zero when the event is found; print which task matched when watching multiple tasks
+- in tail mode: print new non-empty log lines as they appear; prefix with `[TASK-xxx]` when watching multiple tasks
+
+### Output
+
+Should show:
+
+- list of watched tasks and log paths
+- timeout and event type (if applicable)
+- streamed log lines (prefixed with task id in multi-task mode)
+- matched task and event line when event mode exits
+
+## aom broadcast
+
+### Purpose
+
+Delivers the same prompt to multiple live sessions in a single command.
+
+### Example
+
+```bash
+aom broadcast "standup: what is your current status?" --sessions SESS-001,SESS-002
+```
+
+### Inputs
+
+- positional: message to deliver
+- required flag: `--sessions` — comma-separated list of session ids
+
+### Behavior
+
+- for each session id, call the same delivery path as `session send`
+- append canonical `orchestrator.prompt` events to each task's `log.md`
+- continue to remaining sessions even if one delivery fails
+- report per-session delivery status
+
+### Output
+
+Should show per session:
+
+- session id
+- delivery status (success or error reason)
+
+## aom channel
+
+### Purpose
+
+Shared team-level communication channel. Agents post completion notes, blockers,
+or questions; the orchestrator reads and reacts. Backed by `.aom/channel.md`.
+
+### Example
+
+```bash
+aom channel append "backend-main: task TASK-001 complete, handoff.md ready"
+aom channel append "need clarification on auth spec" --agent reviewer-main
+aom channel read
+```
+
+### Inputs (append)
+
+- positional: message text
+- optional flag: `--agent` — agent or actor name (default: `operator`)
+
+### Inputs (read)
+
+No arguments.
+
+### Behavior
+
+- `append`: prepend a timestamped entry to `.aom/channel.md`; create the file if absent
+- `read`: print the current contents of `.aom/channel.md`
+
+### Output
+
+- `append`: confirms appended message with timestamp and actor
+- `read`: raw channel content
+
+## aom worktree repair
+
+### Purpose
+
+Recovers a missing, unregistered, or pruned git worktree for a task. Restores
+`.agent/` artifacts and updates the worktree mapping from `NeedsRepair` to `Ready`.
+
+### Example
+
+```bash
+aom worktree repair TASK-001
+```
+
+### Inputs
+
+- positional: task id
+
+### Behavior
+
+- check the current worktree mapping state for the task
+- if the path is missing, recreate the git worktree from the persisted branch name
+- if the path is unregistered but safe (empty or `.agent/` only), adopt and repair it
+- restore `.agent/` artifacts from the canonical task artifact root
+- update worktree status to `Ready`
+- append a canonical `worktree.repaired` event to the task log
+
+### Output
+
+Should show:
+
+- worktree path before and after repair
+- repair action taken
+- new worktree status
+
 ## Recommended MVP Command Set
 
 The minimum recommended implementation set is:
@@ -978,6 +1204,7 @@ The minimum recommended implementation set is:
 ### Agent and runtime
 
 - `aom agent list`
+- `aom runtime list`
 - `aom runtime inspect`
 
 ### Task and step
@@ -986,18 +1213,32 @@ The minimum recommended implementation set is:
 - `aom task show`
 - `aom task update`
 - `aom task close`
+- `aom task reanalyze`
 - `aom step list`
 - `aom step update`
+- `aom worktree repair`
 
 ### Session
 
 - `aom session spawn`
+- `aom session send`
+- `aom session wait`
 - `aom session list`
 - `aom session show`
+- `aom session set-agent-id`
 - `aom session resume`
-- `aom session recover`
 - `aom session replace`
 - `aom session stop`
+- `aom session archive`
+
+### Monitoring and orchestration
+
+- `aom watch`
+- `aom broadcast`
+- `aom channel append`
+- `aom channel read`
+- `aom approve`
+- `aom deny`
 
 ### Execution support
 

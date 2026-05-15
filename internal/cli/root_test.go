@@ -599,7 +599,7 @@ func TestExecuteSessionSpawnWithRealRuntime(t *testing.T) {
 	if len(splitCommands) != 1 {
 		t.Fatalf("len(splitCommands) = %d, want 1", len(splitCommands))
 	}
-	if splitCommands[0] != "sh -lc 'exec codex'" {
+	if splitCommands[0] != "sh -lc 'exec codex --sandbox workspace-write'" {
 		t.Fatalf("split command = %q, want codex exec launch", splitCommands[0])
 	}
 }
@@ -3527,7 +3527,7 @@ func TestExecuteSessionReplaceWithRealRuntimeUsesCodexLaunchCommand(t *testing.T
 	if splitCount != 2 {
 		t.Fatalf("splitCount = %d, want 2 pane launches", splitCount)
 	}
-	if splitCommands[len(splitCommands)-1] != "sh -lc 'exec codex'" {
+	if splitCommands[len(splitCommands)-1] != "sh -lc 'exec codex --sandbox workspace-write'" {
 		t.Fatalf("replacement split command = %q, want codex exec launch", splitCommands[len(splitCommands)-1])
 	}
 }
@@ -5251,5 +5251,220 @@ func TestRecommendTaskActionClassifiesUnregisteredPaths(t *testing.T) {
 	dirty := recommendTaskAction("Ready", nil, mapping, worktree.DriftUnregisteredDirtyPath, 0, "", false)
 	if dirty != "inspect the existing task worktree path and clean it up manually before continuing" {
 		t.Fatalf("dirty next action = %q", dirty)
+	}
+}
+
+func TestBriefSummaryTruncatesToFirstLine(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"single line brief", "single line brief"},
+		{"first line\nsecond line\nthird line", "first line"},
+		{"\n\nfirst non-empty line\nsecond", "first non-empty line"},
+		{strings.Repeat("x", 250), strings.Repeat("x", 200) + "..."},
+		{"", ""},
+	}
+	for _, tc := range cases {
+		got := briefSummary(tc.input)
+		if got != tc.want {
+			t.Errorf("briefSummary(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestInterpretEscapesConvertsNewlinesAndTabs(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{`line1\nline2`, "line1\nline2"},
+		{`col1\tcol2`, "col1\tcol2"},
+		{`### header\n- bullet\n- bullet2`, "### header\n- bullet\n- bullet2"},
+		{"no escapes here", "no escapes here"},
+		{`mixed \n and \t`, "mixed \n and \t"},
+	}
+	for _, tc := range cases {
+		got := interpretEscapes(tc.input)
+		if got != tc.want {
+			t.Errorf("interpretEscapes(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
+func TestDoctorReportsNoProjectWhenAOMDirMissing(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	_ = Execute([]string{"doctor"}, &stdout, &stderr)
+	out := stdout.String()
+
+	if !strings.Contains(out, "AOM Doctor") {
+		t.Fatalf("stdout = %q, want AOM Doctor header", out)
+	}
+	if !strings.Contains(out, ".aom/ directory not found") {
+		t.Fatalf("stdout = %q, want missing .aom/ message", out)
+	}
+}
+
+func TestDoctorPassesOnInitializedProject(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "test-proj", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	_ = Execute([]string{"doctor"}, &stdout, &stderr)
+	out := stdout.String()
+
+	if !strings.Contains(out, "AOM Doctor") {
+		t.Fatalf("stdout = %q, want AOM Doctor header", out)
+	}
+	if !strings.Contains(out, "[PASS]") {
+		t.Fatalf("stdout = %q, want at least one PASS", out)
+	}
+	if !strings.Contains(out, "project config") {
+		t.Fatalf("stdout = %q, want project config check", out)
+	}
+	if !strings.Contains(out, "Summary:") {
+		t.Fatalf("stdout = %q, want Summary line", out)
+	}
+}
+
+func TestRuntimeListRequiresProject(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	err = Execute([]string{"runtime", "list"}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("expected error without project, got nil")
+	}
+}
+
+func TestRuntimeListShowsConfiguredRuntimes(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "test-proj", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	if err := Execute([]string{"runtime", "list"}, &stdout, &stderr); err != nil {
+		t.Fatalf("runtime list failed: %v", err)
+	}
+	out := stdout.String()
+
+	if !strings.Contains(out, "Configured runtimes") {
+		t.Fatalf("stdout = %q, want Configured runtimes header", out)
+	}
+	if !strings.Contains(out, "RUNTIME") {
+		t.Fatalf("stdout = %q, want RUNTIME column", out)
+	}
+	if !strings.Contains(out, "claude") {
+		t.Fatalf("stdout = %q, want claude runtime entry", out)
+	}
+}
+
+func TestRuntimeInspectShowsResumeSupport(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if err := Execute([]string{"project", "init", "test-proj", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init failed: %v", err)
+	}
+
+	stdout.Reset()
+	if err := Execute([]string{"runtime", "inspect", "claude"}, &stdout, &stderr); err != nil {
+		t.Fatalf("runtime inspect failed: %v", err)
+	}
+	out := stdout.String()
+
+	if !strings.Contains(out, "Runtime: claude") {
+		t.Fatalf("stdout = %q, want Runtime header", out)
+	}
+	if !strings.Contains(out, "Resume:") {
+		t.Fatalf("stdout = %q, want Resume field", out)
+	}
+	if !strings.Contains(out, "true") {
+		t.Fatalf("stdout = %q, want resume=true for claude", out)
+	}
+}
+
+func TestRuntimeInspectRequiresRuntimeName(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	err = Execute([]string{"runtime", "inspect"}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("expected error without runtime name, got nil")
 	}
 }

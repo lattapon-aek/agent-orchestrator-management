@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -91,7 +92,7 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 
 	defaultBranch := strings.TrimSpace(params.DefaultBranch)
 	if defaultBranch == "" {
-		defaultBranch = "main"
+		defaultBranch = detectDefaultBranch(repoAbsPath)
 	}
 
 	sessionPrefix := strings.TrimSpace(params.SessionPrefix)
@@ -261,6 +262,18 @@ func (s *Service) Open(repoPath string) (*OpenResult, error) {
 		TerminalDriver: cfg.Project.Runtime.Terminal,
 		SessionPrefix:  cfg.Project.Runtime.SessionPrefix,
 	}, nil
+}
+
+func detectDefaultBranch(repoPath string) string {
+	out, err := exec.Command("git", "-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		return "main"
+	}
+	branch := strings.TrimSpace(string(out))
+	if branch == "" || branch == "HEAD" {
+		return "main"
+	}
+	return branch
 }
 
 func sanitizeName(value string) string {

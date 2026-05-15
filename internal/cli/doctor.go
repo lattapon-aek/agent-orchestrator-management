@@ -1,0 +1,243 @@
+package cli
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/config"
+)
+
+type doctorResult struct {
+	label   string
+	detail  string
+	ok      bool
+	warning bool
+}
+
+func (d doctorResult) prefix() string {
+	if d.ok {
+		return "[PASS]"
+	}
+	if d.warning {
+		return "[WARN]"
+	}
+	return "[FAIL]"
+}
+
+func (r Runner) executeDoctor(_ []string) error {
+	var results []doctorResult
+	var cfg *config.ProjectConfig
+
+	// ── Environment ──────────────────────────────────────────────────────────
+	avail := r.app.Tmux.Availability()
+	if avail.Available {
+		results = append(results, doctorResult{
+			label:  "tmux",
+			detail: avail.BinaryPath,
+			ok:     true,
+		})
+	} else {
+		results = append(results, doctorResult{
+			label:  "tmux",
+			detail: "not found in PATH — required for session management",
+		})
+	}
+
+	// ── Project config ────────────────────────────────────────────────────────
+	aomDir := filepath.Join(".", ".aom")
+	if _, err := os.Stat(aomDir); os.IsNotExist(err) {
+		results = append(results, doctorResult{
+			label:  "project config",
+			detail: ".aom/ directory not found — run \"aom project init\" first",
+		})
+	} else {
+		loaded, err := config.LoadProjectConfig(".")
+		if err != nil {
+			results = append(results, doctorResult{
+				label:  "project config",
+				detail: fmt.Sprintf("failed to load: %v", err),
+			})
+		} else {
+			cfg = loaded
+			results = append(results, doctorResult{
+				label:  "project config",
+				detail: fmt.Sprintf("project=%q  branch=%s", cfg.Project.Name, cfg.Project.DefaultBranch),
+				ok:     true,
+			})
+		}
+	}
+
+	// ── .aom/ writable ────────────────────────────────────────────────────────
+	if cfg != nil {
+		probe := filepath.Join(cfg.AOMPath, ".doctor-probe")
+		if err := os.WriteFile(probe, []byte(""), 0o644); err != nil {
+			results = append(results, doctorResult{
+				label:  ".aom/ writable",
+				detail: fmt.Sprintf("write failed: %v", err),
+			})
+		} else {
+			_ = os.Remove(probe)
+			results = append(results, doctorResult{
+				label:  ".aom/ writable",
+				detail: cfg.AOMPath,
+				ok:     true,
+			})
+		}
+	}
+
+	// ── Database ──────────────────────────────────────────────────────────────
+	var dbPath string
+	if cfg != nil {
+		dbPath = filepath.Join(cfg.AOMPath, "sessions.db")
+		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+			results = append(results, doctorResult{
+				label:   "database",
+				detail:  "sessions.db not found — run \"aom project init\" to bootstrap",
+				warning: true,
+			})
+		} else {
+			results = append(results, doctorResult{
+				label:  "database",
+				detail: "sessions.db present",
+				ok:     true,
+			})
+		}
+	}
+
+	// ── Runtime binaries ──────────────────────────────────────────────────────
+	if cfg != nil {
+		runtimeAgents := buildRuntimeAgentMap(cfg)
+		for _, rt := range sortedKeys(runtimeAgents) {
+			agents := runtimeAgents[rt]
+			agentList := strings.Join(agents, ", ")
+			path, err := exec.LookPath(rt)
+			if err != nil {
+				results = append(results, doctorResult{
+					label:  fmt.Sprintf("runtime: %s", rt),
+					detail: fmt.Sprintf("not found in PATH  (used by: %s)", agentList),
+				})
+			} else {
+				results = append(results, doctorResult{
+					label:  fmt.Sprintf("runtime: %s", rt),
+					detail: fmt.Sprintf("%s  (used by: %s)", path, agentList),
+					ok:     true,
+				})
+			}
+		}
+	}
+
+	// ── Active worktrees ──────────────────────────────────────────────────────
+	if cfg != nil && dbPath != "" {
+		wtService, sqlDB, err := r.app.OpenWorktreeService(dbPath)
+		if err == nil {
+			defer sqlDB.Close()
+			projectID := sanitizeProjectID(cfg.Project.Name)
+			records, err := wtService.ListByProject(projectID)
+			if err == nil {
+				for _, wt := range records {
+					if wt.Status != "Active" && wt.Status != "Ready" {
+						continue
+					}
+					if _, err := os.Stat(wt.WorktreePath); os.IsNotExist(err) {
+						results = append(results, doctorResult{
+							label:  fmt.Sprintf("worktree: %s", wt.TaskID),
+							detail: fmt.Sprintf("%s  (status: %s, path missing — run \"aom worktree repair %s\")", wt.WorktreePath, wt.Status, wt.TaskID),
+						})
+					} else {
+						results = append(results, doctorResult{
+							label:  fmt.Sprintf("worktree: %s", wt.TaskID),
+							detail: fmt.Sprintf("%s  (status: %s)", wt.WorktreePath, wt.Status),
+							ok:     true,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	// ── Print results ─────────────────────────────────────────────────────────
+	fmt.Fprintln(r.stdout, "AOM Doctor")
+	fmt.Fprintln(r.stdout, "==========")
+	fmt.Fprintln(r.stdout, "")
+
+	passed, failed, warned := 0, 0, 0
+	for _, res := range results {
+		fmt.Fprintf(r.stdout, "  %-6s %-22s %s\n", res.prefix(), res.label, res.detail)
+		switch {
+		case res.ok:
+			passed++
+		case res.warning:
+			warned++
+		default:
+			failed++
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "")
+	summary := fmt.Sprintf("Summary: %d passed", passed)
+	if warned > 0 {
+		summary += fmt.Sprintf(", %d warning", warned)
+		if warned > 1 {
+			summary += "s"
+		}
+	}
+	if failed > 0 {
+		summary += fmt.Sprintf(", %d failed", failed)
+	}
+	fmt.Fprintln(r.stdout, summary)
+
+	if failed > 0 {
+		return fmt.Errorf("doctor found %d issue(s)", failed)
+	}
+	return nil
+}
+
+// buildRuntimeAgentMap returns a map of runtime name → slice of agent names.
+func buildRuntimeAgentMap(cfg *config.ProjectConfig) map[string][]string {
+	m := make(map[string][]string)
+	for agentName, agentCfg := range cfg.Agents.Agents {
+		if !agentCfg.Enabled {
+			continue
+		}
+		m[agentCfg.Runtime] = append(m[agentCfg.Runtime], agentName)
+	}
+	return m
+}
+
+// sanitizeProjectID mirrors project.sanitizeName to derive the DB project ID.
+func sanitizeProjectID(name string) string {
+	value := strings.ToLower(strings.TrimSpace(name))
+	value = strings.ReplaceAll(value, " ", "-")
+	value = strings.ReplaceAll(value, "_", "-")
+
+	var b strings.Builder
+	for _, ch := range value {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' {
+			b.WriteRune(ch)
+		}
+	}
+
+	result := strings.Trim(b.String(), "-")
+	if result == "" {
+		return "aom-project"
+	}
+	return result
+}
+
+// sortedKeys returns map keys in sorted order.
+func sortedKeys(m map[string][]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	// simple insertion sort — small maps only
+	for i := 1; i < len(keys); i++ {
+		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
+			keys[j], keys[j-1] = keys[j-1], keys[j]
+		}
+	}
+	return keys
+}

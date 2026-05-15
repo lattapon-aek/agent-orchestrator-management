@@ -184,6 +184,29 @@ ORDER BY created_at, id
 	return records, nil
 }
 
+// LatestVendorSessionID returns the most recent non-empty native CLI session ID
+// recorded for the given task and agent combination, used to resume a prior session.
+func (r *Repository) LatestVendorSessionID(taskID, agentName string) (string, error) {
+	if taskID == "" || agentName == "" {
+		return "", nil
+	}
+	var vendorID string
+	err := r.db.QueryRow(`
+SELECT vendor_session_id
+FROM sessions
+WHERE task_id = ? AND agent_name = ? AND vendor_session_id != ''
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`, taskID, agentName).Scan(&vendorID)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("query latest vendor session id for task %q agent %q: %w", taskID, agentName, err)
+	}
+	return vendorID, nil
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }

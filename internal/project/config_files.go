@@ -294,6 +294,8 @@ func renderTemplate(templatePath, templateDir string, data projectTemplateData) 
 		return nil, err
 	}
 
+	source = bytes.ReplaceAll(source, []byte("\r\n"), []byte("\n"))
+
 	tmpl, err := template.New(filepath.Base(templatePath)).Parse(string(source))
 	if err != nil {
 		return nil, err

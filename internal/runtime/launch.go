@@ -17,10 +17,11 @@ const (
 
 // SessionSpec contains the runtime details needed to build one launch command.
 type SessionSpec struct {
-	SessionID string
-	AgentName string
-	RoleName  string
-	Runtime   string
+	SessionID      string
+	AgentName      string
+	RoleName       string
+	Runtime        string
+	AgentSessionID string // native vendor session ID; non-empty triggers resume mode
 }
 
 // LookPathFunc resolves a runtime binary path.
@@ -63,22 +64,32 @@ func (b *Builder) realRuntimeShellCommand(spec SessionSpec) (string, error) {
 	runtimeName := strings.TrimSpace(spec.Runtime)
 	switch runtimeName {
 	case "codex":
-		return b.execRuntimeCommand(runtimeName)
+		return b.execRuntimeCommand(runtimeName, strings.TrimSpace(spec.AgentSessionID))
 	case "claude":
-		return b.execRuntimeCommand(runtimeName)
+		return b.execRuntimeCommand(runtimeName, strings.TrimSpace(spec.AgentSessionID))
 	default:
 		return "", fmt.Errorf("real launch mode does not support runtime %q in the current milestone", runtimeName)
 	}
 }
 
-func (b *Builder) execRuntimeCommand(runtimeName string) (string, error) {
+func (b *Builder) execRuntimeCommand(runtimeName, agentSessionID string) (string, error) {
 	if _, err := b.lookPath(runtimeName); err != nil {
 		return "", fmt.Errorf("real launch for runtime %q requires the %q CLI in PATH", runtimeName, runtimeName)
 	}
-	if runtimeName == "claude" {
+	switch runtimeName {
+	case "claude":
+		if agentSessionID != "" {
+			return fmt.Sprintf("sh -lc 'exec claude --resume %s --dangerously-skip-permissions'", agentSessionID), nil
+		}
 		return "sh -lc 'exec claude --dangerously-skip-permissions'", nil
+	case "codex":
+		if agentSessionID != "" {
+			return fmt.Sprintf("sh -lc 'exec codex --sandbox workspace-write resume %s'", agentSessionID), nil
+		}
+		return "sh -lc 'exec codex --sandbox workspace-write'", nil
+	default:
+		return fmt.Sprintf("sh -lc 'exec %s'", runtimeName), nil
 	}
-	return fmt.Sprintf("sh -lc 'exec %s'", runtimeName), nil
 }
 
 func placeholderShellCommand(spec SessionSpec) string {
@@ -92,11 +103,16 @@ func placeholderShellCommand(spec SessionSpec) string {
 }
 
 func mockRuntimeShellCommand(spec SessionSpec) string {
+	continuity := "fresh-start"
+	if strings.TrimSpace(spec.AgentSessionID) != "" {
+		continuity = "resume=" + spec.AgentSessionID
+	}
 	return fmt.Sprintf(
-		"sh -lc 'printf \"AOM mock runtime boot\\nsession=%s\\nagent=%s\\nrole=%s\\nruntime=%s\\nstate=ready-for-operator\\n\"; exec ${SHELL:-sh}'",
+		"sh -lc 'printf \"AOM mock runtime boot\\nsession=%s\\nagent=%s\\nrole=%s\\nruntime=%s\\ncontinuity=%s\\nstate=ready-for-operator\\n\"; exec ${SHELL:-sh}'",
 		spec.SessionID,
 		spec.AgentName,
 		spec.RoleName,
 		spec.Runtime,
+		continuity,
 	)
 }

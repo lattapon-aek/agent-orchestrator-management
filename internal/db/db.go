@@ -15,6 +15,7 @@ const (
 	migrationSchemaV2    = "schema-v2"
 	migrationSchemaV3    = "schema-v3"
 	migrationSchemaV4    = "schema-v4"
+	migrationSchemaV5    = "schema-v5"
 	defaultBusyTimeoutMS = 5000
 )
 
@@ -179,6 +180,33 @@ func Migrate(db *sql.DB) error {
 		return fmt.Errorf("commit migration transaction: %w", err)
 	}
 
+	applied, err = hasMigration(db, migrationSchemaV5)
+	if err != nil {
+		return fmt.Errorf("check migration %q: %w", migrationSchemaV5, err)
+	}
+	if applied {
+		return nil
+	}
+
+	tx, err = db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin migration transaction: %w", err)
+	}
+
+	if err := applySchemaV5(tx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("apply schema v5: %w", err)
+	}
+
+	if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV5); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("record migration %q: %w", migrationSchemaV5, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit migration transaction: %w", err)
+	}
+
 	return nil
 }
 
@@ -303,6 +331,30 @@ CREATE TABLE steps (
 	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY(project_id) REFERENCES projects(id),
 	FOREIGN KEY(task_id) REFERENCES tasks(id)
+);
+`,
+	}
+
+	for _, stmt := range stmts {
+		if _, err := tx.Exec(stmt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func applySchemaV5(tx *sql.Tx) error {
+	stmts := []string{
+		`ALTER TABLE tasks ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`,
+		`
+CREATE TABLE task_dependencies (
+	dependent_task_id TEXT NOT NULL,
+	blocking_task_id  TEXT NOT NULL,
+	created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (dependent_task_id, blocking_task_id),
+	FOREIGN KEY(dependent_task_id) REFERENCES tasks(id),
+	FOREIGN KEY(blocking_task_id)  REFERENCES tasks(id)
 );
 `,
 	}

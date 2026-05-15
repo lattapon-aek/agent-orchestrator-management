@@ -23,11 +23,19 @@ const (
 // IDGenerator produces durable AOM task and step IDs.
 type IDGenerator func() string
 
+// PriorityHigh, PriorityNormal, PriorityLow are the canonical priority levels.
+const (
+	PriorityHigh   = 10
+	PriorityNormal = 0
+	PriorityLow    = -10
+)
+
 // CreateParams describes the minimum input needed to create a task.
 type CreateParams struct {
 	ProjectID      string
 	Title          string
 	Mode           string
+	Priority       int
 	PreferredRole  string
 	PreferredAgent string
 }
@@ -47,10 +55,11 @@ type CreateResult struct {
 	Steps []step.Record
 }
 
-// UpdateParams describes mutable task fields in Milestone 3.
+// UpdateParams describes mutable task fields.
 type UpdateParams struct {
 	Mode           string
 	Status         string
+	Priority       string // "high", "normal", "low", or "" to leave unchanged
 	PreferredRole  string
 	PreferredAgent string
 }
@@ -128,6 +137,7 @@ func (s *Service) createTask(params CreateParams, seeds []StepSeed) (*CreateResu
 		Title:          title,
 		Mode:           mode,
 		Status:         defaultTaskStatus,
+		Priority:       params.Priority,
 		PreferredRole:  strings.TrimSpace(params.PreferredRole),
 		PreferredAgent: strings.TrimSpace(params.PreferredAgent),
 	}
@@ -239,6 +249,14 @@ func (s *Service) Update(id string, params UpdateParams) (*Record, error) {
 	}
 	if params.PreferredAgent != "" {
 		next.PreferredAgent = strings.TrimSpace(params.PreferredAgent)
+		changed = true
+	}
+	if params.Priority != "" {
+		p, err := NormalizePriority(params.Priority)
+		if err != nil {
+			return nil, err
+		}
+		next.Priority = p
 		changed = true
 	}
 	if params.Status != "" {
@@ -381,6 +399,179 @@ func validateTaskTransition(current, next string) error {
 	}
 
 	return fmt.Errorf("task transition %s -> %s is not allowed", current, next)
+}
+
+// NormalizePriority converts a human-readable priority label to its integer value.
+func NormalizePriority(input string) (int, error) {
+	switch strings.ToLower(strings.TrimSpace(input)) {
+	case "high":
+		return PriorityHigh, nil
+	case "normal", "":
+		return PriorityNormal, nil
+	case "low":
+		return PriorityLow, nil
+	default:
+		return 0, fmt.Errorf("priority %q is not recognized (use high, normal, or low)", input)
+	}
+}
+
+// PriorityLabel returns a human-readable label for a priority integer.
+func PriorityLabel(p int) string {
+	switch {
+	case p >= PriorityHigh:
+		return "high"
+	case p <= PriorityLow:
+		return "low"
+	default:
+		return "normal"
+	}
+}
+
+// AddDependency records that dependentID is blocked by blockingID.
+// Returns an error if either task does not exist or if adding the dependency
+// would create a cycle.
+func (s *Service) AddDependency(dependentID, blockingID string) error {
+	dependentID = strings.TrimSpace(dependentID)
+	blockingID = strings.TrimSpace(blockingID)
+
+	if dependentID == blockingID {
+		return fmt.Errorf("a task cannot depend on itself")
+	}
+
+	dep, err := s.repo.GetByID(dependentID)
+	if err != nil {
+		return err
+	}
+	if dep == nil {
+		return fmt.Errorf("task %q not found", dependentID)
+	}
+
+	blk, err := s.repo.GetByID(blockingID)
+	if err != nil {
+		return err
+	}
+	if blk == nil {
+		return fmt.Errorf("task %q not found", blockingID)
+	}
+
+	// Cycle detection: adding (dependent → blocking) creates a cycle if
+	// blockingID can already reach dependentID through existing edges.
+	if reachable, err := s.canReach(blockingID, dependentID); err != nil {
+		return fmt.Errorf("cycle check: %w", err)
+	} else if reachable {
+		return fmt.Errorf("adding dependency would create a cycle: %s already depends (transitively) on %s", blockingID, dependentID)
+	}
+
+	return s.repo.AddDependency(dependentID, blockingID)
+}
+
+// RemoveDependency removes a blocking relationship between two tasks.
+func (s *Service) RemoveDependency(dependentID, blockingID string) error {
+	dependentID = strings.TrimSpace(dependentID)
+	blockingID = strings.TrimSpace(blockingID)
+	return s.repo.RemoveDependency(dependentID, blockingID)
+}
+
+// BlockedBy returns the tasks that block the given task.
+func (s *Service) BlockedBy(taskID string) ([]Record, error) {
+	ids, err := s.repo.BlockedByIDs(strings.TrimSpace(taskID))
+	if err != nil {
+		return nil, err
+	}
+	return s.fetchByIDs(ids)
+}
+
+// Unblocks returns the tasks that the given task is blocking.
+func (s *Service) Unblocks(taskID string) ([]Record, error) {
+	ids, err := s.repo.UnblocksIDs(strings.TrimSpace(taskID))
+	if err != nil {
+		return nil, err
+	}
+	return s.fetchByIDs(ids)
+}
+
+// ListUnblocked returns all tasks in a project that have no active blockers,
+// ordered by priority (high first) then creation order.
+func (s *Service) ListUnblocked(projectID string) ([]Record, error) {
+	all, err := s.repo.ListByProjectID(strings.TrimSpace(projectID))
+	if err != nil {
+		return nil, err
+	}
+
+	var unblocked []Record
+	for _, t := range all {
+		if t.Status == "Done" || t.Status == "Archived" {
+			continue
+		}
+		blockerIDs, err := s.repo.BlockedByIDs(t.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		// A task is unblocked when it has no blockers, or all blockers are Done/Archived.
+		blocked := false
+		for _, bID := range blockerIDs {
+			b, err := s.repo.GetByID(bID)
+			if err != nil {
+				return nil, err
+			}
+			if b != nil && b.Status != "Done" && b.Status != "Archived" {
+				blocked = true
+				break
+			}
+		}
+		if !blocked {
+			unblocked = append(unblocked, t)
+		}
+	}
+
+	return unblocked, nil
+}
+
+// canReach returns true if startID can reach targetID through dependency edges.
+func (s *Service) canReach(startID, targetID string) (bool, error) {
+	edges, err := s.repo.AllDependencyEdges()
+	if err != nil {
+		return false, err
+	}
+
+	// Build adjacency: dep → blocking (direction of "is blocked by").
+	adj := make(map[string][]string)
+	for _, e := range edges {
+		dep, blk := e[0], e[1]
+		adj[dep] = append(adj[dep], blk)
+	}
+
+	visited := make(map[string]bool)
+	queue := []string{startID}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		if cur == targetID {
+			return true, nil
+		}
+		if visited[cur] {
+			continue
+		}
+		visited[cur] = true
+		queue = append(queue, adj[cur]...)
+	}
+
+	return false, nil
+}
+
+func (s *Service) fetchByIDs(ids []string) ([]Record, error) {
+	var records []Record
+	for _, id := range ids {
+		r, err := s.repo.GetByID(id)
+		if err != nil {
+			return nil, err
+		}
+		if r != nil {
+			records = append(records, *r)
+		}
+	}
+	return records, nil
 }
 
 func defaultTaskIDGenerator(prefix string) IDGenerator {

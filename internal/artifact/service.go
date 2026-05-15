@@ -31,6 +31,7 @@ type SyncParams struct {
 	Steps                 []step.Record
 	ActiveSession         *session.Record
 	Worktree              *worktree.Record
+	BlockedBy             []task.Record // tasks that block this task
 	ReviewOwnerHint       string
 	ReviewOwnerAmbiguous  bool
 	CreatedBy             string
@@ -517,6 +518,8 @@ func (s *Service) renderIndexMarkdown(params SyncParams) string {
 - Title: %s
 - Mode: %s
 - Status: %s
+- Priority: %s
+- Blocked by: %s
 
 ## Active Control
 - Active Step: %s
@@ -547,6 +550,8 @@ func (s *Service) renderIndexMarkdown(params SyncParams) string {
 		params.Task.Title,
 		params.Task.Mode,
 		params.Task.Status,
+		renderPriorityLabel(params.Task.Priority),
+		renderBlockedByLine(params.BlockedBy),
 		activeStepLine,
 		emptyFallback(params.Task.PreferredRole),
 		emptyFallback(params.Task.PreferredAgent),
@@ -714,6 +719,28 @@ func (s *Service) artifactPresence(dir, name string) string {
 		return "present"
 	}
 	return "absent"
+}
+
+func renderPriorityLabel(p int) string {
+	switch {
+	case p >= 10:
+		return "high"
+	case p <= -10:
+		return "low"
+	default:
+		return "normal"
+	}
+}
+
+func renderBlockedByLine(blockers []task.Record) string {
+	if len(blockers) == 0 {
+		return "-"
+	}
+	parts := make([]string, 0, len(blockers))
+	for _, b := range blockers {
+		parts = append(parts, b.ID)
+	}
+	return strings.Join(parts, ", ")
 }
 
 func runtimeIdentityFilename(runtimeName string) string {

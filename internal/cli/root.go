@@ -94,6 +94,8 @@ func (r Runner) Execute(args []string) error {
 		return r.executeSession(args[1:])
 	case "status":
 		return r.executeStatus(args[1:])
+	case "next":
+		return r.executeNext(args[1:])
 	case "task":
 		return r.executeTask(args[1:])
 	case "watch":
@@ -123,6 +125,10 @@ func (r Runner) executeTask(args []string) error {
 		return r.executeTaskShow(args[1:])
 	case "reanalyze":
 		return r.executeTaskReanalyze(args[1:])
+	case "link":
+		return r.executeTaskLink(args[1:])
+	case "unlink":
+		return r.executeTaskUnlink(args[1:])
 	default:
 		return fmt.Errorf("unknown task command %q", strings.Join(args, " "))
 	}
@@ -696,6 +702,12 @@ func (r Runner) executeTaskCreate(args []string) error {
 				return fmt.Errorf("--agent requires a value")
 			}
 			params.agent = args[i]
+		case "--priority":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--priority requires a value")
+			}
+			params.priority = args[i]
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -716,10 +728,16 @@ func (r Runner) executeTaskCreate(args []string) error {
 	}
 	defer sqlDB.Close()
 
+	priority, err := task.NormalizePriority(params.priority)
+	if err != nil {
+		return err
+	}
+
 	createResult, err := taskService.Create(task.CreateParams{
 		ProjectID:      result.Project.ID,
 		Title:          params.title,
 		Mode:           params.mode,
+		Priority:       priority,
 		PreferredRole:  params.role,
 		PreferredAgent: params.agent,
 	})
@@ -758,10 +776,11 @@ func (r Runner) executeTaskCreate(args []string) error {
 }
 
 type taskCreateParams struct {
-	title string
-	mode  string
-	role  string
-	agent string
+	title    string
+	mode     string
+	role     string
+	agent    string
+	priority string
 }
 
 func (r Runner) executeTaskShow(args []string) error {
@@ -843,6 +862,12 @@ func (r Runner) executeTaskUpdate(args []string) error {
 				return fmt.Errorf("--agent requires a value")
 			}
 			params.agent = args[i]
+		case "--priority":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--priority requires a value")
+			}
+			params.priority = args[i]
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -862,6 +887,7 @@ func (r Runner) executeTaskUpdate(args []string) error {
 	record, err := taskService.Update(params.id, task.UpdateParams{
 		Mode:           params.mode,
 		Status:         params.status,
+		Priority:       params.priority,
 		PreferredRole:  params.role,
 		PreferredAgent: params.agent,
 	})
@@ -890,11 +916,12 @@ func (r Runner) executeTaskUpdate(args []string) error {
 }
 
 type taskUpdateParams struct {
-	id     string
-	mode   string
-	status string
-	role   string
-	agent  string
+	id       string
+	mode     string
+	status   string
+	role     string
+	agent    string
+	priority string
 }
 
 func (r Runner) executeTaskClose(args []string) error {
@@ -2157,6 +2184,187 @@ func (r Runner) executeTaskReanalyze(args []string) error {
 	}
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintf(r.stdout, "Recommended next action: %s\n", nextAction)
+	return nil
+}
+
+func (r Runner) executeTaskLink(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("task id is required")
+	}
+
+	dependentID := strings.TrimSpace(args[0])
+	var blockingID string
+
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--blocks":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--blocks requires a value")
+			}
+			blockingID = strings.TrimSpace(args[i])
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	if blockingID == "" {
+		return fmt.Errorf("--blocks <task-id> is required")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	if err := taskService.AddDependency(dependentID, blockingID); err != nil {
+		return err
+	}
+
+	if err := r.syncTaskArtifacts(result, dependentID, artifact.Event{
+		Type:        "task.linked",
+		Actor:       "operator",
+		Summary:     fmt.Sprintf("Task %s is now blocked by %s", dependentID, blockingID),
+		StateEffect: "dependency added",
+	}, false); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(r.stdout, "Linked: %s is blocked by %s\n", dependentID, blockingID)
+	return nil
+}
+
+func (r Runner) executeTaskUnlink(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("task id is required")
+	}
+
+	dependentID := strings.TrimSpace(args[0])
+	var blockingID string
+
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--blocks":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--blocks requires a value")
+			}
+			blockingID = strings.TrimSpace(args[i])
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	if blockingID == "" {
+		return fmt.Errorf("--blocks <task-id> is required")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	if err := taskService.RemoveDependency(dependentID, blockingID); err != nil {
+		return err
+	}
+
+	if err := r.syncTaskArtifacts(result, dependentID, artifact.Event{
+		Type:        "task.unlinked",
+		Actor:       "operator",
+		Summary:     fmt.Sprintf("Task %s is no longer blocked by %s", dependentID, blockingID),
+		StateEffect: "dependency removed",
+	}, false); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(r.stdout, "Unlinked: %s is no longer blocked by %s\n", dependentID, blockingID)
+	return nil
+}
+
+func (r Runner) executeNext(args []string) error {
+	_ = args
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	unblocked, err := taskService.ListUnblocked(result.Project.ID)
+	if err != nil {
+		return err
+	}
+
+	all, err := taskService.ListByProject(result.Project.ID)
+	if err != nil {
+		return err
+	}
+
+	// Collect blocked tasks (have at least one active blocker).
+	unblockedIDs := make(map[string]bool)
+	for _, t := range unblocked {
+		unblockedIDs[t.ID] = true
+	}
+
+	var blocked []task.Record
+	for _, t := range all {
+		if t.Status == "Done" || t.Status == "Archived" {
+			continue
+		}
+		if !unblockedIDs[t.ID] {
+			blocked = append(blocked, t)
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "Next tasks")
+	fmt.Fprintln(r.stdout, "")
+
+	if len(unblocked) == 0 {
+		fmt.Fprintln(r.stdout, "Unblocked: none")
+	} else {
+		fmt.Fprintln(r.stdout, "Unblocked (work on these next):")
+		for i, t := range unblocked {
+			priority := task.PriorityLabel(t.Priority)
+			owner := emptyFallback(t.PreferredAgent)
+			if owner == "-" {
+				owner = emptyFallback(t.PreferredRole)
+			}
+			fmt.Fprintf(r.stdout, "  %d. [%s] %s  %s  owner=%s\n", i+1, priority, t.ID, t.Title, owner)
+		}
+	}
+
+	if len(blocked) > 0 {
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintln(r.stdout, "Blocked (waiting on dependencies):")
+		for _, t := range blocked {
+			blockers, _ := taskService.BlockedBy(t.ID)
+			blockerIDs := make([]string, 0, len(blockers))
+			for _, b := range blockers {
+				if b.Status != "Done" && b.Status != "Archived" {
+					blockerIDs = append(blockerIDs, b.ID)
+				}
+			}
+			fmt.Fprintf(r.stdout, "  %s  %s  waiting on: %s\n", t.ID, t.Title, strings.Join(blockerIDs, ", "))
+		}
+	}
+
 	return nil
 }
 
@@ -4402,6 +4610,22 @@ func worktreeHint(taskID string, mapping *worktree.Record, driftKind string) str
 	}
 }
 
+// loadBlockedBy fetches the tasks that block taskID. Errors are silently ignored
+// so that artifact sync never fails due to a dependency lookup problem.
+func (r Runner) loadBlockedBy(result *project.OpenResult, taskID string) []task.Record {
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return nil
+	}
+	defer sqlDB.Close()
+
+	records, err := taskService.BlockedBy(taskID)
+	if err != nil {
+		return nil
+	}
+	return records
+}
+
 func hasActiveTaskSession(sessions []session.Record, taskID string) bool {
 	for _, item := range sessions {
 		if item.TaskID != taskID {
@@ -4489,11 +4713,14 @@ func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, t
 	if len(events) > 0 {
 		updatedBy = events[len(events)-1].Actor
 	}
+	blockedByRecords := r.loadBlockedBy(result, taskID)
+
 	params := artifact.SyncParams{
 		Task:                  view.Task,
 		Steps:                 view.Steps,
 		ActiveSession:         activeSession,
 		Worktree:              view.Worktree,
+		BlockedBy:             blockedByRecords,
 		CreatedBy:             "operator",
 		UpdatedBy:             updatedBy,
 		ReviewOwnerHint:       view.ReviewOwnerHint,

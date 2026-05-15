@@ -232,6 +232,42 @@ Implemented in one slice (2026-05-15):
 - `aom status` now uses ANSI color for status fields (green=active/healthy, yellow=attention needed, red=failed, dim=archived/done) and bold section headers; colors are suppressed automatically when stdout is not a TTY or `NO_COLOR` is set
 - `internal/cli/status_format.go` added: contains `isTTYWriter`, `colorize`, `colorStatus`, and `sectionLabel` helpers
 
+### Milestones 13–17 — Workflow Intelligence Layer (2026-05-16)
+
+All five milestones implemented and committed in sequence.
+
+#### M13 — Task Graph & Priority
+- `task_dependencies` junction table (schema-v5) — `ALTER TABLE tasks ADD COLUMN priority`
+- BFS cycle detection before inserting a dependency edge
+- `aom task link <task-id> --blocks <other>` / `aom task unlink`
+- `--priority high|normal|low` on `task create` and `task update`
+- `aom next` — ordered list of unblocked tasks by priority; shows "waiting on: TASK-xxx" for blocked tasks
+- `index.md` now renders `Priority:` and `Blocked by:` fields
+- New log events: `task.linked`, `task.unlinked`
+
+#### M14 — Agent Self-Service & Team Briefing
+- Agents write requests to `.aom/requests/<id>.md` via `aom task request`
+- Operator reviews with `aom task list-requests`, `aom task approve-request`, `aom task reject-request`
+- `aom team brief` generates `.aom/team-brief.md` — machine-readable full team state summary (tasks, requests, channel, agents)
+- `session spawn --task` now prints team-brief.md path alongside task.md
+
+#### M15 — Merge Coordination
+- `internal/merge/` package: `CheckOverlaps` runs `git diff --name-only` on two branches, scores Green/Yellow/Red
+- `aom merge check <task-id> [--against <other-task-id|branch>]` — dry-run overlap report
+- `aom merge prepare <task-id> [--into <branch>]` — writes `merge-plan.md` into task artifact root, sets NeedsAttention
+
+#### M16 — Communication & Feedback Upgrade
+- P2P mailboxes at `.aom/mailbox/<agent>.md`; `aom message send/read/clear`
+- Passive CI feedback: `aom task record-result <task-id> --passed|--failed [--summary ...]` appends test events and moves failed tasks to NeedsAttention
+- `aom session health [--all]` — time since last checkpoint, warns if >2h; lists handoff presence
+- `aom pause-all [--reason ...]` — transitions all Working sessions to WaitingApproval and broadcasts pause
+- `aom resume-all` — bulk-approves all WaitingApproval sessions
+
+#### M17 — Observability
+- `aom worktree read-file <task-id> <path>` — read-only cross-worktree file access; path-traversal protection via `filepath.Clean` + prefix check; appends `worktree.read` audit event
+- `aom metrics [--days N]` — team velocity report: tasks completed, avg duration, blocked events per agent, bottleneck hint; derived from `log.md` event timestamps and task DB records
+- `internal/cli/metrics.go`: `BuildVelocityReport`, `PrintVelocityReport`, `parseBlockEvents`
+
 ### Six Additional Pre-Gemini/Kiro Features (2026-05-15)
 
 Implemented after M9, before gemini/kiro runtime support:
@@ -253,7 +289,17 @@ Implemented commands:
 - `aom task update`
 - `aom task close`
 - `aom task show`
+- `aom task link` / `aom task unlink` (M13)
+- `aom task request` / `aom task list-requests` / `aom task approve-request` / `aom task reject-request` (M14)
+- `aom task record-result` (M16)
+- `aom next` (M13)
+- `aom team brief` (M14)
+- `aom merge check` / `aom merge prepare` (M15)
+- `aom message send` / `aom message read` / `aom message clear` (M16)
+- `aom pause-all` / `aom resume-all` (M16)
+- `aom metrics` (M17)
 - `aom worktree repair`
+- `aom worktree read-file` (M17)
 - `aom step list`
 - `aom step update`
 - `aom session send`
@@ -263,6 +309,7 @@ Implemented commands:
 - `aom session replace`
 - `aom session stop`
 - `aom session archive`
+- `aom session health` (M16)
 - `aom attach`
 - `aom capture`
 - `aom checkpoint`
@@ -378,7 +425,10 @@ Current behavior notes:
 - [internal/cli/channel.go](../internal/cli/channel.go)
 - [internal/cli/doctor.go](../internal/cli/doctor.go)
 - [internal/cli/runtime_cmd.go](../internal/cli/runtime_cmd.go)
-- [internal/cli/log_wait.go](../internal/cli/log_wait.go)
+- [internal/cli/message.go](../internal/cli/message.go) (M16 — mailboxes, session health)
+- [internal/cli/metrics.go](../internal/cli/metrics.go) (M17 — velocity report)
+- [internal/cli/request.go](../internal/cli/request.go) (M14 — task requests)
+- [internal/merge/service.go](../internal/merge/service.go) (M15 — git overlap detection)
 
 ### Tests
 
@@ -529,6 +579,7 @@ Still out of scope at the current handoff point:
 - first-class real-runtime launch for runtimes beyond the current `codex` and `claude` slice (gemini, kiro): add two cases to `realRuntimeShellCommand` and `runtimeResumeInfo` in `internal/runtime/launch.go`
 - provider-native resume for `gemini` and `kiro` (claude and codex resume flows are live)
 - runtime command interception for policy enforcement (M10): `deny_commands` are currently appended to identity files as instructions only; no runtime-level blocking is implemented yet
+- M17 Gemini/Kiro: deferred — no confirmed CLI flags available for testing
 
 ## AI Orchestrator Path
 
@@ -582,19 +633,11 @@ replace.
 
 ## Immediate Next Step
 
-Milestones 6–12 core slice are substantially complete. Remaining work:
+Milestones 0–17 are complete. Remaining work before a production-ready release:
 
-- M9: Project governance (MCP resource bindings, role skills, policy enforcement) — not started
-- M10 remainder: `aom runtime inspect` now done; gemini/kiro real-runtime launch still out of scope
-- `aom doctor` — done
-- `aom runtime list` / `aom runtime inspect` — done
-- Richer status formatting — done (ANSI color on status values, visual section labels, NO_COLOR respected)
-- Runtime identity file materialization — done (profile.md seeded at init, materialized at spawn/resume)
-
-Recommended next slices in priority order:
-
-1. **gemini/kiro runtime support** — small change, add 2 cases to `realRuntimeShellCommand` and `runtimeResumeInfo`
-2. **M9 governance** — DONE (see below)
+1. **gemini/kiro runtime support** — add 2 cases to `realRuntimeShellCommand` and `runtimeResumeInfo` in `internal/runtime/launch.go`; blocked on confirmed CLI flags
+2. **Runtime-level policy enforcement** — `deny_commands` currently injected into identity files as instructions; runtime adapter interceptor not yet implemented
+3. **Live E2E for M13–M17** — all new commands are unit-tested; multi-agent scenario smoke testing deferred
 
 ### M9 — Project Governance (complete)
 

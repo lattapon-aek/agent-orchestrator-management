@@ -116,16 +116,20 @@ Defined in full in `docs/state-machine.md`. Summary:
 | 10 — Runtime adapters (codex + claude) | Partial — codex and claude live; gemini/kiro pending |
 | 11 — Operator UX refinement | Partial — ANSI color status, section headers done |
 | 12 — Agent team collaboration (channel, broadcast, watch) | Complete |
+| 13 — Task graph & priority | Complete |
+| 14 — Agent self-service & team briefing | Complete |
+| 15 — Merge coordination | Complete |
+| 16 — Communication & feedback upgrade | Complete |
+| 17 — Observability (cross-worktree read, velocity metrics) | Complete |
 
 **Immediate next work**: gemini and kiro runtime launch support (2 cases in `internal/runtime/launch.go`); runtime-level policy enforcement (deny_commands currently injected as instructions only, not enforced at runtime).
 
 **Recent additions** (see `docs/current-status.md` for full detail):
-- `aom session rebind` — reconnect Detached session to live pane without re-spawn
-- `aom review close` — close active review step and return task to InProgress
-- `aom project resources` — show role bindings, skills, MCP, and policy summary
-- `AOM_ACTOR` env var in `aom session send` — log actor identity for AI orchestrator sessions
-- Dynamic continuity readiness scoring in `index.md` (High / Medium / Low)
-- Policy deny_commands injected into agent identity files at spawn time
+- M13: `aom task link/unlink`, cross-task dependency graph with BFS cycle detection, `--priority` flag, `aom next`
+- M14: `aom task request/list-requests/approve-request/reject-request`, `aom team brief` (`.aom/team-brief.md`)
+- M15: `aom merge check/prepare`, `internal/merge` package, `merge-plan.md` artifact
+- M16: `aom message send/read/clear`, `aom task record-result`, `aom session health`, `aom pause-all/resume-all`
+- M17: `aom worktree read-file` (cross-worktree read with path-traversal guard), `aom metrics` (velocity report from log events)
 
 ---
 

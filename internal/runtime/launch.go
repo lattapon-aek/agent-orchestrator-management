@@ -94,7 +94,7 @@ func (b *Builder) execRuntimeCommand(spec SessionSpec) (string, error) {
 		return "sh -lc 'exec claude --dangerously-skip-permissions'", nil
 	case "codex":
 		if agentSessionID != "" {
-			return fmt.Sprintf("sh -lc 'exec codex --sandbox workspace-write resume %s'", agentSessionID), nil
+			return fmt.Sprintf("sh -lc 'exec codex resume %s --sandbox workspace-write'", agentSessionID), nil
 		}
 		return "sh -lc 'exec codex --sandbox workspace-write'", nil
 	default:

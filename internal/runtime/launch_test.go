@@ -146,7 +146,7 @@ func TestBuilderBuildResumesCodexSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
-	want := "sh -lc 'exec codex --sandbox workspace-write resume sess-xyz-789'"
+	want := "sh -lc 'exec codex resume sess-xyz-789 --sandbox workspace-write'"
 	if command != want {
 		t.Fatalf("command = %q, want %q", command, want)
 	}

@@ -16,6 +16,7 @@ import (
 	aommerge "github.com/lattapon-aek/Agents-Orchestfator-Management/internal/merge"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/plan"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/project"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/provider"
 	aomruntime "github.com/lattapon-aek/Agents-Orchestfator-Management/internal/runtime"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/session"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
@@ -30,21 +31,23 @@ var newLaunchBuilder = aomruntime.NewBuilder
 
 // Runner executes top-level CLI behavior.
 type Runner struct {
-	app    *app.App
-	stdin  io.Reader
-	stdout io.Writer
-	stderr io.Writer
-	isTTY  func(io.Reader) bool
+	app      *app.App
+	stdin    io.Reader
+	stdout   io.Writer
+	stderr   io.Writer
+	isTTY    func(io.Reader) bool
+	registry provider.Registry
 }
 
 // Execute runs the AOM CLI using the provided arguments and streams.
 func Execute(args []string, stdout, stderr io.Writer) error {
 	r := Runner{
-		app:    newApp(),
-		stdin:  os.Stdin,
-		stdout: stdout,
-		stderr: stderr,
-		isTTY:  isTTYReader,
+		app:      newApp(),
+		stdin:    os.Stdin,
+		stdout:   stdout,
+		stderr:   stderr,
+		isTTY:    isTTYReader,
+		registry: provider.DefaultRegistry(),
 	}
 
 	return r.Execute(args)
@@ -1383,7 +1386,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "session launch validation failed before session became interactive", err)
 	}
 
-	if err := materializeAgentContext(result, agentRecord, executionPath); err != nil {
+	if err := r.materializeAgentContext(result, agentRecord, executionPath); err != nil {
 		return nil, fmt.Errorf("materialize agent context: %w", err)
 	}
 
@@ -1485,23 +1488,25 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		}
 	}
 
-	if params.launchMode == aomruntime.LaunchModeReal && record.Runtime == "claude" {
-		if agentSessionID != "" {
-			fmt.Fprintf(r.stdout, "Native session ID: %s (resumed)\n", agentSessionID)
-		} else {
-			spawnedAt := time.Now()
-			fmt.Fprintln(r.stdout, "")
-			fmt.Fprintln(r.stdout, "Detecting native session ID (this may take up to 45s)...")
-			time.Sleep(3 * time.Second)
-			_ = r.app.Tmux.SendKeys(record.TmuxPane, "2")
-			if sid, _ := claudeSessionForWorktree(record.WorktreePath, spawnedAt, 45*time.Second); sid != "" {
-				if updated, err := sessionService.SetVendorSessionID(record.ID, sid); err == nil {
-					record = updated
-				}
-				fmt.Fprintf(r.stdout, "Native session ID: %s (auto-detected)\n", sid)
+	if params.launchMode == aomruntime.LaunchModeReal {
+		if strategy := r.registry.Lookup(record.Runtime).NativeSessionDetection(); strategy != nil {
+			if agentSessionID != "" {
+				fmt.Fprintf(r.stdout, "Native session ID: %s (resumed)\n", agentSessionID)
 			} else {
-				fmt.Fprintln(r.stdout, "Native session ID not yet available")
-				fmt.Fprintf(r.stdout, "To register manually: aom session set-agent-id %s <uuid>\n", record.ID)
+				spawnedAt := time.Now()
+				fmt.Fprintln(r.stdout, "")
+				fmt.Fprintln(r.stdout, "Detecting native session ID (this may take up to 45s)...")
+				time.Sleep(3 * time.Second)
+				_ = r.app.Tmux.SendKeys(record.TmuxPane, "2")
+				if sid, _ := strategy.DetectFn(record.WorktreePath, spawnedAt, 45*time.Second); sid != "" {
+					if updated, err := sessionService.SetVendorSessionID(record.ID, sid); err == nil {
+						record = updated
+					}
+					fmt.Fprintf(r.stdout, "Native session ID: %s (auto-detected)\n", sid)
+				} else {
+					fmt.Fprintln(r.stdout, "Native session ID not yet available")
+					fmt.Fprintf(r.stdout, "To register manually: aom session set-agent-id %s <uuid>\n", record.ID)
+				}
 			}
 		}
 	}
@@ -2028,7 +2033,7 @@ func (r Runner) executeSessionResume(args []string) error {
 
 	// Deliver agent context (identity, skills, MCP) into the new worktree.
 	if agentRec := findAgentByName(result.Agents, record.AgentName); agentRec != nil {
-		_ = materializeAgentContext(result, agentRec, newExecutionPath)
+		_ = r.materializeAgentContext(result, agentRec, newExecutionPath)
 	}
 
 	// Advance new task's worktree to Active.
@@ -5790,7 +5795,7 @@ func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, taskRecord 
 // materializeAgentContext consolidates all three spawn-time context injections:
 // identity file, role skill files, and MCP server config. Both spawn sites call
 // this so they cannot diverge.
-func materializeAgentContext(result *project.OpenResult, agentRecord *agent.Record, worktreePath string) error {
+func (r Runner) materializeAgentContext(result *project.OpenResult, agentRecord *agent.Record, worktreePath string) error {
 	profilePath := filepath.Join(result.Project.RepoPath, ".aom", "agents", agentRecord.Name, "profile.md")
 	if err := artifact.MaterializeIdentityFile(agentRecord.Name, agentRecord.Runtime, worktreePath, profilePath); err != nil {
 		return fmt.Errorf("materialize identity file: %w", err)
@@ -5813,13 +5818,7 @@ func materializeAgentContext(result *project.OpenResult, agentRecord *agent.Reco
 	// Append project-board pointer to the agent's identity file so it knows where to
 	// find the shared task list. Silently skipped when the worktree or identity file is absent.
 	if worktreePath != "" {
-		var identityFile string
-		switch strings.ToLower(agentRecord.Runtime) {
-		case "claude":
-			identityFile = "CLAUDE.md"
-		case "codex":
-			identityFile = "AGENTS.md"
-		}
+		identityFile := r.registry.Lookup(agentRecord.Runtime).IdentityFilename()
 		if identityFile != "" {
 			boardPath := filepath.Join(result.Project.RepoPath, ".aom", "project-board.md")
 			note := fmt.Sprintf("\n## Project Board\nFull team task board: %s\nUse `aom task list` to see live task state.\n", boardPath)
@@ -5835,17 +5834,18 @@ func materializeAgentContext(result *project.OpenResult, agentRecord *agent.Reco
 }
 
 // enforcePolicyDefaults surfaces policy information at spawn time.
-// For claude: deny_commands are enforced via --disallowed-tools at the runtime level.
-// For codex and other runtimes: deny_commands are written to the identity file as instructions only.
+// For runtimes with PolicyEnforcementRuntimeFlag (e.g. claude): deny_commands are enforced
+// via --disallowed-tools. For all other runtimes: they are written to the identity file as
+// instructions only.
 func (r Runner) enforcePolicyDefaults(result *project.OpenResult, agentRuntime string) {
 	policy := result.Policy.Policy
 	if policy.SessionDefaults.YoloMode == "enabled" {
 		fmt.Fprintln(r.stderr, "Warning: project policy has yolo_mode=enabled — agent runs without approval gates")
 	}
 	if n := len(policy.DenyCommands); n > 0 {
-		switch strings.TrimSpace(agentRuntime) {
-		case "claude":
-			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) enforced via --disallowed-tools (runtime-level, claude)\n", n)
+		switch r.registry.Lookup(agentRuntime).PolicyEnforcementLevel() {
+		case provider.PolicyEnforcementRuntimeFlag:
+			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) enforced via --disallowed-tools (runtime-level, %s)\n", n, agentRuntime)
 		default:
 			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) written to identity file (instruction-only — %s has no runtime enforcement flag)\n", n, agentRuntime)
 		}

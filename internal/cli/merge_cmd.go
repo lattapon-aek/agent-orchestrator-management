@@ -10,6 +10,57 @@ import (
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 )
 
+// resolveAgentArtifactConflicts auto-resolves a failed git merge when every
+// unmerged file is under .agent/ (per-task metadata that should never block a
+// code merge). Returns true if resolved and committed, false if any non-.agent/
+// conflict exists so the caller can propagate the original error.
+func resolveAgentArtifactConflicts(repoPath string) (bool, error) {
+	// git ls-files -u lists unmerged index entries (stages 2 & 3).
+	// Output format per line: "<mode> <hash> <stage>\t<path>"
+	// --name-only is not available on all git versions, so we parse the path ourselves.
+	out, err := exec.Command("git", "-C", repoPath, "ls-files", "-u").Output()
+	if err != nil {
+		return false, err
+	}
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		// Tab separates the "<mode> <hash> <stage>" prefix from the path.
+		idx := strings.Index(line, "\t")
+		if idx < 0 {
+			continue
+		}
+		seen[strings.TrimSpace(line[idx+1:])] = true
+	}
+	unmerged := make([]string, 0, len(seen))
+	for f := range seen {
+		unmerged = append(unmerged, f)
+	}
+	if len(unmerged) == 0 {
+		return false, nil
+	}
+	for _, f := range unmerged {
+		if !strings.HasPrefix(f, ".agent/") {
+			return false, nil // real code conflict — caller must handle
+		}
+	}
+	// All conflicts are .agent/ files. Take the incoming (theirs) version,
+	// which is the latest task's artifacts, then stage and commit.
+	agentFiles := unmerged
+	checkoutArgs := append([]string{"-C", repoPath, "checkout", "--theirs", "--"}, agentFiles...)
+	if o, err := exec.Command("git", checkoutArgs...).CombinedOutput(); err != nil {
+		return false, fmt.Errorf("checkout --theirs failed: %s", strings.TrimSpace(string(o)))
+	}
+	// Use -f to override .gitignore (agent artifacts may be gitignored in the root repo).
+	addArgs := append([]string{"-C", repoPath, "add", "-f", "--"}, agentFiles...)
+	if o, err := exec.Command("git", addArgs...).CombinedOutput(); err != nil {
+		return false, fmt.Errorf("git add failed: %s", strings.TrimSpace(string(o)))
+	}
+	if o, err := exec.Command("git", "-C", repoPath, "commit", "--no-edit").CombinedOutput(); err != nil {
+		return false, fmt.Errorf("git commit failed: %s", strings.TrimSpace(string(o)))
+	}
+	return true, nil
+}
+
 func (r Runner) executeMergeCheck(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("task id is required")
@@ -285,7 +336,16 @@ func (r Runner) executeMergeCommit(args []string) error {
 
 	out, mergeErr := cmd.CombinedOutput()
 	if mergeErr != nil {
-		return fmt.Errorf("git merge failed:\n%s", strings.TrimSpace(string(out)))
+		// Auto-resolve conflicts that are exclusively in .agent/ (task artifact files).
+		// These are per-worktree metadata and should never block a code merge.
+		if resolved, resolveErr := resolveAgentArtifactConflicts(result.Project.RepoPath); resolveErr != nil {
+			return fmt.Errorf("git merge failed:\n%s", strings.TrimSpace(string(out)))
+		} else if !resolved {
+			return fmt.Errorf("git merge failed:\n%s", strings.TrimSpace(string(out)))
+		}
+		// Conflicts were only in .agent/ and have been auto-resolved; read the
+		// commit summary for the success message.
+		out, _ = exec.Command("git", "-C", result.Project.RepoPath, "log", "--oneline", "-1").Output()
 	}
 
 	if err := r.syncTaskArtifacts(result, taskID, artifact.Event{

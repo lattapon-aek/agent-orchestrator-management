@@ -126,13 +126,42 @@ func (r Runner) executeStepUpdate(args []string) error {
 	}
 	defer sqlDB.Close()
 
-	record, err := stepService.Update(params.id, step.UpdateParams{
-		Status:    params.status,
-		RoleName:  params.role,
-		AgentName: params.agent,
-	})
-	if err != nil {
-		return err
+	// Normalise the target status so we can build an intermediate path.
+	targetStatus, normErr := step.NormaliseStatus(params.status)
+	if normErr != nil {
+		return normErr
+	}
+
+	// Determine the walk path from the current status to the target.
+	// If the transition is not direct, auto-advance through intermediates so the
+	// operator doesn't have to issue multiple commands (e.g. Confirmed → Completed).
+	current, lookupErr := stepService.Get(params.id)
+	if lookupErr != nil {
+		return lookupErr
+	}
+	intermediates := stepWalkPath(current.Status, targetStatus)
+
+	var record *step.Record
+	for _, s := range intermediates {
+		record, err = stepService.Update(params.id, step.UpdateParams{
+			Status:    s,
+			RoleName:  params.role,
+			AgentName: params.agent,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if record == nil {
+		// Target == current; still do the update to apply role/agent changes.
+		record, err = stepService.Update(params.id, step.UpdateParams{
+			Status:    params.status,
+			RoleName:  params.role,
+			AgentName: params.agent,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := r.syncTaskArtifacts(result, record.TaskID, artifact.Event{
@@ -153,6 +182,30 @@ func (r Runner) executeStepUpdate(args []string) error {
 	fmt.Fprintf(r.stdout, "Agent: %s\n", emptyFallback(record.AgentName))
 
 	return nil
+}
+
+// stepWalkPath returns the ordered list of status values to pass through to get
+// from current to target, inclusive of target. Returns nil if already at target
+// or if the transition is a single direct hop (no walk needed).
+func stepWalkPath(current, target string) []string {
+	// Full linear path for the happy-path: Proposed → Confirmed → Ready → InProgress → Completed.
+	linearPath := []string{"Proposed", "Confirmed", "Ready", "InProgress", "Completed"}
+
+	ci, ti := -1, -1
+	for i, s := range linearPath {
+		if s == current {
+			ci = i
+		}
+		if s == target {
+			ti = i
+		}
+	}
+	// Only walk forward along the linear path; backward or off-path transitions
+	// are left to the service to validate directly.
+	if ci < 0 || ti < 0 || ti <= ci {
+		return []string{target}
+	}
+	return linearPath[ci+1 : ti+1]
 }
 
 type stepUpdateParams struct {

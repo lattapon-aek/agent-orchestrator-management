@@ -202,6 +202,10 @@ func (s *Service) AssignOwner(id, roleName, agentName string) (*Record, error) {
 	return s.repo.GetByID(next.ID)
 }
 
+// NormaliseStatus is the exported form used by CLI helpers that need to
+// validate a status string before building a walk path.
+func NormaliseStatus(input string) (string, error) { return normalizeStatus(input) }
+
 func normalizeStatus(input string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(input)) {
 	case "proposed":

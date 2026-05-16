@@ -1123,6 +1123,10 @@ func (r Runner) executeSessionHealth(args []string) error {
 
 	now := time.Now()
 
+	if sessionID == "" {
+		showAll = true
+	}
+
 	if showAll {
 		fmt.Fprintln(r.stdout, "Session health")
 		fmt.Fprintln(r.stdout, "")
@@ -1147,10 +1151,6 @@ func (r Runner) executeSessionHealth(args []string) error {
 			fmt.Fprintln(r.stdout, "No active sessions.")
 		}
 		return nil
-	}
-
-	if sessionID == "" {
-		return fmt.Errorf("session id is required (or use --all)")
 	}
 
 	var targetSession *session.Record

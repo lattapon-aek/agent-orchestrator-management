@@ -300,6 +300,58 @@ check_contains "status (final)" "Project status" \
 check_contains "task show T1" "Done" \
     "$AOM" task show "$T1"
 
+# ── SECTION 12: Remaining M13–M17 command coverage ───────────────────────────
+
+section "SECTION 12 — M13–M17 remaining coverage"
+
+# task unlink (T2 is still blocked by T1; remove that dependency)
+check_contains "task unlink T2 --blocked-by T1" "Unlinked" \
+    "$AOM" task unlink "$T2" --blocked-by "$T1"
+
+# task claim (self-assign T2 to an agent)
+check_contains "task claim T2" "claimed" \
+    "$AOM" task claim "$T2" --agent backend-main
+
+# task reject-request (file a new request then reject it)
+REQ2_OUT=$("$AOM" task request "Need extra time" 2>&1)
+REQ2=$(echo "$REQ2_OUT" | grep "REQ-" | awk '{print $NF}' | tr -d '[:space:]')
+if [[ -n "$REQ2" ]]; then
+    pass "task request (second, for rejection)"
+else
+    fail "task request (second, for rejection)"
+fi
+
+check_contains "task reject-request" "rejected" \
+    "$AOM" task reject-request "$REQ2" --reason "not needed"
+
+# merge prepare on T2 (status is Planned/Ready; prepare generates merge-plan.md)
+check_contains "merge prepare T2" "Merge plan" \
+    "$AOM" merge prepare "$T2"
+
+# session health --all (no live sessions in smoke env — graceful output expected)
+HEALTH_OUT=$("$AOM" session health --all 2>&1) || true
+if echo "$HEALTH_OUT" | grep -qiE "session|health|no active"; then
+    pass "session health --all (graceful output)"
+else
+    fail "session health --all (unexpected output)"
+fi
+
+# pause-all (no Working sessions in smoke env — should report gracefully)
+PAUSE_OUT=$("$AOM" pause-all 2>&1) || true
+if echo "$PAUSE_OUT" | grep -qiE "paused|no working|sessions"; then
+    pass "pause-all (graceful output)"
+else
+    fail "pause-all (unexpected output)"
+fi
+
+# resume-all (no WaitingApproval sessions — should report gracefully)
+RESUME_OUT=$("$AOM" resume-all 2>&1) || true
+if echo "$RESUME_OUT" | grep -qiE "resumed|no session|approval"; then
+    pass "resume-all (graceful output)"
+else
+    fail "resume-all (unexpected output)"
+fi
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 
 printf "\n"

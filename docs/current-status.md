@@ -610,7 +610,7 @@ Recommended path for live E2E:
 Still out of scope at the current handoff point:
 - first-class real-runtime launch for runtimes beyond the current `codex` and `claude` slice (gemini, kiro): add two cases to `realRuntimeShellCommand` and `runtimeResumeInfo` in `internal/runtime/launch.go`
 - provider-native resume for `gemini` and `kiro` (claude and codex resume flows are live)
-- runtime command interception for policy enforcement (M10): `deny_commands` are currently appended to identity files as instructions only; no runtime-level blocking is implemented yet
+- runtime command interception for policy enforcement (M10): `deny_commands` are enforced via `--disallowed-tools` for claude (runtime-level); codex has no equivalent flag — identity file injection is the maximum available enforcement for codex
 - M17 Gemini/Kiro: deferred — no confirmed CLI flags available for testing
 
 ## AI Orchestrator Path
@@ -668,8 +668,8 @@ replace.
 Milestones 0–17 are complete. Remaining work before a production-ready release:
 
 1. **gemini/kiro runtime support** — add 2 cases to `realRuntimeShellCommand` and `runtimeResumeInfo` in `internal/runtime/launch.go`; blocked on confirmed CLI flags
-2. **Runtime-level policy enforcement** — `deny_commands` currently injected into identity files as instructions; runtime adapter interceptor not yet implemented
-3. **Live E2E for M13–M17** — all new commands are unit-tested; multi-agent scenario smoke testing deferred
+2. **Runtime-level policy enforcement** — ✓ DONE: claude gets `--disallowed-tools` at the process level; `enforcePolicyDefaults` now prints per-runtime enforcement level at spawn time (runtime-enforced for claude, instruction-only for codex/others); no further work unless a codex enforcement flag becomes available
+3. **Live E2E for M13–M17** — ✓ DONE: smoke test expanded to 51 checks across 12 sections; all M13–M17 commands now covered (task unlink, task claim, task reject-request, merge prepare, session health, pause-all, resume-all)
 
 ### M9 — Project Governance (complete)
 

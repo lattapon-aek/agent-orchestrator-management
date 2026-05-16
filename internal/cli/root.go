@@ -1387,7 +1387,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		return nil, fmt.Errorf("materialize agent context: %w", err)
 	}
 
-	r.enforcePolicyDefaults(result)
+	r.enforcePolicyDefaults(result, agentRecord.Runtime)
 
 	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, launchCommand)
 	if err != nil {
@@ -5835,11 +5835,20 @@ func materializeAgentContext(result *project.OpenResult, agentRecord *agent.Reco
 }
 
 // enforcePolicyDefaults surfaces policy information at spawn time.
-// Full command interception is deferred to M10 (runtime adapter layer).
-func (r Runner) enforcePolicyDefaults(result *project.OpenResult) {
+// For claude: deny_commands are enforced via --disallowed-tools at the runtime level.
+// For codex and other runtimes: deny_commands are written to the identity file as instructions only.
+func (r Runner) enforcePolicyDefaults(result *project.OpenResult, agentRuntime string) {
 	policy := result.Policy.Policy
 	if policy.SessionDefaults.YoloMode == "enabled" {
 		fmt.Fprintln(r.stderr, "Warning: project policy has yolo_mode=enabled — agent runs without approval gates")
+	}
+	if n := len(policy.DenyCommands); n > 0 {
+		switch strings.TrimSpace(agentRuntime) {
+		case "claude":
+			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) enforced via --disallowed-tools (runtime-level, claude)\n", n)
+		default:
+			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) written to identity file (instruction-only — %s has no runtime enforcement flag)\n", n, agentRuntime)
+		}
 	}
 }
 

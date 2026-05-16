@@ -3,6 +3,7 @@ package step
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -267,7 +268,16 @@ func validateTransition(current, next string) error {
 		return nil
 	}
 
-	return fmt.Errorf("step transition %s -> %s is not allowed", current, next)
+	validStates := make([]string, 0, len(allowed[current]))
+	for state := range allowed[current] {
+		validStates = append(validStates, state)
+	}
+	sort.Strings(validStates)
+
+	if len(validStates) == 0 {
+		return fmt.Errorf("step transition %s -> %s is not allowed (no further transitions from %s)", current, next, current)
+	}
+	return fmt.Errorf("step transition %s -> %s is not allowed; valid next states: %s", current, next, strings.Join(validStates, ", "))
 }
 
 func defaultIDGenerator() IDGenerator {

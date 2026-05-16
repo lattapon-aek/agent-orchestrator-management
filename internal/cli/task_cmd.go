@@ -544,7 +544,7 @@ func (r Runner) executeTaskRequest(args []string) error {
 		startIdx = 2
 	}
 
-	var fromSession, priorityFlag string
+	var fromSession, priorityFlag, agentFlag string
 
 	for i := startIdx; i < len(args); i++ {
 		switch args[i] {
@@ -560,6 +560,12 @@ func (r Runner) executeTaskRequest(args []string) error {
 				return fmt.Errorf("--priority requires a value")
 			}
 			priorityFlag = strings.TrimSpace(args[i])
+		case "--agent":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--agent requires a value")
+			}
+			agentFlag = strings.TrimSpace(args[i])
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -579,6 +585,8 @@ func (r Runner) executeTaskRequest(args []string) error {
 	requestedBy := "operator"
 	if fromSession != "" {
 		requestedBy = fromSession
+	} else if agentFlag != "" {
+		requestedBy = agentFlag
 	}
 
 	rec := RequestRecord{
@@ -779,7 +787,7 @@ func (r Runner) executeTaskRecordResult(args []string) error {
 
 	taskID := strings.TrimSpace(args[0])
 	var passed, failed bool
-	var summary, ciURL string
+	var summary, ciURL, note string
 
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
@@ -799,6 +807,12 @@ func (r Runner) executeTaskRecordResult(args []string) error {
 				return fmt.Errorf("--url requires a value")
 			}
 			ciURL = strings.TrimSpace(args[i])
+		case "--note":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--note requires a value")
+			}
+			note = strings.TrimSpace(args[i])
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -827,6 +841,9 @@ func (r Runner) executeTaskRecordResult(args []string) error {
 	}
 	if ciURL != "" {
 		eventSummary = eventSummary + " (" + ciURL + ")"
+	}
+	if note != "" {
+		eventSummary = eventSummary + " [note: " + note + "]"
 	}
 
 	if err := r.syncTaskArtifacts(result, taskID, artifact.Event{

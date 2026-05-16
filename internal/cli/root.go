@@ -117,6 +117,13 @@ func (r Runner) executeTask(args []string) error {
 		return fmt.Errorf("task subcommand is required")
 	}
 
+	for _, a := range args {
+		if a == "--help" || a == "-h" {
+			r.printHelp()
+			return nil
+		}
+	}
+
 	switch args[0] {
 	case "create":
 		return r.executeTaskCreate(args[1:])

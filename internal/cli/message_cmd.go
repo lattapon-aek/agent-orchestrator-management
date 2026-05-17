@@ -40,19 +40,20 @@ func (r Runner) executeMessageSend(args []string) error {
 		return err
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get cwd: %w", err)
-	}
-
-	// Inside a sandbox worktree: stage in local outbox; operator flushes with
-	// `aom outbox flush`.
-	if wtRoot := worktreeContextOf(repoPath, cwd); wtRoot != "" {
-		if err := appendOutboxMailbox(wtRoot, agentName, fromSender, message, time.Now()); err != nil {
-			return err
+	// Only codex sandbox agents route through the outbox (AOM_RUNTIME=codex is
+	// injected at codex session launch). All other runtimes write directly.
+	if os.Getenv("AOM_RUNTIME") == "codex" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get cwd: %w", err)
 		}
-		fmt.Fprintf(r.stdout, "Message staged to outbox for %s (operator must run: aom outbox flush)\n", agentName)
-		return nil
+		if wtRoot := worktreeContextOf(repoPath, cwd); wtRoot != "" {
+			if err := appendOutboxMailbox(wtRoot, agentName, fromSender, message, time.Now()); err != nil {
+				return err
+			}
+			fmt.Fprintf(r.stdout, "Message staged to outbox for %s (operator must run: aom outbox flush)\n", agentName)
+			return nil
+		}
 	}
 
 	if err := appendMailboxMessage(repoPath, agentName, message, fromSender, time.Now()); err != nil {

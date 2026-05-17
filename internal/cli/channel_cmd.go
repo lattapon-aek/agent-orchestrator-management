@@ -46,23 +46,22 @@ func (r Runner) executeChannelAppend(args []string) error {
 		return err
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("get cwd: %w", err)
-	}
-
-	// When running inside a sandbox worktree, stage the message in the local
-	// outbox instead of writing directly to .aom/channel.md (which is outside
-	// the sandbox write boundary). The operator flushes staged messages with
-	// `aom outbox flush`.
-	if wtRoot := worktreeContextOf(repoPath, cwd); wtRoot != "" {
-		if err := appendOutboxChannel(wtRoot, agentName, message, time.Now()); err != nil {
-			return err
+	// Codex sandbox agents set AOM_RUNTIME=codex at launch; only they route
+	// through the outbox (they cannot write outside the worktree directory).
+	if os.Getenv("AOM_RUNTIME") == "codex" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("get cwd: %w", err)
 		}
-		fmt.Fprintln(r.stdout, "Message staged to outbox (outside sandbox — operator must run: aom outbox flush)")
-		fmt.Fprintf(r.stdout, "Agent: %s\n", agentName)
-		fmt.Fprintf(r.stdout, "Message: %s\n", message)
-		return nil
+		if wtRoot := worktreeContextOf(repoPath, cwd); wtRoot != "" {
+			if err := appendOutboxChannel(wtRoot, agentName, message, time.Now()); err != nil {
+				return err
+			}
+			fmt.Fprintln(r.stdout, "Message staged to outbox (outside sandbox — operator must run: aom outbox flush)")
+			fmt.Fprintf(r.stdout, "Agent: %s\n", agentName)
+			fmt.Fprintf(r.stdout, "Message: %s\n", message)
+			return nil
+		}
 	}
 
 	if err := appendChannelMessage(repoPath, agentName, message, time.Now()); err != nil {

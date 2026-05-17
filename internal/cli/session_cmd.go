@@ -9,6 +9,7 @@ import (
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/agent"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/artifact"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/config"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/project"
 	aomruntime "github.com/lattapon-aek/Agents-Orchestfator-Management/internal/runtime"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/session"
@@ -1217,6 +1218,18 @@ func (r Runner) executeSessionSend(args []string) error {
 
 	// Interpret shell-style escape sequences so callers can embed newlines with \n.
 	message = interpretEscapes(message)
+
+	// Auto-flush outbox before delivering a prompt to any non-codex agent.
+	// Codex runs in a sandbox and stages messages to .agent/outbox.md; flushing
+	// here ensures the receiver sees all staged messages before it reads the
+	// channel or mailbox in response to this prompt.
+	if sessionRecord.Runtime != "codex" {
+		if repoPath, rerr := config.FindProjectRoot("."); rerr == nil {
+			if n, ferr := flushAllOutboxes(repoPath); ferr == nil && n > 0 {
+				fmt.Fprintf(r.stdout, "Auto-flushed %d outbox message(s) to channel/mailbox.\n", n)
+			}
+		}
+	}
 
 	if r.app.Tmux.PaneInAlternateScreen(sessionRecord.TmuxPane) {
 		fmt.Fprintf(r.stdout, "Warning: pane %s is showing an interactive overlay (e.g. a permission prompt or /status view).\n", sessionRecord.TmuxPane)

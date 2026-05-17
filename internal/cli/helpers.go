@@ -571,6 +571,11 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 	fmt.Fprintln(r.stdout, "Counts:")
 	fmt.Fprintf(r.stdout, "  Tasks: %d\n", taskCount)
 	fmt.Fprintf(r.stdout, "  Sessions: %d\n", len(sessions))
+
+	if pending := countPendingOutboxMessages(result.Project.RepoPath); pending > 0 {
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintf(r.stdout, colorize("  ! %d outbox message(s) pending — run: aom outbox flush\n", ansiYellow, r.stdout), pending)
+	}
 }
 
 func recommendTaskAction(status string, steps []step.Record, mapping *worktree.Record, driftKind string, unresolvedReviewItems int, reviewOwnerHint string, reviewOwnerAmbiguous bool) string {

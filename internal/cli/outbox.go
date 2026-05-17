@@ -133,6 +133,52 @@ func parseOutboxFile(path string) ([]outboxEntry, error) {
 	return entries, nil
 }
 
+// flushAllOutboxes sweeps every worktree and routes all pending messages into
+// the shared channel/mailbox. Returns the total number of messages flushed.
+func flushAllOutboxes(repoPath string) (int, error) {
+	worktreesDir := filepath.Join(repoPath, ".aom", "worktrees")
+	entries, err := os.ReadDir(worktreesDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("read worktrees dir: %w", err)
+	}
+	total := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		n, err := flushWorktreeOutbox(repoPath, filepath.Join(worktreesDir, entry.Name()))
+		if err != nil {
+			return total, err
+		}
+		total += n
+	}
+	return total, nil
+}
+
+// countPendingOutboxMessages returns the total staged outbox entries across all
+// worktrees without modifying any files.
+func countPendingOutboxMessages(repoPath string) int {
+	worktreesDir := filepath.Join(repoPath, ".aom", "worktrees")
+	entries, err := os.ReadDir(worktreesDir)
+	if err != nil {
+		return 0
+	}
+	total := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		msgs, err := parseOutboxFile(outboxFilePath(filepath.Join(worktreesDir, entry.Name())))
+		if err == nil {
+			total += len(msgs)
+		}
+	}
+	return total
+}
+
 // flushWorktreeOutbox routes all pending outbox entries from one worktree into
 // the shared channel/mailbox and clears the outbox. Returns the number flushed.
 func flushWorktreeOutbox(repoPath, worktreeRoot string) (int, error) {

@@ -30,13 +30,16 @@ var (
 		"headless":    {},
 	}
 
-	knownRuntimes = map[string]struct{}{
-		"codex":  {},
-		"claude": {},
-		"kiro":   {},
-		"gemini": {},
-	}
+	knownRuntimes = map[string]struct{}{}
 )
+
+// RegisterKnownRuntime adds a runtime name to the set of known runtimes used
+// during config validation. Call this at startup (e.g., from internal/app)
+// for each provider registered in the provider registry, so that config
+// validation stays in sync with the provider registry without importing it.
+func RegisterKnownRuntime(name string) {
+	knownRuntimes[name] = struct{}{}
+}
 
 // ProjectConfig is the fully loaded AOM project configuration set.
 type ProjectConfig struct {

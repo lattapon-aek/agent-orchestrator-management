@@ -222,11 +222,13 @@ func parseInitAgentSelection(value string) (InitAgentSelection, error) {
 	}
 }
 
-var knownInitAgentRuntimes = map[string]struct{}{
-	"claude": {},
-	"codex":  {},
-	"gemini": {},
-	"kiro":   {},
+var knownInitAgentRuntimes = map[string]struct{}{}
+
+// RegisterKnownInitRuntime adds a runtime name to the set of known runtimes
+// used when parsing and validating --agent flags during `aom init`. Call this
+// at startup (e.g., from internal/app) for each provider in the registry.
+func RegisterKnownInitRuntime(name string) {
+	knownInitAgentRuntimes[name] = struct{}{}
 }
 
 func normalizeInitAgentSelections(selections []InitAgentSelection) ([]InitAgentSelection, error) {

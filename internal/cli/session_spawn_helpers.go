@@ -5,12 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/agent"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/artifact"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/project"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/provider"
 	aomruntime "github.com/lattapon-aek/Agents-Orchestfator-Management/internal/runtime"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/session"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/worktree"
 )
@@ -152,6 +154,11 @@ func (r Runner) materializeAgentContext(result *project.OpenResult, agentRecord 
 		return fmt.Errorf("materialize policy constraints: %w", err)
 	}
 
+	modelHint := r.registry.Lookup(agentRecord.Runtime).ModelHint()
+	if err := artifact.MaterializeModelHint(agentRecord.Name, agentRecord.Runtime, agentRecord.Model, modelHint, worktreePath); err != nil {
+		return fmt.Errorf("materialize model hint: %w", err)
+	}
+
 	// Append project-board pointer to the agent's identity file so it knows where to
 	// find the shared task list. Silently skipped when the worktree or identity file is absent.
 	if worktreePath != "" {
@@ -183,6 +190,8 @@ func (r Runner) enforcePolicyDefaults(result *project.OpenResult, agentRuntime s
 		switch r.registry.Lookup(agentRuntime).PolicyEnforcementLevel() {
 		case provider.PolicyEnforcementRuntimeFlag:
 			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) enforced via --disallowed-tools (runtime-level, %s)\n", n, agentRuntime)
+		case provider.PolicyEnforcementWrapperScript:
+			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) enforced via PATH wrapper scripts (shell-level, %s)\n", n, agentRuntime)
 		default:
 			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) written to identity file (instruction-only — %s has no runtime enforcement flag)\n", n, agentRuntime)
 		}
@@ -231,4 +240,42 @@ func sendableSessionStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// detectUniqueVendorSessionID polls the provider's native session detection and
+// skips any session ID already registered to a live sibling session in the same
+// project. This prevents duplicate assignment when two sessions are spawned close
+// together and the active session file for the first session is still being written
+// to (keeping its mtime fresh).
+func (r Runner) detectUniqueVendorSessionID(
+	strategy *provider.NativeSessionStrategy,
+	svc *session.Service,
+	record session.Record,
+	spawnedAt time.Time,
+) string {
+	const totalTimeout = 90 * time.Second
+	const retryInterval = 5 * time.Second
+	deadline := time.Now().Add(totalTimeout)
+
+	for time.Now().Before(deadline) {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		pollTimeout := remaining
+		if pollTimeout > retryInterval {
+			pollTimeout = retryInterval
+		}
+		sid, _ := strategy.DetectFn(record.WorktreePath, spawnedAt, pollTimeout)
+		if sid == "" {
+			continue
+		}
+		active, err := svc.IsVendorSessionIDActive(record.ProjectID, sid)
+		if err != nil || active {
+			// sid belongs to a sibling session — keep polling for a distinct one
+			continue
+		}
+		return sid
+	}
+	return ""
 }

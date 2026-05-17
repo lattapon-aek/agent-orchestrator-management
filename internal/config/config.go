@@ -92,6 +92,7 @@ type AgentConfig struct {
 	Runtime string `yaml:"runtime"`
 	Role    string `yaml:"role"`
 	Enabled bool   `yaml:"enabled"`
+	Model   string `yaml:"model"` // optional; empty means use the CLI's default model
 }
 
 // ResourcesFile models .aom/resources.yaml.

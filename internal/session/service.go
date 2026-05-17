@@ -21,6 +21,7 @@ type CreateParams struct {
 	RoleName        string
 	TaskID          string
 	Runtime         string
+	Model           string // optional; empty means provider default
 	Status          string
 	RepoPath        string
 	WorktreePath    string
@@ -85,6 +86,7 @@ func (s *Service) Create(params CreateParams) (*Record, error) {
 		RoleName:        strings.TrimSpace(params.RoleName),
 		TaskID:          strings.TrimSpace(params.TaskID),
 		Runtime:         strings.TrimSpace(params.Runtime),
+		Model:           strings.TrimSpace(params.Model),
 		Status:          status,
 		RepoPath:        strings.TrimSpace(params.RepoPath),
 		WorktreePath:    strings.TrimSpace(params.WorktreePath),
@@ -181,6 +183,13 @@ func (s *Service) Stop(record Record) (*Record, error) {
 
 	record.Status = "Stopped"
 	return s.Save(record)
+}
+
+// IsVendorSessionIDActive returns true when the native CLI session ID is already
+// registered to a live session in the project, preventing duplicate assignment
+// when two sessions are spawned close together.
+func (s *Service) IsVendorSessionIDActive(projectID, vendorSessionID string) (bool, error) {
+	return s.repo.IsVendorSessionIDActive(projectID, vendorSessionID)
 }
 
 // LatestVendorSessionID returns the most recent native CLI session ID for the given

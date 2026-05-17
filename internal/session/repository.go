@@ -15,6 +15,7 @@ type Record struct {
 	RoleName        string
 	TaskID          string
 	Runtime         string
+	Model           string // model override used at spawn time; empty means provider default
 	Status          string
 	RepoPath        string
 	WorktreePath    string
@@ -48,6 +49,7 @@ INSERT INTO sessions (
 	role_name,
 	task_id,
 	runtime,
+	model,
 	status,
 	repo_path,
 	worktree_path,
@@ -57,7 +59,7 @@ INSERT INTO sessions (
 	vendor_session_id,
 	last_seen_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
 	project_id = excluded.project_id,
 	agent_id = excluded.agent_id,
@@ -65,6 +67,7 @@ ON CONFLICT(id) DO UPDATE SET
 	role_name = excluded.role_name,
 	task_id = excluded.task_id,
 	runtime = excluded.runtime,
+	model = excluded.model,
 	status = excluded.status,
 	repo_path = excluded.repo_path,
 	worktree_path = excluded.worktree_path,
@@ -82,6 +85,7 @@ ON CONFLICT(id) DO UPDATE SET
 		record.RoleName,
 		nullableString(record.TaskID),
 		record.Runtime,
+		record.Model,
 		record.Status,
 		record.RepoPath,
 		record.WorktreePath,
@@ -109,6 +113,7 @@ SELECT
 	role_name,
 	COALESCE(task_id, ''),
 	runtime,
+	model,
 	status,
 	repo_path,
 	worktree_path,
@@ -147,6 +152,7 @@ SELECT
 	role_name,
 	COALESCE(task_id, ''),
 	runtime,
+	model,
 	status,
 	repo_path,
 	worktree_path,
@@ -182,6 +188,25 @@ ORDER BY created_at, id
 	}
 
 	return records, nil
+}
+
+// IsVendorSessionIDActive returns true when the given native CLI session ID is
+// already registered to a live (non-terminal) session within the project.
+// Used during detection to skip session files that belong to a sibling session.
+func (r *Repository) IsVendorSessionIDActive(projectID, vendorSessionID string) (bool, error) {
+	if projectID == "" || vendorSessionID == "" {
+		return false, nil
+	}
+	var count int
+	err := r.db.QueryRow(`
+SELECT COUNT(1) FROM sessions
+WHERE project_id = ? AND vendor_session_id = ?
+  AND status NOT IN ('Stopped', 'Failed', 'Archived')
+`, projectID, vendorSessionID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check vendor session id %q: %w", vendorSessionID, err)
+	}
+	return count > 0, nil
 }
 
 // LatestVendorSessionID returns the most recent non-empty native CLI session ID
@@ -222,6 +247,7 @@ func scanRecord(scanner rowScanner) (*Record, error) {
 		&record.RoleName,
 		&record.TaskID,
 		&record.Runtime,
+		&record.Model,
 		&record.Status,
 		&record.RepoPath,
 		&record.WorktreePath,

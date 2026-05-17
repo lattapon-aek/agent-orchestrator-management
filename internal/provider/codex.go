@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -19,16 +20,65 @@ func (p *codexProvider) LaunchShellSpec(spec LaunchSpec, lookPath func(string) (
 	if _, err := lookPath("codex"); err != nil {
 		return ShellSpec{}, fmt.Errorf("real launch for runtime %q requires the %q CLI in PATH", "codex", "codex")
 	}
+	preamble := []string{"export AOM_RUNTIME=codex"}
+	if len(spec.DenyCommands) > 0 {
+		preamble = append(preamble, buildCodexWrapperPreamble(spec.SessionID, spec.DenyCommands)...)
+	}
 	var execCmd string
 	if spec.AgentSessionID != "" {
 		execCmd = fmt.Sprintf("exec codex resume %s --sandbox workspace-write -a never", spec.AgentSessionID)
 	} else {
 		execCmd = "exec codex --sandbox workspace-write -a never"
 	}
+	if spec.Model != "" {
+		execCmd += " -m " + spec.Model
+	}
 	return ShellSpec{
-		Preamble: []string{"export AOM_RUNTIME=codex"},
+		Preamble: preamble,
 		ExecCmd:  execCmd,
 	}, nil
+}
+
+// buildCodexWrapperPreamble generates preamble statements that create lightweight
+// shell wrapper scripts blocking each denied command. The wrapper bin dir is
+// prepended to PATH before exec, so codex and its subprocesses intercept the
+// blocked commands at the shell level.
+//
+// Each deny_command entry is split on the first space; only the base command
+// (first word) gets a wrapper. Duplicate base commands are skipped. The wrapper
+// always exits 1 with a policy message — no passthrough — because codex has no
+// native partial-command-blocking flag.
+//
+// The bin dir is session-scoped under /tmp so the OS cleans it up on reboot.
+func buildCodexWrapperPreamble(sessionID string, denyCommands []string) []string {
+	binDir := fmt.Sprintf("/tmp/aom-policy-%s/bin", sessionID)
+	stmts := []string{
+		fmt.Sprintf(`mkdir -p "%s"`, binDir),
+	}
+	seen := make(map[string]bool)
+	for _, rawCmd := range denyCommands {
+		cmd := strings.TrimSpace(rawCmd)
+		if cmd == "" {
+			continue
+		}
+		baseCmd := strings.Fields(cmd)[0]
+		if seen[baseCmd] {
+			continue
+		}
+		seen[baseCmd] = true
+		// printf format: double quotes wrap the format so \n and \" are shell-processed.
+		// \n is kept as two chars by the shell and interpreted by printf as newline.
+		// \" inside double quotes → literal " in the format string passed to printf.
+		// No single quotes appear here, keeping compatibility with the outer sh -lc '...' wrapper.
+		stmts = append(stmts,
+			fmt.Sprintf(
+				`printf "#!/bin/sh\necho \"AOM policy: %s blocked by project policy\" >&2\nexit 1\n" > "%s/%s" && chmod +x "%s/%s"`,
+				baseCmd, binDir, baseCmd, binDir, baseCmd,
+			),
+		)
+	}
+	stmts = append(stmts, fmt.Sprintf(`export PATH="%s:$PATH"`, binDir))
+	return stmts
 }
 
 func (p *codexProvider) ResumeInfo() ResumeInfo {
@@ -40,7 +90,15 @@ func (p *codexProvider) ResumeInfo() ResumeInfo {
 }
 
 func (p *codexProvider) MCPConfigStyle() MCPStyle                  { return MCPStyleJSONFile }
-func (p *codexProvider) PolicyEnforcementLevel() PolicyEnforcement { return PolicyEnforcementInstructionOnly }
+func (p *codexProvider) PolicyEnforcementLevel() PolicyEnforcement { return PolicyEnforcementWrapperScript }
+// StartupDialogResponse returns "1" to accept codex's directory trust dialog
+// ("1. Yes, continue") shown on fresh starts in new or untrusted directories.
+func (p *codexProvider) StartupDialogResponse() string { return "1" }
+
+func (p *codexProvider) ModelHint() string {
+	return "Known slugs: gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2. " +
+		"Full list cached at ~/.codex/models_cache.json (auto-refreshed by codex on startup)."
+}
 
 func (p *codexProvider) NativeSessionDetection() *NativeSessionStrategy {
 	return &NativeSessionStrategy{DetectFn: codexSessionAfterSpawn}

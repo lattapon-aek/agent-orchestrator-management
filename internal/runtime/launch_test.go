@@ -202,7 +202,7 @@ func TestBuilderBuildClaudeWithDenyCommands(t *testing.T) {
 	}
 }
 
-func TestBuilderBuildCodexIgnoresDenyCommands(t *testing.T) {
+func TestBuilderBuildCodexWrapsDenyCommands(t *testing.T) {
 	builder := NewBuilderWithLookPath(func(name string) (string, error) {
 		if name == "codex" {
 			return "/usr/bin/codex", nil
@@ -210,15 +210,55 @@ func TestBuilderBuildCodexIgnoresDenyCommands(t *testing.T) {
 		return "", fmt.Errorf("unexpected lookup %q", name)
 	})
 
-	command, err := builder.Build(SessionSpec{
+	spec := SessionSpec{
+		SessionID:    "SESS-test-123",
 		Runtime:      "codex",
 		DenyCommands: []string{"rm -rf", "git push --force"},
-	}, LaunchModeReal)
+	}
+	command, err := builder.Build(spec, LaunchModeReal)
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
+	// Codex uses PATH wrappers, never --disallowed-tools (that's claude's mechanism).
 	if strings.Contains(command, "--disallowed-tools") {
-		t.Fatalf("command = %q, codex should not contain --disallowed-tools flag", command)
+		t.Fatalf("command = %q, codex should not use --disallowed-tools", command)
+	}
+	// Wrapper bin dir is created for the session.
+	wantBinDir := "/tmp/aom-policy-SESS-test-123/bin"
+	if !strings.Contains(command, "mkdir -p") {
+		t.Fatalf("command = %q, want mkdir -p for wrapper bin dir", command)
+	}
+	if !strings.Contains(command, wantBinDir) {
+		t.Fatalf("command = %q, want wrapper bin dir %q", command, wantBinDir)
+	}
+	// Wrapper scripts are created for base commands (first word of deny entry).
+	for _, wantCmd := range []string{"rm", "git"} {
+		wantScript := fmt.Sprintf("%s/%s", wantBinDir, wantCmd)
+		if !strings.Contains(command, wantScript) {
+			t.Fatalf("command = %q, want wrapper script for %q at %q", command, wantCmd, wantScript)
+		}
+	}
+	// PATH is prepended with the wrapper bin dir before exec.
+	wantPathExport := fmt.Sprintf(`export PATH="%s:$PATH"`, wantBinDir)
+	if !strings.Contains(command, wantPathExport) {
+		t.Fatalf("command = %q, want PATH export %q", command, wantPathExport)
+	}
+	// Duplicate base commands are deduplicated (rm -rf and rm would produce one wrapper).
+	wantDedupSpec := SessionSpec{
+		SessionID:    "SESS-dedup-456",
+		Runtime:      "codex",
+		DenyCommands: []string{"rm -rf", "rm /tmp"},
+	}
+	dedupCmd, err := builder.Build(wantDedupSpec, LaunchModeReal)
+	if err != nil {
+		t.Fatalf("Build failed: %v", err)
+	}
+	rmCount := strings.Count(dedupCmd, "/tmp/aom-policy-SESS-dedup-456/bin/rm")
+	// mkdir creates the dir (contains /bin/rm as subpath), plus one wrapper creation.
+	// Count exact wrapper path references to check deduplication.
+	wantWrapper := `/tmp/aom-policy-SESS-dedup-456/bin/rm" && chmod`
+	if count := strings.Count(dedupCmd, wantWrapper); count != 1 {
+		t.Fatalf("command = %q, want exactly 1 rm wrapper, got %d (rmCount=%d)", dedupCmd, count, rmCount)
 	}
 }
 
@@ -256,3 +296,5 @@ func (p *testProvider) ResumeInfo() provider.ResumeInfo                         
 func (p *testProvider) MCPConfigStyle() provider.MCPStyle                       { return provider.MCPStyleNone }
 func (p *testProvider) PolicyEnforcementLevel() provider.PolicyEnforcement      { return provider.PolicyEnforcementInstructionOnly }
 func (p *testProvider) NativeSessionDetection() *provider.NativeSessionStrategy { return nil }
+func (p *testProvider) StartupDialogResponse() string                             { return "" }
+func (p *testProvider) ModelHint() string                                         { return "" }

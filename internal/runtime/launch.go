@@ -27,6 +27,7 @@ type SessionSpec struct {
 	AgentSessionID string   // native vendor session ID; non-empty triggers resume mode
 	DenyCommands   []string // commands to block at runtime (claude --disallowed-tools only)
 	ProjectBin     string   // absolute path to the aom binary; prepended to PATH for all providers
+	Model          string   // optional; empty means use the CLI's default model
 }
 
 // LookPathFunc resolves a runtime binary path.
@@ -90,6 +91,7 @@ func (b *Builder) realRuntimeShellCommand(spec SessionSpec) (string, error) {
 		RoleName:       spec.RoleName,
 		AgentSessionID: spec.AgentSessionID,
 		DenyCommands:   spec.DenyCommands,
+		Model:          spec.Model,
 	}, b.lookPath)
 	if err != nil {
 		return "", err

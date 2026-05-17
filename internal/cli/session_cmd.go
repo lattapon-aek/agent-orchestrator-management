@@ -118,6 +118,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		RoleName:     agentRecord.Role,
 		Runtime:      agentRecord.Runtime,
 		DenyCommands: result.Policy.Policy.DenyCommands,
+		Model:        agentRecord.Model,
 	}, params.launchMode); err != nil {
 		return nil, err
 	}
@@ -140,6 +141,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		RoleName:        agentRecord.Role,
 		TaskID:          params.taskID,
 		Runtime:         agentRecord.Runtime,
+		Model:           agentRecord.Model,
 		Status:          "Booting",
 		RepoPath:        result.Project.RepoPath,
 		WorktreePath:    executionPath,
@@ -176,6 +178,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		AgentSessionID: agentSessionID,
 		DenyCommands:   result.Policy.Policy.DenyCommands,
 		ProjectBin:     selfBin,
+		Model:          agentRecord.Model,
 	}, params.launchMode)
 	if err != nil {
 		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "session launch validation failed before session became interactive", err)
@@ -257,6 +260,11 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		fmt.Fprintf(r.stdout, "Step: %s\n", stepRecord.ID)
 	}
 	fmt.Fprintf(r.stdout, "Runtime: %s\n", record.Runtime)
+	if record.Model != "" {
+		fmt.Fprintf(r.stdout, "Model: %s\n", record.Model)
+	} else if hint := r.registry.Lookup(record.Runtime).ModelHint(); hint != "" && params.launchMode == aomruntime.LaunchModeReal {
+		fmt.Fprintf(r.stdout, "Model: (provider default) — %s\n", hint)
+	}
 	fmt.Fprintf(r.stdout, "Launch mode: %s\n", params.launchMode)
 	if taskWorktree != nil {
 		fmt.Fprintf(r.stdout, "Worktree status: %s\n", taskWorktree.Status)
@@ -295,12 +303,15 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 				fmt.Fprintln(r.stdout, "")
 				fmt.Fprintln(r.stdout, "Detecting native session ID (this may take up to 90s)...")
 				time.Sleep(3 * time.Second)
-				_ = r.app.Tmux.SendKeys(record.TmuxPane, "2")
-				if sid, _ := strategy.DetectFn(record.WorktreePath, spawnedAt, 90*time.Second); sid != "" {
-					if updated, err := sessionService.SetVendorSessionID(record.ID, sid); err == nil {
+				if key := r.registry.Lookup(record.Runtime).StartupDialogResponse(); key != "" {
+					_ = r.app.Tmux.SendKeys(record.TmuxPane, key)
+				}
+				detected := r.detectUniqueVendorSessionID(strategy, sessionService, *record, spawnedAt)
+				if detected != "" {
+					if updated, err := sessionService.SetVendorSessionID(record.ID, detected); err == nil {
 						record = updated
 					}
-					fmt.Fprintf(r.stdout, "Native session ID: %s (auto-detected)\n", sid)
+					fmt.Fprintf(r.stdout, "Native session ID: %s (auto-detected)\n", detected)
 				} else {
 					fmt.Fprintln(r.stdout, "Native session ID not yet available")
 					fmt.Fprintf(r.stdout, "To register manually: aom session set-agent-id %s <uuid>\n", record.ID)
@@ -446,14 +457,19 @@ func (r Runner) executeSessionList(args []string) error {
 	}
 
 	for _, item := range sessions {
+		modelSuffix := ""
+		if item.Model != "" {
+			modelSuffix = " | model=" + item.Model
+		}
 		fmt.Fprintf(
 			r.stdout,
-			"  - %s | agent=%s | role=%s | task=%s | runtime=%s | status=%s | tmux=%s %s %s\n",
+			"  - %s | agent=%s | role=%s | task=%s | runtime=%s%s | status=%s | tmux=%s %s %s\n",
 			item.ID,
 			item.AgentName,
 			item.RoleName,
 			emptyFallback(item.TaskID),
 			item.Runtime,
+			modelSuffix,
 			item.Status,
 			item.TmuxSessionName,
 			item.TmuxWindow,

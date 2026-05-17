@@ -14,6 +14,7 @@ type LaunchSpec struct {
 	RoleName       string
 	AgentSessionID string
 	DenyCommands   []string
+	Model          string // optional; empty means use the CLI's default model
 }
 
 // ShellSpec is the structured output of LaunchShellSpec. The Builder assembles
@@ -50,6 +51,7 @@ type PolicyEnforcement int
 const (
 	PolicyEnforcementInstructionOnly PolicyEnforcement = iota
 	PolicyEnforcementRuntimeFlag                        // e.g. claude --disallowed-tools
+	PolicyEnforcementWrapperScript                      // e.g. codex PATH-based shell wrappers
 )
 
 // NativeSessionStrategy describes how to detect a runtime's own session ID after spawn.
@@ -73,6 +75,15 @@ type Provider interface {
 	MCPConfigStyle() MCPStyle
 	PolicyEnforcementLevel() PolicyEnforcement
 	NativeSessionDetection() *NativeSessionStrategy
+	// StartupDialogResponse returns the key to send to auto-accept the initial
+	// startup dialog shown by this runtime (e.g. bypass-permissions for claude,
+	// directory trust for codex). Returns "" when no key should be sent.
+	StartupDialogResponse() string
+	// ModelHint returns a human-readable description of how to choose a model
+	// for this provider. Intended for spawn-time output and identity file injection
+	// so operators and orchestrator agents can make informed model selections.
+	// Returns "" for providers that do not support model selection.
+	ModelHint() string
 }
 
 // Registry maps runtime names to Provider implementations.
@@ -115,3 +126,5 @@ func (p *fallbackProvider) ResumeInfo() ResumeInfo                         { ret
 func (p *fallbackProvider) MCPConfigStyle() MCPStyle                       { return MCPStyleNone }
 func (p *fallbackProvider) PolicyEnforcementLevel() PolicyEnforcement      { return PolicyEnforcementInstructionOnly }
 func (p *fallbackProvider) NativeSessionDetection() *NativeSessionStrategy { return nil }
+func (p *fallbackProvider) StartupDialogResponse() string                 { return "" }
+func (p *fallbackProvider) ModelHint() string                             { return "" }

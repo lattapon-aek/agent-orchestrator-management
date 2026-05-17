@@ -486,7 +486,11 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, sectionLabel("Agents:", r.stdout))
 	for _, agent := range result.Agents {
-		fmt.Fprintf(r.stdout, "  - %s | role=%s | runtime=%s | enabled=%t\n", agent.Name, agent.Role, agent.Runtime, agent.Enabled)
+		modelSuffix := ""
+		if agent.Model != "" {
+			modelSuffix = " | model=" + agent.Model
+		}
+		fmt.Fprintf(r.stdout, "  - %s | role=%s | runtime=%s | enabled=%t%s\n", agent.Name, agent.Role, agent.Runtime, agent.Enabled, modelSuffix)
 	}
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, sectionLabel("Sessions:", r.stdout))

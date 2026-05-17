@@ -15,3 +15,5 @@ func (p *geminiProvider) ResumeInfo() ResumeInfo                         { retur
 func (p *geminiProvider) MCPConfigStyle() MCPStyle                       { return MCPStyleNone }
 func (p *geminiProvider) PolicyEnforcementLevel() PolicyEnforcement      { return PolicyEnforcementInstructionOnly }
 func (p *geminiProvider) NativeSessionDetection() *NativeSessionStrategy { return nil }
+func (p *geminiProvider) StartupDialogResponse() string                  { return "" }
+func (p *geminiProvider) ModelHint() string                              { return "" }

@@ -29,6 +29,9 @@ func (p *claudeProvider) LaunchShellSpec(spec LaunchSpec, lookPath func(string) 
 	} else {
 		execCmd = "exec claude --dangerously-skip-permissions"
 	}
+	if spec.Model != "" {
+		execCmd += " --model " + spec.Model
+	}
 	if disallowedFlag != "" {
 		execCmd += " " + disallowedFlag
 	}
@@ -48,6 +51,15 @@ func (p *claudeProvider) ResumeInfo() ResumeInfo {
 
 func (p *claudeProvider) MCPConfigStyle() MCPStyle                 { return MCPStyleMarkdownAppend }
 func (p *claudeProvider) PolicyEnforcementLevel() PolicyEnforcement { return PolicyEnforcementRuntimeFlag }
+
+// StartupDialogResponse returns "1" to accept claude's trust dialog
+// ("1. Yes, I trust this folder") shown on fresh starts in new directories.
+func (p *claudeProvider) StartupDialogResponse() string { return "1" }
+
+func (p *claudeProvider) ModelHint() string {
+	return "Aliases: sonnet, opus, haiku — or full ID e.g. claude-sonnet-4-6, claude-opus-4-7, claude-haiku-4-5-20251001. " +
+		"See https://docs.anthropic.com/en/docs/about-claude/models for the current model list."
+}
 
 func (p *claudeProvider) NativeSessionDetection() *NativeSessionStrategy {
 	return &NativeSessionStrategy{DetectFn: claudeSessionForWorktree}

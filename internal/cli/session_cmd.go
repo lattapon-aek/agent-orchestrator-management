@@ -184,6 +184,10 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 
 	r.enforcePolicyDefaults(result, agentRecord.Runtime)
 
+	// Capture before pane creation so native session files written during process
+	// startup have mtime >= spawnedAt (used by claude's filesystem-based detection).
+	spawnedAt := time.Now()
+
 	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, launchCommand)
 	if err != nil {
 		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
@@ -285,7 +289,6 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 			if agentSessionID != "" {
 				fmt.Fprintf(r.stdout, "Native session ID: %s (resumed)\n", agentSessionID)
 			} else {
-				spawnedAt := time.Now()
 				fmt.Fprintln(r.stdout, "")
 				fmt.Fprintln(r.stdout, "Detecting native session ID (this may take up to 90s)...")
 				time.Sleep(3 * time.Second)

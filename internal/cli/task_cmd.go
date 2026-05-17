@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/artifact"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/task"
 )
 
@@ -382,6 +383,119 @@ func (r Runner) executeTaskClose(args []string) error {
 	fmt.Fprintf(r.stdout, "Status: %s\n", record.Status)
 
 	return nil
+}
+
+// executeTaskAccept accepts a completed agent task in one shot:
+// walks all non-terminal steps to Completed, then transitions the task to Done.
+func (r Runner) executeTaskAccept(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("task identifier is required")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("task accept takes exactly one argument")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	stepService, stepDB, err := r.app.OpenStepService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer stepDB.Close()
+
+	taskID := strings.TrimSpace(args[0])
+
+	current, err := taskService.Get(taskID)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return fmt.Errorf("task %q not found", taskID)
+	}
+	if current.Status == "Done" || current.Status == "Archived" {
+		return fmt.Errorf("task %q is already %s", taskID, current.Status)
+	}
+
+	// Walk all non-terminal steps to Completed.
+	steps, err := stepService.ListByTask(taskID)
+	if err != nil {
+		return err
+	}
+	terminalStatuses := map[string]bool{"Completed": true, "Skipped": true, "Canceled": true}
+	var completedStepIDs []string
+	for _, s := range steps {
+		if terminalStatuses[s.Status] {
+			continue
+		}
+		path := stepWalkPath(s.Status, "Completed")
+		for _, status := range path {
+			if _, err := stepService.Update(s.ID, step.UpdateParams{Status: status}); err != nil {
+				return fmt.Errorf("step %s: %w", s.ID, err)
+			}
+		}
+		completedStepIDs = append(completedStepIDs, s.ID)
+	}
+
+	// Walk task state to Done through required intermediates.
+	taskWalk := taskWalkToDone(current.Status)
+	var taskRecord *task.Record
+	for _, status := range taskWalk {
+		taskRecord, err = taskService.Update(taskID, task.UpdateParams{Status: status})
+		if err != nil {
+			return fmt.Errorf("task transition to %s: %w", status, err)
+		}
+	}
+	if taskRecord == nil {
+		taskRecord = current
+	}
+
+	if err := r.syncTaskArtifacts(result, taskID, artifact.Event{
+		Type:        "task.closed",
+		Actor:       "operator",
+		Summary:     fmt.Sprintf("Task accepted: %d step(s) completed, task closed", len(completedStepIDs)),
+		StateEffect: fmt.Sprintf("Task %s", taskRecord.Status),
+	}, false); err != nil {
+		return err
+	}
+
+	_ = r.refreshProjectBoard(result)
+
+	fmt.Fprintln(r.stdout, "Task accepted")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Task: %s\n", taskRecord.ID)
+	fmt.Fprintf(r.stdout, "Status: %s\n", taskRecord.Status)
+	if len(completedStepIDs) > 0 {
+		fmt.Fprintf(r.stdout, "Steps completed: %d\n", len(completedStepIDs))
+	}
+
+	return nil
+}
+
+// taskWalkToDone returns the ordered status transitions needed to reach Done
+// from the given current status, inclusive of Done itself.
+func taskWalkToDone(current string) []string {
+	linearPath := []string{"Planned", "Ready", "InProgress", "Done"}
+	ci := -1
+	for i, s := range linearPath {
+		if s == current {
+			ci = i
+			break
+		}
+	}
+	if ci >= 0 && ci < len(linearPath)-1 {
+		return linearPath[ci+1:]
+	}
+	// NeedsAttention/Blocked can go directly to Done.
+	return []string{"Done"}
 }
 
 func (r Runner) executeTaskReanalyze(args []string) error {

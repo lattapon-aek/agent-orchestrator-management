@@ -131,6 +131,8 @@ func (r Runner) executeTask(args []string) error {
 		return r.executeTaskUpdate(args[1:])
 	case "close":
 		return r.executeTaskClose(args[1:])
+	case "accept":
+		return r.executeTaskAccept(args[1:])
 	case "show":
 		return r.executeTaskShow(args[1:])
 	case "list":
@@ -326,6 +328,7 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom task show <task-id> : inspect task state, artifacts, and ownership")
 	fmt.Fprintln(r.stdout, "aom task update <task-id> [flags] : change task mode, owner, or status")
 	fmt.Fprintln(r.stdout, "aom task close <task-id> : mark a task complete (task must be InProgress; all steps must be terminal)")
+	fmt.Fprintln(r.stdout, "aom task accept <task-id> : accept agent work — complete all pending steps and close the task in one shot")
 	fmt.Fprintln(r.stdout, "aom task link <task-id> --blocked-by <blocker-id> : declare that task-id cannot start until blocker-id is done")
 	fmt.Fprintln(r.stdout, "aom task unlink <task-id> --blocked-by <blocker-id> : remove a dependency edge")
 	fmt.Fprintln(r.stdout, "aom review <task-id> [--mock|--real] : prepare or start review flow")

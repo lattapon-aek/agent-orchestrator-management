@@ -430,6 +430,7 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 - Planned steps are completed or explicitly resolved
 - Task status reflects the final operator decision
 - Relevant verification is captured before closure
+- All modified files are committed to the worktree branch before signaling completion (git add -A && git commit)
 `,
 		params.Task.ID,
 		params.Task.Title,

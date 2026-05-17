@@ -46,9 +46,10 @@ func (r Runner) executeChannelAppend(args []string) error {
 		return err
 	}
 
-	// Codex sandbox agents set AOM_RUNTIME=codex at launch; only they route
-	// through the outbox (they cannot write outside the worktree directory).
-	if os.Getenv("AOM_RUNTIME") == "codex" {
+	// Any sandboxed provider sets AOM_RUNTIME at launch (e.g. codex sets
+	// AOM_RUNTIME=codex). When set, the agent cannot write outside the worktree,
+	// so messages are staged to the local outbox for the operator to flush.
+	if os.Getenv("AOM_RUNTIME") != "" {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("get cwd: %w", err)

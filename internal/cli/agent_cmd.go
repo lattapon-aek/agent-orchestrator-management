@@ -8,14 +8,8 @@ import (
 
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/agent"
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/project"
+	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/provider"
 )
-
-var knownAgentRuntimes = map[string]struct{}{
-	"claude": {},
-	"codex":  {},
-	"gemini": {},
-	"kiro":   {},
-}
 
 func (r Runner) executeAgent(args []string) error {
 	if len(args) == 0 {
@@ -98,8 +92,14 @@ func (r Runner) executeAgentAdd(args []string) error {
 	if runtime == "" {
 		return fmt.Errorf("--runtime is required")
 	}
-	if _, ok := knownAgentRuntimes[runtime]; !ok {
-		return fmt.Errorf("unknown runtime %q; supported: claude, codex, gemini, kiro", runtime)
+	reg := provider.DefaultRegistry()
+	if _, ok := reg[runtime]; !ok {
+		known := make([]string, 0, len(reg))
+		for name := range reg {
+			known = append(known, name)
+		}
+		sort.Strings(known)
+		return fmt.Errorf("unknown runtime %q; supported: %s", runtime, strings.Join(known, ", "))
 	}
 
 	result, err := r.app.Projects.Open(".")

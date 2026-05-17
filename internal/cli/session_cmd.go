@@ -1221,15 +1221,11 @@ func (r Runner) executeSessionSend(args []string) error {
 	// Interpret shell-style escape sequences so callers can embed newlines with \n.
 	message = interpretEscapes(message)
 
-	// Auto-flush outbox before delivering a prompt to any non-codex agent.
-	// Codex runs in a sandbox and stages messages to .agent/outbox.md; flushing
-	// here ensures the receiver sees all staged messages before it reads the
-	// channel or mailbox in response to this prompt.
-	if sessionRecord.Runtime != "codex" {
-		if repoPath, rerr := config.FindProjectRoot("."); rerr == nil {
-			if n, ferr := flushAllOutboxes(repoPath); ferr == nil && n > 0 {
-				fmt.Fprintf(r.stdout, "Auto-flushed %d outbox message(s) to channel/mailbox.\n", n)
-			}
+	// Auto-flush staged outbox messages before delivering this prompt so the
+	// receiving agent sees all pending channel/mailbox entries immediately.
+	if repoPath, rerr := config.FindProjectRoot("."); rerr == nil {
+		if n, ferr := flushAllOutboxes(repoPath); ferr == nil && n > 0 {
+			fmt.Fprintf(r.stdout, "Auto-flushed %d outbox message(s) to channel/mailbox.\n", n)
 		}
 	}
 

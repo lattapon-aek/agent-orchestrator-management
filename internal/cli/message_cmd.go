@@ -40,9 +40,9 @@ func (r Runner) executeMessageSend(args []string) error {
 		return err
 	}
 
-	// Only codex sandbox agents route through the outbox (AOM_RUNTIME=codex is
-	// injected at codex session launch). All other runtimes write directly.
-	if os.Getenv("AOM_RUNTIME") == "codex" {
+	// Any sandboxed provider sets AOM_RUNTIME at launch. When set, the agent
+	// cannot write outside the worktree, so messages are staged locally for flush.
+	if os.Getenv("AOM_RUNTIME") != "" {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("get cwd: %w", err)

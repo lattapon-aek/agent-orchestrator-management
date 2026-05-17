@@ -16,6 +16,8 @@ const (
 	migrationSchemaV3    = "schema-v3"
 	migrationSchemaV4    = "schema-v4"
 	migrationSchemaV5    = "schema-v5"
+	migrationSchemaV6    = "schema-v6"
+	migrationSchemaV7    = "schema-v7"
 	defaultBusyTimeoutMS = 5000
 )
 
@@ -130,81 +132,110 @@ func Migrate(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("check migration %q: %w", migrationSchemaV3, err)
 	}
-	if applied {
-		return nil
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin migration transaction: %w", err)
-	}
-
-	if err := applySchemaV3(tx); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("apply schema v3: %w", err)
-	}
-
-	if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV3); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("record migration %q: %w", migrationSchemaV3, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit migration transaction: %w", err)
+	if !applied {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin migration transaction: %w", err)
+		}
+		if err := applySchemaV3(tx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("apply schema v3: %w", err)
+		}
+		if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV3); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("record migration %q: %w", migrationSchemaV3, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration transaction: %w", err)
+		}
 	}
 
 	applied, err = hasMigration(db, migrationSchemaV4)
 	if err != nil {
 		return fmt.Errorf("check migration %q: %w", migrationSchemaV4, err)
 	}
-	if applied {
-		return nil
-	}
-
-	tx, err = db.Begin()
-	if err != nil {
-		return fmt.Errorf("begin migration transaction: %w", err)
-	}
-
-	if err := applySchemaV4(tx); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("apply schema v4: %w", err)
-	}
-
-	if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV4); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("record migration %q: %w", migrationSchemaV4, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit migration transaction: %w", err)
+	if !applied {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin migration transaction: %w", err)
+		}
+		if err := applySchemaV4(tx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("apply schema v4: %w", err)
+		}
+		if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV4); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("record migration %q: %w", migrationSchemaV4, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration transaction: %w", err)
+		}
 	}
 
 	applied, err = hasMigration(db, migrationSchemaV5)
 	if err != nil {
 		return fmt.Errorf("check migration %q: %w", migrationSchemaV5, err)
 	}
-	if applied {
-		return nil
+	if !applied {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin migration transaction: %w", err)
+		}
+		if err := applySchemaV5(tx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("apply schema v5: %w", err)
+		}
+		if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV5); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("record migration %q: %w", migrationSchemaV5, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration transaction: %w", err)
+		}
 	}
 
-	tx, err = db.Begin()
+	applied, err = hasMigration(db, migrationSchemaV6)
 	if err != nil {
-		return fmt.Errorf("begin migration transaction: %w", err)
+		return fmt.Errorf("check migration %q: %w", migrationSchemaV6, err)
+	}
+	if !applied {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin migration transaction: %w", err)
+		}
+		if err := applySchemaV6(tx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("apply schema v6: %w", err)
+		}
+		if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV6); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("record migration %q: %w", migrationSchemaV6, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration transaction: %w", err)
+		}
 	}
 
-	if err := applySchemaV5(tx); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("apply schema v5: %w", err)
+	applied, err = hasMigration(db, migrationSchemaV7)
+	if err != nil {
+		return fmt.Errorf("check migration %q: %w", migrationSchemaV7, err)
 	}
-
-	if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV5); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("record migration %q: %w", migrationSchemaV5, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit migration transaction: %w", err)
+	if !applied {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin migration transaction: %w", err)
+		}
+		if err := applySchemaV7(tx); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("apply schema v7: %w", err)
+		}
+		if _, err := tx.Exec(`INSERT INTO migrations (id) VALUES (?)`, migrationSchemaV7); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("record migration %q: %w", migrationSchemaV7, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration transaction: %w", err)
+		}
 	}
 
 	return nil
@@ -342,6 +373,16 @@ CREATE TABLE steps (
 	}
 
 	return nil
+}
+
+func applySchemaV7(tx *sql.Tx) error {
+	_, err := tx.Exec(`ALTER TABLE sessions ADD COLUMN model TEXT NOT NULL DEFAULT ''`)
+	return err
+}
+
+func applySchemaV6(tx *sql.Tx) error {
+	_, err := tx.Exec(`ALTER TABLE agents ADD COLUMN model TEXT NOT NULL DEFAULT ''`)
+	return err
 }
 
 func applySchemaV5(tx *sql.Tx) error {

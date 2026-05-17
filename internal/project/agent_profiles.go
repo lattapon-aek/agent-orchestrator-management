@@ -174,6 +174,14 @@ func renderAgentProfileMarkdown(agentName, roleName, runtimeName, roleClass stri
 - Update .agent/state.md as work progresses
 - On completion: write .agent/handoff.md and append handoff.prepared or task.completed to .agent/log.md
 
+## Team Communication
+You can call AOM commands directly from your worktree shell:
+- Broadcast to the shared team channel: aom channel append "your message"
+- Send a direct message to another agent: aom message send <agent-name> "your message"
+- Check your own inbox: aom message read <your-agent-name>
+- Read a file from another agent's worktree: aom worktree read-file <task-id> <relative-path>
+These commands work from any directory inside the project tree.
+
 ## Constraints
 - Stay within the current task scope
 - Do not modify .agent/index.md or .agent/log.md because those artifacts are AOM-owned

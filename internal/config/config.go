@@ -146,11 +146,39 @@ type OwnerExceptionsConfig struct {
 	LogRequired bool `yaml:"log_required"`
 }
 
-// LoadProjectConfig loads and validates the AOM config set rooted at projectRoot.
-func LoadProjectConfig(projectRoot string) (*ProjectConfig, error) {
-	rootPath, err := filepath.Abs(projectRoot)
+// findProjectRoot walks up from startPath until it finds a directory containing
+// an .aom/project.yaml file. Returns the directory path or an error if not found.
+// This mirrors git's behaviour of finding .git/ from within any subdirectory,
+// which allows agents running inside worktrees to call AOM commands without
+// needing to know the project root explicitly.
+func findProjectRoot(startPath string) (string, error) {
+	current, err := filepath.Abs(startPath)
 	if err != nil {
-		return nil, fmt.Errorf("resolve project root: %w", err)
+		return "", fmt.Errorf("resolve start path: %w", err)
+	}
+	for {
+		candidate := filepath.Join(current, aomDirName, "project.yaml")
+		if _, err := os.Stat(candidate); err == nil {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+	return "", fmt.Errorf("no AOM project found at or above %q", startPath)
+}
+
+// LoadProjectConfig loads and validates the AOM config set rooted at projectRoot.
+// If projectRoot does not directly contain .aom/project.yaml, it walks up the
+// directory tree to find the nearest ancestor that does. This allows callers
+// running inside a git worktree to discover the project without knowing the
+// absolute project root.
+func LoadProjectConfig(projectRoot string) (*ProjectConfig, error) {
+	rootPath, err := findProjectRoot(projectRoot)
+	if err != nil {
+		return nil, err
 	}
 
 	cfg := &ProjectConfig{

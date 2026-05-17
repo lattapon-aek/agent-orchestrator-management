@@ -426,6 +426,13 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 - Keep continuity state in AOM artifacts
 - Follow the current task and step workflow state machine
 
+## Team Communication
+Run these AOM commands from your worktree shell when coordinating with other agents:
+- Broadcast to team: aom channel append "your message"
+- Direct message: aom message send <agent-name> "your message"
+- Check inbox: aom message read <your-agent-name>
+- Read another agent's file: aom worktree read-file <task-id> <relative-path>
+
 ## Success Criteria
 - Planned steps are completed or explicitly resolved
 - Task status reflects the final operator decision

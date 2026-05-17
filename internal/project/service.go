@@ -227,7 +227,11 @@ func (s *Service) Open(repoPath string) (*OpenResult, error) {
 		return nil, err
 	}
 
-	dbPath := filepath.Join(repoAbsPath, aomDirName, "sessions.db")
+	// Use cfg.RootPath (the project root discovered by findProjectRoot) rather than
+	// repoAbsPath (the raw CWD). When agents call AOM commands from inside a worktree,
+	// repoAbsPath is the worktree directory, but cfg.RootPath is the actual project root.
+	aomPath := cfg.AOMPath
+	dbPath := filepath.Join(aomPath, "sessions.db")
 	sqlDB, err := db.Open(dbPath)
 	if err != nil {
 		return nil, err
@@ -239,7 +243,7 @@ func (s *Service) Open(repoPath string) (*OpenResult, error) {
 	record := Record{
 		ID:            projectID,
 		Name:          cfg.Project.Name,
-		RepoPath:      repoAbsPath,
+		RepoPath:      cfg.RootPath,
 		DefaultBranch: cfg.Project.DefaultBranch,
 	}
 	if err := projectRepo.Upsert(record); err != nil {
@@ -253,7 +257,6 @@ func (s *Service) Open(repoPath string) (*OpenResult, error) {
 
 	// Seed profiles for any agents added to agents.yaml after the initial project init.
 	// seedAgentProfiles is idempotent — it skips agents whose profile file already exists.
-	aomPath := filepath.Join(repoAbsPath, aomDirName)
 	if err := seedAgentProfiles(aomPath, cfg); err != nil {
 		return nil, err
 	}

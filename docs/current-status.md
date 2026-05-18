@@ -626,6 +626,37 @@ Implemented based on feedback from live login-app multi-agent pipeline:
 - **Pipeline Position** added to `task.md` artifact: lists which tasks block the current task and which tasks it unblocks when done, with agent assignments and current status — agent understands its place in the workflow without asking
 - **AOM Workflow Guide** expanded in `profile.md` template: replaces the 3-bullet "Working Protocol" with a full guide covering session start sequence, mid-task checkpointing, completion signaling (valid log events with descriptions), `session wait` usage, and `aom next` for discovering what to work on
 
+### Planned Next: Cross-Platform UX & Merge Conflict Fixes (2026-05-18)
+
+From a second round of live feedback (Windows 11 + WSL, login-app pipeline). **Not yet implemented** — planned for next session.
+
+#### What needs fixing
+
+| Priority | Issue | File | Fix |
+|---|---|---|---|
+| Critical | `project.yaml` stores absolute Windows path — Linux binary fails to read it | `internal/project/templates/project-init/project.yaml.tmpl` | Change `repo: {{ .RepoPath }}` → `repo: .` (relative; `validateProject` already resolves it) |
+| Critical | `aom` binary committed to repo is Windows PE — WSL operators must build Linux binary manually | `.gitignore`, `README.md` | Gitignore binary artifacts; add WSL setup section to README |
+| High | `aom merge commit` when conflict: returns raw git error, leaves repo in conflict state, no guidance | `internal/cli/merge_cmd.go` | Better error message with step-by-step; add `aom merge continue <task>` and `aom merge abort <task>` |
+| Medium | Planned→Ready requires 3 commands (`step list`, `step update confirmed`, `task update ready`) | `internal/cli/task_cmd.go`, `internal/cli/root.go` | Add `aom task ready <task-id>` — confirms all steps + transitions to Ready in one shot |
+| Low | `aom session send` shell-escaping issues for long messages | `internal/cli/session_cmd.go` | Add `--file <path>` flag — reads message from file |
+| Low | `aom merge commit` does not auto-run merge check first | `internal/cli/merge_cmd.go` | Call `executeMergeCheck` at start of `executeMergeCommit` |
+
+#### What was verified as already working (no fix needed)
+
+- **Walk-up project detection**: `findProjectRoot()` in `internal/config/config.go:164` already walks up from CWD to find `.aom/project.yaml` — agents running inside worktrees can call AOM commands without setting a project root manually. The reported error was from a Windows-path validation failure, not from missing walk-up logic.
+- **Channel content at spawn**: already injected via `materializeAgentContext()` from session before
+- **Team roster at spawn**: already injected via `buildTeamRosterNote()`
+
+#### Implementation order (next session)
+
+1. `project.yaml.tmpl` → `repo: .` (1-line, zero risk)
+2. `.gitignore` + README WSL section (docs only)
+3. `aom session send --file` (isolated)
+4. `aom task ready` command (medium)
+5. merge conflict error message improvement
+6. `aom merge continue` + `aom merge abort` subcommands
+7. auto merge check before commit
+
 ## What Is Intentionally Not Done Yet
 
 Still out of scope at the current handoff point:

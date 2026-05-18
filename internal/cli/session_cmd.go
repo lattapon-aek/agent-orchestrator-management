@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -188,7 +189,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		return nil, fmt.Errorf("materialize agent context: %w", err)
 	}
 
-	r.enforcePolicyDefaults(result, agentRecord.Runtime)
+	r.enforcePolicyDefaults(result, agentRecord.Runtime, agentRecord.Model)
 
 	// Capture before pane creation so native session files written during process
 	// startup have mtime >= spawnedAt (used by claude's filesystem-based detection).
@@ -1251,7 +1252,13 @@ func (r Runner) executeSessionSend(args []string) error {
 
 	var message string
 	if filePath != "" {
-		data, err := os.ReadFile(filePath)
+		var data []byte
+		var err error
+		if filePath == "-" || filePath == "/dev/stdin" {
+			data, err = io.ReadAll(os.Stdin)
+		} else {
+			data, err = os.ReadFile(filePath)
+		}
 		if err != nil {
 			return fmt.Errorf("read --file %q: %w", filePath, err)
 		}

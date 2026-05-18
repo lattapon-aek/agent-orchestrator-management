@@ -15,5 +15,6 @@ func (p *kiroProvider) ResumeInfo() ResumeInfo                         { return 
 func (p *kiroProvider) MCPConfigStyle() MCPStyle                       { return MCPStyleNone }
 func (p *kiroProvider) PolicyEnforcementLevel() PolicyEnforcement      { return PolicyEnforcementInstructionOnly }
 func (p *kiroProvider) NativeSessionDetection() *NativeSessionStrategy { return nil }
-func (p *kiroProvider) StartupDialogResponse() string                   { return "" }
-func (p *kiroProvider) ModelHint() string                               { return "" }
+func (p *kiroProvider) StartupDialogResponse() string { return "" }
+func (p *kiroProvider) ModelHint() string             { return "" }
+func (p *kiroProvider) KnownModels() []string         { return nil }

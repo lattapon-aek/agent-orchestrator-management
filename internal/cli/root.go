@@ -159,6 +159,8 @@ func (r Runner) executeTask(args []string) error {
 		return r.executeTaskApproveRequest(args[1:])
 	case "reject-request":
 		return r.executeTaskRejectRequest(args[1:])
+	case "cancel":
+		return r.executeTaskCancel(args[1:])
 	default:
 		return fmt.Errorf("unknown task command %q", strings.Join(args, " "))
 	}
@@ -339,6 +341,7 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom task update <task-id> [flags] : change task mode, owner, or status")
 	fmt.Fprintln(r.stdout, "aom task ready <task-id> : confirm all Proposed steps and transition Planned task to Ready in one shot")
 	fmt.Fprintln(r.stdout, "aom task close <task-id> : mark a task complete (task must be InProgress; all steps must be terminal)")
+	fmt.Fprintln(r.stdout, "aom task cancel <task-id> : cancel a Draft/Planned/Ready task (archives it and cancels all pending steps)")
 	fmt.Fprintln(r.stdout, "aom task accept <task-id> : accept agent work — complete all pending steps and close the task in one shot")
 	fmt.Fprintln(r.stdout, "aom task link <task-id> --blocked-by <blocker-id> : declare that task-id cannot start until blocker-id is done")
 	fmt.Fprintln(r.stdout, "aom task unlink <task-id> --blocked-by <blocker-id> : remove a dependency edge")

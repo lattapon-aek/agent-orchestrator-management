@@ -100,6 +100,10 @@ func (p *codexProvider) ModelHint() string {
 		"Full list cached at ~/.codex/models_cache.json (auto-refreshed by codex on startup)."
 }
 
+func (p *codexProvider) KnownModels() []string {
+	return []string{"gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.2"}
+}
+
 func (p *codexProvider) NativeSessionDetection() *NativeSessionStrategy {
 	return &NativeSessionStrategy{DetectFn: codexSessionAfterSpawn}
 }

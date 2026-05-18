@@ -1337,3 +1337,88 @@ func (r Runner) executeTaskClaim(args []string) error {
 	}
 	return nil
 }
+
+func (r Runner) executeTaskCancel(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("task id is required")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("task cancel takes exactly one argument")
+	}
+
+	taskID := strings.TrimSpace(args[0])
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	current, err := taskService.Get(taskID)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return fmt.Errorf("task %q not found", taskID)
+	}
+
+	switch current.Status {
+	case "Draft", "Planned", "Ready":
+		// allowed to cancel
+	default:
+		return fmt.Errorf("task %q is %s; only Draft, Planned, or Ready tasks can be cancelled", taskID, current.Status)
+	}
+
+	// Cancel (skip) all non-terminal steps.
+	stepService, stepDB, err := r.app.OpenStepService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer stepDB.Close()
+
+	steps, err := stepService.ListByTask(taskID)
+	if err != nil {
+		return err
+	}
+	var cancelledSteps int
+	for _, s := range steps {
+		switch s.Status {
+		case "Completed", "Skipped", "Canceled":
+			continue
+		}
+		if _, updateErr := stepService.Update(s.ID, step.UpdateParams{Status: "Canceled"}); updateErr != nil {
+			return fmt.Errorf("cancel step %s: %w", s.ID, updateErr)
+		}
+		cancelledSteps++
+	}
+
+	taskRecord, err := taskService.Update(taskID, task.UpdateParams{Status: "Archived"})
+	if err != nil {
+		return err
+	}
+
+	if err := r.syncTaskArtifacts(result, taskID, artifact.Event{
+		Type:        "task.cancelled",
+		Actor:       "operator",
+		Summary:     fmt.Sprintf("Task cancelled from %s; %d step(s) cancelled", current.Status, cancelledSteps),
+		StateEffect: "Task Archived",
+	}, false); err != nil {
+		return err
+	}
+
+	_ = r.refreshProjectBoard(result)
+
+	fmt.Fprintln(r.stdout, "Task cancelled")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Task:   %s\n", taskRecord.ID)
+	fmt.Fprintf(r.stdout, "Status: %s\n", taskRecord.Status)
+	if cancelledSteps > 0 {
+		fmt.Fprintf(r.stdout, "Steps cancelled: %d\n", cancelledSteps)
+	}
+	return nil
+}

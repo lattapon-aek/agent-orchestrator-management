@@ -61,6 +61,15 @@ func (p *claudeProvider) ModelHint() string {
 		"See https://docs.anthropic.com/en/docs/about-claude/models for the current model list."
 }
 
+func (p *claudeProvider) KnownModels() []string {
+	return []string{
+		"sonnet", "opus", "haiku",
+		"claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5-20251001",
+		"claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5",
+		"claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022",
+	}
+}
+
 func (p *claudeProvider) NativeSessionDetection() *NativeSessionStrategy {
 	return &NativeSessionStrategy{DetectFn: claudeSessionForWorktree}
 }

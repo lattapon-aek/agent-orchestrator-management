@@ -10,6 +10,27 @@ A CLI control plane for managing multiple AI agent sessions (Claude Code, Codex)
 go build -o aom cmd/aom/main.go
 ```
 
+### Building on WSL2 / Linux
+
+The `aom` binary in this repo is a macOS executable. WSL2 and Linux users must build from source:
+
+```bash
+# Install Go 1.24+ if not present
+# https://go.dev/dl/
+
+export GOTOOLCHAIN=local
+export GOCACHE=$PWD/.cache/gocache
+export GOMODCACHE=$PWD/.cache/gomodcache
+export GOTELEMETRY=off
+
+go build -o aom cmd/aom/main.go
+./aom doctor   # verify environment
+```
+
+> **NTFS worktree note:** If your repo lives on an NTFS mount (e.g. `/mnt/c/...`), `git commit` inside
+> worktrees may fail with `index.lock: Read-only file system`. Use `aom worktree commit <task-id>`
+> as a drop-in replacement — it resolves the lock issue automatically.
+
 ---
 
 ## Quick Start

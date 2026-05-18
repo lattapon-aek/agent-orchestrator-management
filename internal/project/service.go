@@ -110,7 +110,11 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 
 	aomPath := filepath.Join(repoAbsPath, aomDirName)
 	if err := os.MkdirAll(aomPath, 0o755); err != nil {
-		return nil, fmt.Errorf("create .aom directory: %w", err)
+		// On NTFS mounts (WSL2) MkdirAll can return an error even when the
+		// directory was created successfully. Accept the error if the path exists.
+		if fi, statErr := os.Stat(aomPath); statErr != nil || !fi.IsDir() {
+			return nil, fmt.Errorf("create .aom directory: %w (if running on an NTFS mount via WSL2, ensure the repo lives on a Linux ext4 filesystem)", err)
+		}
 	}
 
 	if err := writeConfigFiles(aomPath, name, repoAbsPath, defaultBranch, sessionPrefix, templateDir, params.AgentSelections); err != nil {

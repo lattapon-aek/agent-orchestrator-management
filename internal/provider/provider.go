@@ -84,6 +84,10 @@ type Provider interface {
 	// so operators and orchestrator agents can make informed model selections.
 	// Returns "" for providers that do not support model selection.
 	ModelHint() string
+	// KnownModels returns a list of recognized model slugs for this provider.
+	// An empty slice means the provider does not maintain a static model list.
+	// Used for soft-warn validation at spawn time.
+	KnownModels() []string
 }
 
 // Registry maps runtime names to Provider implementations.
@@ -126,5 +130,6 @@ func (p *fallbackProvider) ResumeInfo() ResumeInfo                         { ret
 func (p *fallbackProvider) MCPConfigStyle() MCPStyle                       { return MCPStyleNone }
 func (p *fallbackProvider) PolicyEnforcementLevel() PolicyEnforcement      { return PolicyEnforcementInstructionOnly }
 func (p *fallbackProvider) NativeSessionDetection() *NativeSessionStrategy { return nil }
-func (p *fallbackProvider) StartupDialogResponse() string                 { return "" }
-func (p *fallbackProvider) ModelHint() string                             { return "" }
+func (p *fallbackProvider) StartupDialogResponse() string { return "" }
+func (p *fallbackProvider) ModelHint() string             { return "" }
+func (p *fallbackProvider) KnownModels() []string         { return nil }

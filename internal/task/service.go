@@ -368,6 +368,7 @@ func validateTaskTransition(current, next string) error {
 		"Planned": {
 			"Ready":          true,
 			"NeedsAttention": true,
+			"Archived":       true,
 		},
 		"Ready": {
 			"InProgress": true,

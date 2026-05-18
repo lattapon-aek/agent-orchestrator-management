@@ -133,26 +133,24 @@ func ensureHooksDir(aomPath string) error {
 	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
 		return fmt.Errorf("create hooks dir: %w", err)
 	}
-	example := filepath.Join(hooksDir, "on-task-done.sh.example")
-	if _, err := os.Stat(example); err == nil {
+	hookPath := filepath.Join(hooksDir, "on-task-done.sh")
+	if _, err := os.Stat(hookPath); err == nil {
 		return nil
 	}
-	const exampleContent = `#!/bin/bash
+	const hookContent = `#!/bin/bash
 # on-task-done.sh — triggered when a task is closed or accepted
 # Args: $1=task_id  $2=task_title  $3=final_status
 # Env:  AOM_REPO, AOM_HOOK
-#
-# Rename to on-task-done.sh and chmod +x to activate.
 #
 # Example: notify a reviewer session when a backend task completes
 # REVIEW_SESS=$(aom session list 2>/dev/null | grep reviewer | awk '{print $1}' | head -1)
 # if [ -n "$REVIEW_SESS" ]; then
 #   aom session send "$REVIEW_SESS" "Task '$2' ($1) is done. Begin review."
 # fi
-echo "on-task-done: $1 ($2) -> $3"
+echo "[aom hook] on-task-done: $1 ($2) -> $3"
 `
-	if err := os.WriteFile(example, []byte(exampleContent), 0o644); err != nil {
-		return fmt.Errorf("write hook example: %w", err)
+	if err := os.WriteFile(hookPath, []byte(hookContent), 0o755); err != nil {
+		return fmt.Errorf("write hook: %w", err)
 	}
 	return nil
 }

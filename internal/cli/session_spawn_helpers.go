@@ -259,7 +259,7 @@ func buildChannelSnapshotNote(repoPath string) string {
 // For runtimes with PolicyEnforcementRuntimeFlag (e.g. claude): deny_commands are enforced
 // via --disallowed-tools. For all other runtimes: they are written to the identity file as
 // instructions only.
-func (r Runner) enforcePolicyDefaults(result *project.OpenResult, agentRuntime string) {
+func (r Runner) enforcePolicyDefaults(result *project.OpenResult, agentRuntime, agentModel string) {
 	policy := result.Policy.Policy
 	if policy.SessionDefaults.YoloMode == "enabled" {
 		fmt.Fprintln(r.stderr, "Warning: project policy has yolo_mode=enabled — agent runs without approval gates")
@@ -274,6 +274,23 @@ func (r Runner) enforcePolicyDefaults(result *project.OpenResult, agentRuntime s
 			fmt.Fprintf(r.stderr, "Policy: %d deny command(s) written to identity file (instruction-only — %s has no runtime enforcement flag)\n", n, agentRuntime)
 		}
 	}
+	if agentModel != "" {
+		p := r.registry.Lookup(agentRuntime)
+		known := p.KnownModels()
+		if len(known) > 0 && !sliceContains(known, agentModel) {
+			fmt.Fprintf(r.stderr, "Warning: model %q is not in the known model list for %s — verify the slug is correct (%s)\n",
+				agentModel, agentRuntime, p.ModelHint())
+		}
+	}
+}
+
+func sliceContains(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 func roleWorktreeMode(result *project.OpenResult, roleName string) string {

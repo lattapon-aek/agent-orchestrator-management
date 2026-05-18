@@ -158,6 +158,42 @@ func (r Runner) executeDoctor(_ []string) error {
 		}
 	}
 
+	// ── Hooks ─────────────────────────────────────────────────────────────────
+	if cfg != nil {
+		hooksDir := filepath.Join(cfg.AOMPath, "hooks")
+		if entries, err := os.ReadDir(hooksDir); err == nil {
+			exampleOnly := []string{}
+			for _, e := range entries {
+				name := e.Name()
+				if !strings.HasSuffix(name, ".sh.example") {
+					continue
+				}
+				live := strings.TrimSuffix(name, ".example")
+				livePath := filepath.Join(hooksDir, live)
+				if _, statErr := os.Stat(livePath); os.IsNotExist(statErr) {
+					exampleOnly = append(exampleOnly, name)
+				}
+			}
+			if len(exampleOnly) > 0 {
+				results = append(results, doctorResult{
+					label:   "hooks",
+					detail:  fmt.Sprintf("%d .sh.example file(s) not activated: %s — copy without .example suffix and chmod +x to enable", len(exampleOnly), strings.Join(exampleOnly, ", ")),
+					warning: true,
+				})
+			} else {
+				// Check that at least on-task-done.sh exists
+				livePath := filepath.Join(hooksDir, "on-task-done.sh")
+				if _, err := os.Stat(livePath); err == nil {
+					results = append(results, doctorResult{
+						label:  "hooks",
+						detail: "on-task-done.sh present",
+						ok:     true,
+					})
+				}
+			}
+		}
+	}
+
 	// ── Platform: WSL2/NTFS ──────────────────────────────────────────────────
 	if cfg != nil && strings.HasPrefix(cfg.AOMPath, "/mnt/") {
 		results = append(results, doctorResult{

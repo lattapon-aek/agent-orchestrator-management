@@ -10,55 +10,189 @@ import (
 	"github.com/lattapon-aek/Agents-Orchestfator-Management/internal/step"
 )
 
-// resolveAgentArtifactConflicts auto-resolves a failed git merge when every
-// unmerged file is under .agent/ (per-task metadata that should never block a
-// code merge). Returns true if resolved and committed, false if any non-.agent/
-// conflict exists so the caller can propagate the original error.
-func resolveAgentArtifactConflicts(repoPath string) (bool, error) {
-	// git ls-files -u lists unmerged index entries (stages 2 & 3).
-	// Output format per line: "<mode> <hash> <stage>\t<path>"
-	// --name-only is not available on all git versions, so we parse the path ourselves.
-	out, err := exec.Command("git", "-C", repoPath, "ls-files", "-u").Output()
-	if err != nil {
-		return false, err
-	}
-	seen := make(map[string]bool)
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		// Tab separates the "<mode> <hash> <stage>" prefix from the path.
+// aomIdentityFiles are AOM-generated runtime identity files. When these appear
+// as add/add conflicts they are always resolved with "ours" (target branch) because
+// AOM regenerates them at the next session spawn.
+var aomIdentityFiles = map[string]bool{
+	"CLAUDE.md": true,
+	"AGENTS.md": true,
+	"GEMINI.md": true,
+}
+
+// parseUnmergedFiles returns unmerged paths from `git ls-files -u` output along
+// with a set of paths that are pure add/add (have stage 2 or 3 but no stage 1).
+func parseUnmergedFiles(lsOut string) (paths []string, addAdd map[string]bool) {
+	stagesByPath := make(map[string]map[int]bool)
+	for _, line := range strings.Split(strings.TrimSpace(lsOut), "\n") {
 		idx := strings.Index(line, "\t")
 		if idx < 0 {
 			continue
 		}
-		seen[strings.TrimSpace(line[idx+1:])] = true
+		path := strings.TrimSpace(line[idx+1:])
+		fields := strings.Fields(line[:idx])
+		if len(fields) < 3 {
+			continue
+		}
+		stage := 0
+		fmt.Sscanf(fields[2], "%d", &stage)
+		if stagesByPath[path] == nil {
+			stagesByPath[path] = make(map[int]bool)
+		}
+		stagesByPath[path][stage] = true
 	}
-	unmerged := make([]string, 0, len(seen))
-	for f := range seen {
-		unmerged = append(unmerged, f)
+	addAdd = make(map[string]bool)
+	for p, stages := range stagesByPath {
+		paths = append(paths, p)
+		if !stages[1] {
+			addAdd[p] = true
+		}
 	}
+	return paths, addAdd
+}
+
+// resolveAgentArtifactConflicts auto-resolves a failed git merge for files that
+// AOM owns and that should never block a code merge:
+//   - .agent/ files → take "theirs" (the incoming task's latest artifacts)
+//   - AOM identity files (CLAUDE.md, AGENTS.md, GEMINI.md) → take "ours" (target
+//     branch version; AOM regenerates these at next spawn so source changes are safe to drop)
+//
+// Returns true if all conflicts were resolved and committed, false when real code
+// conflicts remain so the caller can propagate the error.
+func resolveAgentArtifactConflicts(repoPath string) (bool, error) {
+	out, err := exec.Command("git", "-C", repoPath, "ls-files", "-u").Output()
+	if err != nil {
+		return false, err
+	}
+	unmerged, addAdd := parseUnmergedFiles(string(out))
 	if len(unmerged) == 0 {
 		return false, nil
 	}
+
+	var agentFiles, oursFiles, realConflicts []string
 	for _, f := range unmerged {
-		if !strings.HasPrefix(f, ".agent/") {
-			return false, nil // real code conflict — caller must handle
+		base := f[strings.LastIndex(f, "/")+1:]
+		switch {
+		case strings.HasPrefix(f, ".agent/"):
+			agentFiles = append(agentFiles, f)
+		case aomIdentityFiles[base] && addAdd[f]:
+			oursFiles = append(oursFiles, f)
+		default:
+			realConflicts = append(realConflicts, f)
 		}
 	}
-	// All conflicts are .agent/ files. Take the incoming (theirs) version,
-	// which is the latest task's artifacts, then stage and commit.
-	agentFiles := unmerged
-	checkoutArgs := append([]string{"-C", repoPath, "checkout", "--theirs", "--"}, agentFiles...)
-	if o, err := exec.Command("git", checkoutArgs...).CombinedOutput(); err != nil {
-		return false, fmt.Errorf("checkout --theirs failed: %s", strings.TrimSpace(string(o)))
+	if len(realConflicts) > 0 {
+		return false, nil // real code conflicts remain — caller must handle
 	}
-	// Use -f to override .gitignore (agent artifacts may be gitignored in the root repo).
-	addArgs := append([]string{"-C", repoPath, "add", "-f", "--"}, agentFiles...)
-	if o, err := exec.Command("git", addArgs...).CombinedOutput(); err != nil {
-		return false, fmt.Errorf("git add failed: %s", strings.TrimSpace(string(o)))
+	if len(agentFiles) == 0 && len(oursFiles) == 0 {
+		return false, nil
 	}
-	if o, err := exec.Command("git", "-C", repoPath, "commit", "--no-edit").CombinedOutput(); err != nil {
+
+	if len(agentFiles) > 0 {
+		checkoutArgs := append([]string{"-C", repoPath, "checkout", "--theirs", "--"}, agentFiles...)
+		if o, checkErr := exec.Command("git", checkoutArgs...).CombinedOutput(); checkErr != nil {
+			return false, fmt.Errorf("checkout --theirs (.agent/) failed: %s", strings.TrimSpace(string(o)))
+		}
+		addArgs := append([]string{"-C", repoPath, "add", "-f", "--"}, agentFiles...)
+		if o, addErr := exec.Command("git", addArgs...).CombinedOutput(); addErr != nil {
+			return false, fmt.Errorf("git add (.agent/) failed: %s", strings.TrimSpace(string(o)))
+		}
+	}
+	if len(oursFiles) > 0 {
+		checkoutArgs := append([]string{"-C", repoPath, "checkout", "--ours", "--"}, oursFiles...)
+		if o, checkErr := exec.Command("git", checkoutArgs...).CombinedOutput(); checkErr != nil {
+			return false, fmt.Errorf("checkout --ours (identity files) failed: %s", strings.TrimSpace(string(o)))
+		}
+		addArgs := append([]string{"-C", repoPath, "add", "--"}, oursFiles...)
+		if o, addErr := exec.Command("git", addArgs...).CombinedOutput(); addErr != nil {
+			return false, fmt.Errorf("git add (identity files) failed: %s", strings.TrimSpace(string(o)))
+		}
+	}
+
+	if o, commitErr := exec.Command("git", "-C", repoPath, "commit", "--no-edit").CombinedOutput(); commitErr != nil {
 		return false, fmt.Errorf("git commit failed: %s", strings.TrimSpace(string(o)))
 	}
 	return true, nil
+}
+
+// resolveAddAddConflicts resolves add/add conflicts using the source branch version
+// ("theirs"). Used when --prefer-branch is set: skeleton files added independently
+// in both branches are resolved by keeping the source branch's copy.
+// Returns true if any add/add conflicts were found and resolved.
+func resolveAddAddConflicts(repoPath string) (bool, error) {
+	out, err := exec.Command("git", "-C", repoPath, "ls-files", "-u").Output()
+	if err != nil {
+		return false, err
+	}
+	_, addAdd := parseUnmergedFiles(string(out))
+	if len(addAdd) == 0 {
+		return false, nil
+	}
+	files := make([]string, 0, len(addAdd))
+	for f := range addAdd {
+		files = append(files, f)
+	}
+	checkoutArgs := append([]string{"-C", repoPath, "checkout", "--theirs", "--"}, files...)
+	if o, checkErr := exec.Command("git", checkoutArgs...).CombinedOutput(); checkErr != nil {
+		return false, fmt.Errorf("checkout --theirs (add/add) failed: %s", strings.TrimSpace(string(o)))
+	}
+	addArgs := append([]string{"-C", repoPath, "add", "--"}, files...)
+	if o, addErr := exec.Command("git", addArgs...).CombinedOutput(); addErr != nil {
+		return false, fmt.Errorf("git add (add/add) failed: %s", strings.TrimSpace(string(o)))
+	}
+	// Check if there are still unresolved conflicts after handling add/add.
+	remaining, remainErr := exec.Command("git", "-C", repoPath, "ls-files", "-u").Output()
+	if remainErr != nil || strings.TrimSpace(string(remaining)) != "" {
+		return false, nil // real conflicts remain — caller must handle
+	}
+	if o, commitErr := exec.Command("git", "-C", repoPath, "commit", "--no-edit").CombinedOutput(); commitErr != nil {
+		return false, fmt.Errorf("git commit (add/add resolved) failed: %s", strings.TrimSpace(string(o)))
+	}
+	return true, nil
+}
+
+func mergeConflictError(gitOutput, taskID string) error {
+	return fmt.Errorf(
+		"git merge failed — conflicts detected:\n%s\n\n"+
+			"Resolve conflicts manually:\n"+
+			"  1. Edit conflicting files and remove the conflict markers (<<<<< / ===== / >>>>>)\n"+
+			"  2. git add <resolved-files>\n"+
+			"  3. aom merge continue %s    ← commit the resolved merge\n"+
+			"     OR: aom merge abort %s   ← discard and start over",
+		strings.TrimSpace(gitOutput), taskID, taskID,
+	)
+}
+
+// detectAddAddFiles returns files that were added independently in both branches
+// (add/add pattern) by comparing each branch to their common merge base.
+func detectAddAddFiles(repoPath, sourceBranch, otherBranch string) ([]string, error) {
+	mbOut, err := exec.Command("git", "-C", repoPath, "merge-base", sourceBranch, otherBranch).Output()
+	if err != nil || strings.TrimSpace(string(mbOut)) == "" {
+		return nil, nil
+	}
+	mergeBase := strings.TrimSpace(string(mbOut))
+
+	srcOut, err := exec.Command("git", "-C", repoPath, "diff", "--name-only", "--diff-filter=A", mergeBase+".."+sourceBranch).Output()
+	if err != nil {
+		return nil, nil
+	}
+	otherOut, err := exec.Command("git", "-C", repoPath, "diff", "--name-only", "--diff-filter=A", mergeBase+".."+otherBranch).Output()
+	if err != nil {
+		return nil, nil
+	}
+
+	srcFiles := make(map[string]bool)
+	for _, f := range strings.Split(strings.TrimSpace(string(srcOut)), "\n") {
+		if f = strings.TrimSpace(f); f != "" {
+			srcFiles[f] = true
+		}
+	}
+	var both []string
+	for _, f := range strings.Split(strings.TrimSpace(string(otherOut)), "\n") {
+		if f = strings.TrimSpace(f); f != "" && srcFiles[f] {
+			both = append(both, f)
+		}
+	}
+	return both, nil
 }
 
 func (r Runner) executeMergeCheck(args []string) error {
@@ -140,6 +274,16 @@ func (r Runner) executeMergeCheck(args []string) error {
 			fmt.Fprintf(r.stdout, "  %s   (also in: %s)\n", o.Path, o.OtherBranch)
 		}
 		fmt.Fprintln(r.stdout, "\nReview overlapping files before merging.")
+	}
+
+	// Detect add/add risk: files added independently in both branches.
+	addAddFiles, _ := detectAddAddFiles(result.Project.RepoPath, sourceBranch, otherBranch)
+	if len(addAddFiles) > 0 {
+		fmt.Fprintf(r.stdout, "\nAdd/add conflict risk: %d file(s) added independently in both branches:\n", len(addAddFiles))
+		for _, f := range addAddFiles {
+			fmt.Fprintf(r.stdout, "  + %s\n", f)
+		}
+		fmt.Fprintln(r.stdout, "  Hint: use --prefer-branch with 'aom merge commit' to auto-resolve by keeping the source branch version.")
 	}
 
 	return nil
@@ -264,6 +408,7 @@ func (r Runner) executeMergeCommit(args []string) error {
 
 	taskID := strings.TrimSpace(args[0])
 	intoFlag := ""
+	preferBranch := false
 
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
@@ -273,6 +418,8 @@ func (r Runner) executeMergeCommit(args []string) error {
 				return fmt.Errorf("--into requires a value")
 			}
 			intoFlag = strings.TrimSpace(args[i])
+		case "--prefer-branch":
+			preferBranch = true
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -341,31 +488,37 @@ func (r Runner) executeMergeCommit(args []string) error {
 
 	out, mergeErr := cmd.CombinedOutput()
 	if mergeErr != nil {
-		// Auto-resolve conflicts that are exclusively in .agent/ (task artifact files).
-		// These are per-worktree metadata and should never block a code merge.
-		if resolved, resolveErr := resolveAgentArtifactConflicts(result.Project.RepoPath); resolveErr != nil {
+		// Step 1: auto-resolve .agent/ and AOM identity file conflicts.
+		resolved, resolveErr := resolveAgentArtifactConflicts(result.Project.RepoPath)
+		if resolveErr != nil {
+			return mergeConflictError(string(out), taskID)
+		}
+		// Step 2: if --prefer-branch, also resolve remaining add/add conflicts.
+		if !resolved && preferBranch {
+			resolved, resolveErr = resolveAddAddConflicts(result.Project.RepoPath)
+			if resolveErr != nil {
+				return mergeConflictError(string(out), taskID)
+			}
+		}
+		if !resolved {
+			hint := ""
+			if !preferBranch {
+				// Check whether add/add conflicts exist so we can suggest the flag.
+				addAddFiles, _ := detectAddAddFiles(result.Project.RepoPath, sourceBranch, targetBranch)
+				if len(addAddFiles) > 0 {
+					hint = fmt.Sprintf("\n  Tip: %d add/add conflict(s) detected — re-run with --prefer-branch to auto-resolve by keeping the source branch version.", len(addAddFiles))
+				}
+			}
 			return fmt.Errorf(
-				"git merge failed — conflicts detected:\n%s\n\n"+
+				"git merge failed — conflicts detected:\n%s%s\n\n"+
 					"Resolve conflicts manually:\n"+
 					"  1. Edit conflicting files and remove the conflict markers (<<<<< / ===== / >>>>>)\n"+
 					"  2. git add <resolved-files>\n"+
 					"  3. aom merge continue %s    ← commit the resolved merge\n"+
 					"     OR: aom merge abort %s   ← discard and start over",
-				strings.TrimSpace(string(out)), taskID, taskID,
-			)
-		} else if !resolved {
-			return fmt.Errorf(
-				"git merge failed — conflicts detected:\n%s\n\n"+
-					"Resolve conflicts manually:\n"+
-					"  1. Edit conflicting files and remove the conflict markers (<<<<< / ===== / >>>>>)\n"+
-					"  2. git add <resolved-files>\n"+
-					"  3. aom merge continue %s    ← commit the resolved merge\n"+
-					"     OR: aom merge abort %s   ← discard and start over",
-				strings.TrimSpace(string(out)), taskID, taskID,
+				strings.TrimSpace(string(out)), hint, taskID, taskID,
 			)
 		}
-		// Conflicts were only in .agent/ and have been auto-resolved; read the
-		// commit summary for the success message.
 		out, _ = exec.Command("git", "-C", result.Project.RepoPath, "log", "--oneline", "-1").Output()
 	}
 

@@ -323,13 +323,13 @@ Implemented commands:
 - `aom task link` / `aom task unlink` (M13)
 - `aom task request` / `aom task list-requests` / `aom task approve-request` / `aom task reject-request` (M14)
 - `aom task record-result` (M16)
-- `aom next` (M13)
+- `aom next [--format json]` (M13, enhanced 2026-05-18)
 - `aom team brief` (M14)
 - `aom merge check` / `aom merge prepare` (M15)
 - `aom merge commit` (Post-M17)
 - `aom message send` / `aom message read` / `aom message clear` (M16)
 - `aom pause-all` / `aom resume-all` (M16)
-- `aom task list` (Post-M17)
+- `aom task list [--status <value>] [--format json]` (Post-M17, enhanced 2026-05-18)
 - `aom task claim` (Post-M17)
 - `aom metrics` (M17)
 - `aom worktree repair`
@@ -606,6 +606,25 @@ Recommended path for live E2E:
 - Linux or macOS should work best for continued live runtime validation
 - Windows still needs a working WSL + tmux path if it is used again for live checks
 - the next real-agent smoke work should be executed on a machine with verified `tmux`, `git`, and target runtime availability
+
+### Agent UX Improvements — Post-M17 (2026-05-18)
+
+Implemented based on feedback from live login-app multi-agent pipeline:
+
+#### CLI UX Fixes
+- `aom task link` now accepts `--depends-on` as an alias for `--blocked-by` — matches intuitive flag name agents expect
+- `aom session wait` error message now lists all valid event types: `task.completed`, `handoff.prepared`, `checkpoint.created`, `step.completed`, `task.unblocked`
+- `aom task list` now accepts `--status <value>` (case-insensitive filter) and `--format json` (machine-readable output with `blocked_by` array); args were previously silently ignored
+- `aom next` now accepts `--format json` — returns `{ unblocked: [...], blocked: [...] }` for scripted pipeline automation
+
+#### Behavior Fixes
+- Codex trust-dir dialog response now retried 3 times at 4-second intervals instead of once after a fixed 3-second sleep — prevents brief swallow when the codex prompt renders slowly
+- `aom task close` now auto-emits `task.unblocked` events to all dependent tasks whose blockers are fully resolved; also appends a channel message so the orchestrator can detect unblocking via `aom session wait --event task.unblocked` without polling
+
+#### Agent Onboarding — Spawn-time Context
+- **Team Roster** injected into agent identity file (`CLAUDE.md`/`AGENTS.md`) at spawn time: table of all project agents with roles, runtimes, and current task assignments; includes ready-to-use `aom message send <name>` commands so agents know who to contact
+- **Pipeline Position** added to `task.md` artifact: lists which tasks block the current task and which tasks it unblocks when done, with agent assignments and current status — agent understands its place in the workflow without asking
+- **AOM Workflow Guide** expanded in `profile.md` template: replaces the 3-bullet "Working Protocol" with a full guide covering session start sequence, mid-task checkpointing, completion signaling (valid log events with descriptions), `session wait` usage, and `aom next` for discovering what to work on
 
 ## What Is Intentionally Not Done Yet
 

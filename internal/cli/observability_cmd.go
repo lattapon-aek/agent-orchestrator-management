@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,7 +12,19 @@ import (
 )
 
 func (r Runner) executeNext(args []string) error {
-	_ = args
+	var format string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--format":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--format requires a value (json)")
+			}
+			format = strings.ToLower(strings.TrimSpace(args[i]))
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
 
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
@@ -48,6 +61,50 @@ func (r Runner) executeNext(args []string) error {
 		if !unblockedIDs[t.ID] {
 			blocked = append(blocked, t)
 		}
+	}
+
+	if format == "json" {
+		type taskEntry struct {
+			ID             string   `json:"id"`
+			Title          string   `json:"title"`
+			Status         string   `json:"status"`
+			Priority       string   `json:"priority"`
+			PreferredRole  string   `json:"preferred_role,omitempty"`
+			PreferredAgent string   `json:"preferred_agent,omitempty"`
+			BlockedBy      []string `json:"blocked_by,omitempty"`
+		}
+		toEntry := func(t task.Record) taskEntry {
+			blockers, _ := taskService.BlockedBy(t.ID)
+			var ids []string
+			for _, b := range blockers {
+				if b.Status != "Done" && b.Status != "Archived" {
+					ids = append(ids, b.ID)
+				}
+			}
+			return taskEntry{
+				ID:             t.ID,
+				Title:          t.Title,
+				Status:         t.Status,
+				Priority:       task.PriorityLabel(t.Priority),
+				PreferredRole:  t.PreferredRole,
+				PreferredAgent: t.PreferredAgent,
+				BlockedBy:      ids,
+			}
+		}
+		unblockedEntries := make([]taskEntry, 0, len(unblocked))
+		for _, t := range unblocked {
+			unblockedEntries = append(unblockedEntries, toEntry(t))
+		}
+		blockedEntries := make([]taskEntry, 0, len(blocked))
+		for _, t := range blocked {
+			blockedEntries = append(blockedEntries, toEntry(t))
+		}
+		enc := json.NewEncoder(r.stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]interface{}{
+			"unblocked": unblockedEntries,
+			"blocked":   blockedEntries,
+		})
 	}
 
 	fmt.Fprintln(r.stdout, "Next tasks")

@@ -159,22 +159,72 @@ func (r Runner) materializeAgentContext(result *project.OpenResult, agentRecord 
 		return fmt.Errorf("materialize model hint: %w", err)
 	}
 
-	// Append project-board pointer to the agent's identity file so it knows where to
-	// find the shared task list. Silently skipped when the worktree or identity file is absent.
 	if worktreePath != "" {
 		identityFile := r.registry.Lookup(agentRecord.Runtime).IdentityFilename()
 		if identityFile != "" {
-			boardPath := filepath.Join(result.Project.RepoPath, ".aom", "project-board.md")
-			note := fmt.Sprintf("\n## Project Board\nFull team task board: %s\nUse `aom task list` to see live task state.\n", boardPath)
 			idPath := filepath.Join(worktreePath, identityFile)
 			if f, err := os.OpenFile(idPath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644); err == nil {
-				_, _ = f.WriteString(note)
+				// Project board pointer.
+				boardPath := filepath.Join(result.Project.RepoPath, ".aom", "project-board.md")
+				_, _ = fmt.Fprintf(f, "\n## Project Board\nFull team task board: %s\nUse `aom task list` to see live task state.\n", boardPath)
+
+				// Team roster — query task assignments silently; failures are non-fatal.
+				rosterNote := r.buildTeamRosterNote(result, agentRecord.Name)
+				if rosterNote != "" {
+					_, _ = f.WriteString(rosterNote)
+				}
+
 				_ = f.Close()
 			}
 		}
 	}
 
 	return nil
+}
+
+// buildTeamRosterNote returns a markdown "Your Team" section listing all project agents
+// with their current task assignments, for injection into the spawned agent's identity file.
+func (r Runner) buildTeamRosterNote(result *project.OpenResult, selfName string) string {
+	if len(result.Agents) == 0 {
+		return ""
+	}
+
+	// Build agent → task title map from task service (best-effort, non-fatal).
+	agentTask := make(map[string]string)
+	if taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath); err == nil {
+		defer sqlDB.Close()
+		if tasks, err := taskService.ListByProject(result.Project.ID); err == nil {
+			for _, t := range tasks {
+				if t.PreferredAgent != "" && t.Status != "Done" && t.Status != "Archived" {
+					agentTask[t.PreferredAgent] = fmt.Sprintf("%s — %s", t.ID, t.Title)
+				}
+			}
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n## Your Team\n\n")
+	sb.WriteString("| Agent | Role | Runtime | Current Task |\n")
+	sb.WriteString("|-------|------|---------|-------------|\n")
+	for _, a := range result.Agents {
+		assignment := agentTask[a.Name]
+		if assignment == "" {
+			assignment = "(unassigned)"
+		}
+		marker := ""
+		if a.Name == selfName {
+			marker = " *(you)*"
+		}
+		fmt.Fprintf(&sb, "| %s%s | %s | %s | %s |\n", a.Name, marker, a.Role, a.Runtime, assignment)
+	}
+	sb.WriteString("\nTo message a teammate directly:\n")
+	for _, a := range result.Agents {
+		if a.Name != selfName {
+			fmt.Fprintf(&sb, "  aom message send %s \"your message\"\n", a.Name)
+		}
+	}
+	sb.WriteString("\n")
+	return sb.String()
 }
 
 // enforcePolicyDefaults surfaces policy information at spawn time.

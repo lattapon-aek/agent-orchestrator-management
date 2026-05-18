@@ -169,26 +169,56 @@ func renderAgentProfileMarkdown(agentName, roleName, runtimeName, roleClass stri
 ## Responsibilities
 - %s
 
-## Working Protocol
-- Always begin by reading .agent/task.md and .agent/state.md
-- Update .agent/state.md as work progresses
-- On completion: write .agent/handoff.md and append handoff.prepared or task.completed to .agent/log.md
+## AOM Workflow
+
+### Starting a session
+1. Read .agent/task.md — understand goal, scope, and pipeline position
+2. Read .agent/state.md — see current progress and remaining steps
+3. Read .agent/log.md — review history and last checkpoint
+
+### During work
+- Update .agent/state.md as step progress changes
+- Create checkpoints every ~30 minutes or after significant milestones
+
+### Completing work
+1. git add -A && git commit -m "..."  (always commit before signaling)
+2. Choose the right signal:
+   - Task fully done → append event "task.completed" to .agent/log.md
+   - Handing off to another agent → append event "handoff.prepared" to .agent/log.md
+3. Update .agent/state.md to reflect final status
+
+### Valid log events
+| Event             | Use when                                          |
+|-------------------|---------------------------------------------------|
+| task.completed    | Work is done; ready for operator to close         |
+| handoff.prepared  | Passing work to another agent to continue         |
+| checkpoint.created| Saving progress mid-task                          |
+| step.completed    | A sub-step finished                               |
+
+### Waiting for another session to finish
+  aom session wait <session-id> --event task.completed
+  aom session wait <session-id> --event handoff.prepared
+  (default timeout: 30m — override with --timeout 2h)
+
+### Seeing what tasks are ready to work on
+  aom next                   # unblocked tasks sorted by priority
+  aom next --format json     # machine-readable output for scripting
 
 ## Team Communication
-Call AOM commands from your worktree shell to communicate with the team:
-- Broadcast to the shared team channel: aom channel append "your message"
-- Send a direct message to another agent: aom message send <agent-name> "your message"
-- Check your own inbox: aom message read <your-agent-name>
-- Read a file from another agent's worktree: aom worktree read-file <task-id> <relative-path>
 
-NOTE: If your runtime sandbox restricts writes to .aom/, channel append and message send
-will stage messages to .agent/outbox.md instead of sending immediately. The operator will
-run "aom outbox flush" to publish them. You will see "Message staged to outbox" in the output
-when this happens — this is expected and not an error.
+Call AOM commands from your worktree shell to coordinate with teammates:
+- Broadcast to team channel:       aom channel append "your message"
+- Direct message a teammate:       aom message send <agent-name> "your message"
+- Check your inbox:                aom message read <your-agent-name>
+- Read a file from another worktree: aom worktree read-file <task-id> <relative-path>
+
+NOTE: If your runtime sandbox restricts writes outside your worktree, "channel append"
+and "message send" will stage to .agent/outbox.md instead. The operator runs
+"aom outbox flush" to publish them. Seeing "Message staged to outbox" is expected.
 
 ## Constraints
 - Stay within the current task scope
-- Do not modify .agent/index.md or .agent/log.md because those artifacts are AOM-owned
+- Do not modify .agent/index.md or .agent/log.md directly — those are AOM-owned
 `,
 		agentName,
 		roleName,

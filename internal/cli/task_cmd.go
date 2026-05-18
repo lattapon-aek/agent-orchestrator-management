@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -375,6 +376,36 @@ func (r Runner) executeTaskClose(args []string) error {
 		return err
 	}
 
+	// Emit task.unblocked events for any dependents whose blockers are all Done.
+	dependents, depErr := taskService.Unblocks(taskID)
+	if depErr == nil {
+		for _, dep := range dependents {
+			blockers, bErr := taskService.BlockedBy(dep.ID)
+			if bErr != nil {
+				continue
+			}
+			allDone := true
+			for _, b := range blockers {
+				if b.Status != "Done" && b.Status != "Archived" {
+					allDone = false
+					break
+				}
+			}
+			if allDone {
+				_ = r.syncTaskArtifacts(result, dep.ID, artifact.Event{
+					Type:        "task.unblocked",
+					Actor:       "aom",
+					Summary:     fmt.Sprintf("All blockers resolved — %s is now unblocked", dep.ID),
+					StateEffect: "unblocked",
+				}, false)
+				_ = appendChannelMessage(result.Project.RepoPath, "aom",
+					fmt.Sprintf("%s (%s) is now unblocked — all dependencies are done", dep.ID, dep.Title),
+					time.Now())
+				fmt.Fprintf(r.stdout, "Unblocked: %s (%s)\n", dep.ID, dep.Title)
+			}
+		}
+	}
+
 	_ = r.refreshProjectBoard(result)
 
 	fmt.Fprintln(r.stdout, "Task closed")
@@ -559,7 +590,7 @@ func (r Runner) executeTaskLink(args []string) error {
 
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
-		case "--blocked-by":
+		case "--blocked-by", "--depends-on":
 			i++
 			if i >= len(args) {
 				return fmt.Errorf("--blocked-by requires a value")
@@ -571,7 +602,7 @@ func (r Runner) executeTaskLink(args []string) error {
 	}
 
 	if blockingID == "" {
-		return fmt.Errorf("--blocked-by <task-id> is required")
+		return fmt.Errorf("--blocked-by <task-id> is required (alias: --depends-on)")
 	}
 
 	result, err := r.app.Projects.Open(".")
@@ -1012,7 +1043,25 @@ func (r Runner) executeTaskRecordResult(args []string) error {
 }
 
 func (r Runner) executeTaskList(args []string) error {
-	_ = args
+	var statusFilter, format string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--status":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--status requires a value")
+			}
+			statusFilter = strings.ToLower(strings.TrimSpace(args[i]))
+		case "--format":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--format requires a value (json)")
+			}
+			format = strings.ToLower(strings.TrimSpace(args[i]))
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
 
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
@@ -1025,14 +1074,57 @@ func (r Runner) executeTaskList(args []string) error {
 	}
 	defer sqlDB.Close()
 
-	tasks, err := taskService.ListByProject(result.Project.ID)
+	all, err := taskService.ListByProject(result.Project.ID)
 	if err != nil {
 		return err
 	}
 
+	tasks := all[:0]
+	for _, t := range all {
+		if statusFilter == "" || strings.ToLower(t.Status) == statusFilter {
+			tasks = append(tasks, t)
+		}
+	}
+
 	if len(tasks) == 0 {
-		fmt.Fprintln(r.stdout, "No tasks found.")
+		if statusFilter != "" {
+			fmt.Fprintf(r.stdout, "No tasks with status %q.\n", statusFilter)
+		} else {
+			fmt.Fprintln(r.stdout, "No tasks found.")
+		}
 		return nil
+	}
+
+	if format == "json" {
+		type taskJSON struct {
+			ID             string   `json:"id"`
+			Title          string   `json:"title"`
+			Status         string   `json:"status"`
+			Priority       string   `json:"priority"`
+			PreferredRole  string   `json:"preferred_role,omitempty"`
+			PreferredAgent string   `json:"preferred_agent,omitempty"`
+			BlockedBy      []string `json:"blocked_by,omitempty"`
+		}
+		out := make([]taskJSON, 0, len(tasks))
+		for _, t := range tasks {
+			blockers, _ := taskService.BlockedBy(t.ID)
+			var blockerIDs []string
+			for _, b := range blockers {
+				blockerIDs = append(blockerIDs, b.ID)
+			}
+			out = append(out, taskJSON{
+				ID:             t.ID,
+				Title:          t.Title,
+				Status:         t.Status,
+				Priority:       task.PriorityLabel(t.Priority),
+				PreferredRole:  t.PreferredRole,
+				PreferredAgent: t.PreferredAgent,
+				BlockedBy:      blockerIDs,
+			})
+		}
+		enc := json.NewEncoder(r.stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
 	}
 
 	fmt.Fprintf(r.stdout, "%-20s  %-16s  %-8s  %-14s  %-16s  %s\n",

@@ -302,9 +302,15 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 			} else {
 				fmt.Fprintln(r.stdout, "")
 				fmt.Fprintln(r.stdout, "Detecting native session ID (this may take up to 90s)...")
-				time.Sleep(3 * time.Second)
 				if key := r.registry.Lookup(record.Runtime).StartupDialogResponse(); key != "" {
-					_ = r.app.Tmux.SendKeys(record.TmuxPane, key)
+					// Send the startup dialog response up to 3 times at 4s intervals to
+					// cover runtimes whose interactive prompt takes longer to appear.
+					for attempt := 0; attempt < 3; attempt++ {
+						time.Sleep(4 * time.Second)
+						_ = r.app.Tmux.SendKeys(record.TmuxPane, key)
+					}
+				} else {
+					time.Sleep(3 * time.Second)
 				}
 				detected := r.detectUniqueVendorSessionID(strategy, sessionService, *record, spawnedAt)
 				if detected != "" {
@@ -1030,7 +1036,7 @@ func (r Runner) executeSessionWait(args []string) error {
 	}
 
 	if eventType == "" {
-		return fmt.Errorf("--event is required (e.g. --event handoff.prepared)")
+		return fmt.Errorf("--event is required\nValid events: task.completed, handoff.prepared, checkpoint.created, step.completed, task.unblocked")
 	}
 
 	record, err := r.loadSessionByIdentifier(sessionIdentifier)

@@ -38,6 +38,7 @@ type SyncParams struct {
 	ActiveSession         *session.Record
 	Worktree              *worktree.Record
 	BlockedBy             []task.Record // tasks that block this task
+	Unblocks              []task.Record // tasks this task unblocks when done
 	ReviewOwnerHint       string
 	ReviewOwnerAmbiguous  bool
 	CreatedBy             string
@@ -435,6 +436,41 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 			artifactRoot = filepath.Join(params.Worktree.WorktreePath, ".agent")
 		}
 	}
+
+	// Build Pipeline Position section.
+	var pipelineSection strings.Builder
+	pipelineSection.WriteString("## Pipeline Position\n\n")
+	if len(params.BlockedBy) == 0 {
+		pipelineSection.WriteString("Blocked by: (none — this task can start now)\n")
+	} else {
+		pipelineSection.WriteString("Blocked by (must finish first):\n")
+		for _, b := range params.BlockedBy {
+			agent := b.PreferredAgent
+			if agent == "" {
+				agent = b.PreferredRole
+			}
+			if agent == "" {
+				agent = "unassigned"
+			}
+			fmt.Fprintf(&pipelineSection, "  - %s — %s (assigned to: %s, status: %s)\n", b.ID, b.Title, agent, b.Status)
+		}
+	}
+	if len(params.Unblocks) == 0 {
+		pipelineSection.WriteString("Unblocks when done: (none)\n")
+	} else {
+		pipelineSection.WriteString("Unblocks when done:\n")
+		for _, u := range params.Unblocks {
+			agent := u.PreferredAgent
+			if agent == "" {
+				agent = u.PreferredRole
+			}
+			if agent == "" {
+				agent = "unassigned"
+			}
+			fmt.Fprintf(&pipelineSection, "  - %s — %s (assigned to: %s)\n", u.ID, u.Title, agent)
+		}
+	}
+
 	return fmt.Sprintf(`# Task
 
 ## Identity
@@ -458,16 +494,37 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 ## Out of Scope
 - Worktree isolation and provider-native runtime integration remain outside this slice
 
+%s
 ## Constraints
 - Keep continuity state in AOM artifacts
 - Follow the current task and step workflow state machine
 
-## Team Communication
-Run these AOM commands from your worktree shell when coordinating with other agents:
-- Broadcast to team: aom channel append "your message"
-- Direct message: aom message send <agent-name> "your message"
-- Check inbox: aom message read <your-agent-name>
-- Read another agent's file: aom worktree read-file <task-id> <relative-path>
+## Team Communication & AOM Reference
+
+### Communicate with teammates
+- Broadcast to team:              aom channel append "your message"
+- Direct message a teammate:      aom message send <agent-name> "your message"
+- Check your inbox:               aom message read <your-agent-name>
+- Read a file from another worktree: aom worktree read-file <task-id> <relative-path>
+
+NOTE: Sandboxed runtimes (codex) stage messages to .agent/outbox.md — the operator
+runs "aom outbox flush" to publish. Seeing "Message staged to outbox" is expected.
+
+### Wait for another session to finish
+  aom session wait <session-id> --event task.completed
+  aom session wait <session-id> --event handoff.prepared
+  aom session wait <session-id> --event checkpoint.created
+  (default timeout: 30m — override with --timeout 2h)
+
+### See what tasks are unblocked and ready
+  aom next                   # list unblocked tasks by priority
+  aom next --format json     # machine-readable, useful for scripting
+  aom task list              # all tasks with status and assignments
+  aom task list --status ready --format json
+
+### Read shared team state
+  cat .aom/team-brief.md     # team snapshot (operator runs: aom team brief)
+  cat .aom/project-board.md  # full task board
 
 ## Success Criteria
 - Planned steps are completed or explicitly resolved
@@ -486,6 +543,7 @@ Run these AOM commands from your worktree shell when coordinating with other age
 		worktreeBranch,
 		artifactRoot,
 		params.Task.Title,
+		pipelineSection.String(),
 	)
 }
 

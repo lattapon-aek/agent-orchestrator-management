@@ -211,6 +211,20 @@ func (r Runner) loadBlockedBy(result *project.OpenResult, taskID string) []task.
 	return records
 }
 
+func (r Runner) loadUnblocks(result *project.OpenResult, taskID string) []task.Record {
+	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
+	if err != nil {
+		return nil
+	}
+	defer sqlDB.Close()
+
+	records, err := taskService.Unblocks(taskID)
+	if err != nil {
+		return nil
+	}
+	return records
+}
+
 func (r Runner) loadProjectSessions(result *project.OpenResult) ([]session.Record, error) {
 	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
 	if err != nil {
@@ -333,6 +347,7 @@ func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, t
 		updatedBy = events[len(events)-1].Actor
 	}
 	blockedByRecords := r.loadBlockedBy(result, taskID)
+	unblocksRecords := r.loadUnblocks(result, taskID)
 
 	params := artifact.SyncParams{
 		Task:                  view.Task,
@@ -340,6 +355,7 @@ func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, t
 		ActiveSession:         activeSession,
 		Worktree:              view.Worktree,
 		BlockedBy:             blockedByRecords,
+		Unblocks:              unblocksRecords,
 		CreatedBy:             "operator",
 		UpdatedBy:             updatedBy,
 		ReviewOwnerHint:       view.ReviewOwnerHint,

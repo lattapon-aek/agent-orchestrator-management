@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -356,6 +357,17 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 	}
 
 	go runHook(result.Project.RepoPath, "on-session-spawn", record.ID, record.AgentName, record.TaskID)
+
+	// For real-mode codex sessions with a task, auto-send a commit reminder so
+	// codex knows to commit its work before signaling completion. Sent after the
+	// startup dialog loop to avoid interfering with the "1" response keys.
+	if record.Runtime == "codex" && params.taskID != "" && params.launchMode == aomruntime.LaunchModeReal {
+		commitReminder := fmt.Sprintf(
+			"IMPORTANT: when you have finished all work for this task, run: git add -A && git commit -m \"implement %s\" — then append task.completed to .agent/log.md",
+			params.taskID,
+		)
+		_ = r.app.Tmux.SendKeys(record.TmuxPane, commitReminder)
+	}
 
 	return record, nil
 }
@@ -1446,5 +1458,85 @@ func (r Runner) executeSessionCleanup(args []string) error {
 			return fmt.Errorf("session cleanup: %d dir(s) could not be removed", failed)
 		}
 	}
+	return nil
+}
+
+// executeSessionRecover diagnoses a stopped or failed session and recommends
+// the appropriate recovery action based on pane liveness, native session ID
+// availability, and task artifact continuity.
+func (r Runner) executeSessionRecover(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("session identifier is required")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("session recover takes exactly one argument")
+	}
+
+	record, err := r.loadSessionByIdentifier(strings.TrimSpace(args[0]))
+	if err != nil {
+		return err
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	// Tmux pane liveness.
+	paneAlive := false
+	if r.app.Tmux.Availability().Available && strings.TrimSpace(record.TmuxPane) != "" {
+		paneAlive, _ = r.app.Tmux.PaneExists(record.TmuxPane)
+	}
+
+	// Runtime binary availability.
+	runtimeAvail := "not found in PATH"
+	if _, lookErr := exec.LookPath(record.Runtime); lookErr == nil {
+		runtimeAvail = "available"
+	}
+
+	// Task and worktree continuity.
+	taskSummary := "(none)"
+	worktreePath := "(none)"
+	if record.TaskID != "" {
+		view, viewErr := r.loadTaskView(result, record.TaskID)
+		if viewErr == nil && view != nil {
+			taskSummary = fmt.Sprintf("%s (%s)", record.TaskID, view.Task.Status)
+			if view.Worktree != nil {
+				worktreePath = view.Worktree.WorktreePath
+			}
+		}
+	}
+
+	// Determine continuity quality and recommended action.
+	var quality, action string
+	switch {
+	case paneAlive:
+		quality = "high — pane still alive"
+		action = fmt.Sprintf("aom session rebind %s", record.ID)
+	case record.VendorSessionID != "":
+		quality = "medium — native session ID available for resume"
+		action = fmt.Sprintf("aom session replace %s --agent %s --real", record.ID, record.AgentName)
+	case record.TaskID != "":
+		quality = "artifact-backed — task.md and log.md preserve context"
+		action = fmt.Sprintf("aom session spawn %s --task %s --real", record.AgentName, record.TaskID)
+	default:
+		quality = "low — no task bound and no native session ID"
+		action = fmt.Sprintf("aom session archive %s", record.ID)
+	}
+
+	fmt.Fprintln(r.stdout, "Session recovery assessment")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Session:          %s\n", record.ID)
+	fmt.Fprintf(r.stdout, "Agent:            %s\n", record.AgentName)
+	fmt.Fprintf(r.stdout, "Status:           %s\n", record.Status)
+	fmt.Fprintf(r.stdout, "Runtime:          %s (%s)\n", record.Runtime, runtimeAvail)
+	fmt.Fprintf(r.stdout, "Task:             %s\n", taskSummary)
+	fmt.Fprintf(r.stdout, "Worktree:         %s\n", worktreePath)
+	fmt.Fprintf(r.stdout, "Tmux pane:        %s\n", emptyFallback(record.TmuxPane))
+	fmt.Fprintf(r.stdout, "Pane alive:       %v\n", paneAlive)
+	fmt.Fprintf(r.stdout, "Native session:   %s\n", emptyFallback(record.VendorSessionID))
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Continuity:       %s\n", quality)
+	fmt.Fprintf(r.stdout, "Recommended:      %s\n", action)
 	return nil
 }

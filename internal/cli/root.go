@@ -102,6 +102,8 @@ func (r Runner) Execute(args []string) error {
 		return r.executeTeam(args[1:])
 	case "task":
 		return r.executeTask(args[1:])
+	case "events":
+		return r.executeEvents(args[1:])
 	case "watch":
 		return r.executeWatch(args[1:])
 	case "worktree":
@@ -212,6 +214,8 @@ func (r Runner) executeSession(args []string) error {
 		return r.executeSessionHealth(args[1:])
 	case "cleanup":
 		return r.executeSessionCleanup(args[1:])
+	case "recover":
+		return r.executeSessionRecover(args[1:])
 	default:
 		return fmt.Errorf("unknown session command %q", strings.Join(args, " "))
 	}

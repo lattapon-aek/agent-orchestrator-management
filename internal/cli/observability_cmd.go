@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -432,4 +433,88 @@ func (r Runner) executeTeamBrief(args []string) error {
 	fmt.Fprintf(r.stdout, "Tasks:   %d active\n", len(briefTasks))
 	fmt.Fprintf(r.stdout, "Pending requests: %d\n", len(pendingReqs))
 	return nil
+}
+
+func (r Runner) executeEvents(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("events subcommand is required: tail")
+	}
+	switch args[0] {
+	case "tail":
+		return r.executeEventsTail(args[1:])
+	default:
+		return fmt.Errorf("unknown events command %q", args[0])
+	}
+}
+
+// executeEventsTail streams new log.md events for a task to stdout as they
+// appear, polling every 2 seconds. Requires --task <id> or AOM_ACTOR env var
+// to auto-detect the current agent's active task.
+func (r Runner) executeEventsTail(args []string) error {
+	taskID := ""
+	tailTimeout := 30 * time.Minute
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--task":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--task requires a value")
+			}
+			taskID = strings.TrimSpace(args[i])
+		case "--timeout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--timeout requires a value")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--timeout value %q is not a valid duration: %w", args[i], err)
+			}
+			tailTimeout = d
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	// Auto-detect task from AOM_ACTOR when --task is not provided.
+	if taskID == "" {
+		actorName := strings.TrimSpace(os.Getenv("AOM_ACTOR"))
+		if actorName == "" {
+			return fmt.Errorf("--task is required (or set AOM_ACTOR env var to auto-detect)")
+		}
+		sessions, sessErr := r.loadProjectSessions(result)
+		if sessErr != nil {
+			return sessErr
+		}
+		for _, s := range sessions {
+			if s.AgentName == actorName && s.TaskID != "" {
+				taskID = s.TaskID
+				break
+			}
+		}
+		if taskID == "" {
+			return fmt.Errorf("no active task found for agent %q — use --task <id>", actorName)
+		}
+	}
+
+	view, viewErr := r.loadTaskView(result, taskID)
+	if viewErr != nil {
+		return viewErr
+	}
+	if view == nil {
+		return fmt.Errorf("task %q not found", taskID)
+	}
+
+	logPath := taskArtifactLogPath(result.Project.RepoPath, result.StateDir, taskID, view.Worktree)
+
+	fmt.Fprintf(r.stdout, "Tailing events for task %s (timeout: %s)\n", taskID, tailTimeout)
+	fmt.Fprintf(r.stdout, "Log: %s\n\n", logPath)
+
+	return tailLogEvents(r.stdout, logPath, tailTimeout)
 }

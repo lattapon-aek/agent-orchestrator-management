@@ -878,12 +878,40 @@ Implemented from analysis of `aom-feedback.md` after the login-demo full-pipelin
 - All 3 template files (`internal/project/templates/project-init/agents.yaml.tmpl`, `templates/project-init/default/agents.yaml.tmpl`, `templates/project-init/minimal/agents.yaml.tmpl`) now include commented `# model:` lines with valid aliases for each runtime
 - **Problem solved**: `model:` field was undiscoverable from the generated config file
 
+### Stability & Observability Round (2026-05-19)
+
+Three spec-defined gaps implemented:
+
+#### `aom session recover`
+
+- New command: `aom session recover <session-id|agent-name>`
+- Diagnoses a stopped or failed session: pane liveness, runtime binary availability, task artifact continuity, native session ID
+- Outputs a continuity quality rating and a recommended recovery action:
+  - Pane alive → `aom session rebind`
+  - Native session ID → `aom session replace --real`
+  - Task-bound → `aom session spawn --task --real`
+  - No task, no session → `aom session archive`
+- Wired in `executeSession` switch (`internal/cli/root.go`); implemented in `internal/cli/session_cmd.go`
+
+#### `aom events tail`
+
+- New top-level command: `aom events tail [--task <id>] [--timeout <duration>]`
+- Streams new log.md events for a task to stdout as they appear, polling every 2s (reuses `tailLogEvents` from `internal/cli/log_wait.go`)
+- Auto-detects task from `AOM_ACTOR` env var when `--task` is omitted — matches how agents call AOM from inside a session
+- Default timeout: 30 minutes; override with `--timeout 2h`
+- Implemented in `internal/cli/observability_cmd.go`
+
+#### Codex commit reminder at spawn
+
+- `executeResolvedSessionSpawn` in `internal/cli/session_cmd.go`: for real-mode codex sessions with a bound task, auto-sends a tmux key sequence instructing the agent to `git add -A && git commit` and append `task.completed` before finishing
+- Sent after the startup dialog loop to avoid interfering with the "1" response keys
+- Eliminates the need to manually remind codex agents to commit via `aom session send`
+
 ## Immediate Next Step
 
 Milestones 0–17 and all E2E feedback improvements are complete. Remaining work:
 
 1. **gemini/kiro runtime support** — fill in `LaunchCommand` in `internal/provider/gemini.go` and `internal/provider/kiro.go`; blocked on confirmed CLI flags
-2. **Windows/WSL2 cross-platform fixes** — see Pending list in E2E Feedback Improvements section above
 
 ## Refactoring (branch: refactor)
 

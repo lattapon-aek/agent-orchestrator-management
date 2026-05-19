@@ -151,6 +151,24 @@ func (r Runner) executeDoctor(args []string) error {
 				}
 				results = append(results, doctorResult{label: "git: initial commit", detail: sha, ok: true})
 			}
+
+			// ── Git: identity ────────────────────────────────────────────────────
+			emailOut, emailErr := exec.Command("git", "config", "--get", "user.email").Output()
+			nameOut, nameErr := exec.Command("git", "config", "--get", "user.name").Output()
+			emailSet := emailErr == nil && len(strings.TrimSpace(string(emailOut))) > 0
+			nameSet := nameErr == nil && len(strings.TrimSpace(string(nameOut))) > 0
+			if !emailSet || !nameSet {
+				results = append(results, doctorResult{
+					label:  "git: identity",
+					detail: `user.name or user.email not set — commits will fail; fix: git config --global user.name "Your Name" && git config --global user.email "you@example.com"`,
+				})
+			} else {
+				results = append(results, doctorResult{
+					label:  "git: identity",
+					detail: fmt.Sprintf("%s <%s>", strings.TrimSpace(string(nameOut)), strings.TrimSpace(string(emailOut))),
+					ok:     true,
+				})
+			}
 		}
 	}
 

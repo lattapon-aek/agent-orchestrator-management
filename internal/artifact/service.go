@@ -487,7 +487,7 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 - Created By: %s
 - Assigned Role: %s
 - Assigned Agent: %s
-- Worktree: %s
+- Worktree: %s (informational — already your CWD; create files using relative paths only)
 - Worktree Branch: %s
 - Artifact Root: %s
 

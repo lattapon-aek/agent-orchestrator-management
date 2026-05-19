@@ -40,8 +40,8 @@ func (r Runner) executeAgentList(args []string) error {
 
 	fmt.Fprintln(r.stdout, "Agents")
 	fmt.Fprintln(r.stdout, "")
-	fmt.Fprintf(r.stdout, "  %-22s %-14s %-8s %-8s %s\n", "NAME", "ROLE", "RUNTIME", "ENABLED", "PROFILE")
-	fmt.Fprintln(r.stdout, "  "+strings.Repeat("-", 76))
+	fmt.Fprintf(r.stdout, "  %-22s %-14s %-8s %-8s %-16s %s\n", "NAME", "ROLE", "RUNTIME", "ENABLED", "MODEL", "PROFILE")
+	fmt.Fprintln(r.stdout, "  "+strings.Repeat("-", 92))
 	for _, a := range agents {
 		profilePath := project.AgentProfilePath(result.AOMPath, a.Name)
 		profileStatus := profilePath
@@ -52,7 +52,11 @@ func (r Runner) executeAgentList(args []string) error {
 		if !a.Enabled {
 			enabled = "no"
 		}
-		fmt.Fprintf(r.stdout, "  %-22s %-14s %-8s %-8s %s\n", a.Name, a.Role, a.Runtime, enabled, profileStatus)
+		model := a.Model
+		if model == "" {
+			model = "(default)"
+		}
+		fmt.Fprintf(r.stdout, "  %-22s %-14s %-8s %-8s %-16s %s\n", a.Name, a.Role, a.Runtime, enabled, model, profileStatus)
 	}
 	return nil
 }

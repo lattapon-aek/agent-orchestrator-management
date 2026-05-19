@@ -277,8 +277,8 @@ Should show:
 - role
 - runtime
 - enabled state
-- resource bindings summary
-- readiness or health hints
+- model (configured slug or `(default)` when unset)
+- profile path (or hint to run `aom open` if not seeded)
 
 ## aom runtime inspect
 
@@ -324,6 +324,8 @@ aom doctor
 - validate worktree mappings
 - validate resource bindings
 - surface policy enforcement gaps
+- check git identity (`user.name` + `user.email`) — FAIL with fix command if unset
+- detect WSL2/NTFS mount and warn about worktree git limitations
 
 ### Output
 

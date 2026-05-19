@@ -851,6 +851,33 @@ Implemented from a full analysis of `AOM-FEEDBACK.md` after the first live multi
 - `changedFilesSummary` in `internal/cli/worktree_cmd.go` now uses `exec.CommandContext` with a 5-second timeout — prevents git status hang from blocking handoff
 - Test command updated to `-timeout 20m` in `CLAUDE.md` — cli integration tests run real git ops on Windows and need extra time
 
+### E2E Feedback — Third Round Fixes (2026-05-19)
+
+Implemented from analysis of `aom-feedback.md` after the login-demo full-pipeline run (backend-main/codex + frontend-main/claude + reviewer-main/claude).
+
+#### `task.md` artifact — worktree path annotation
+
+- `internal/artifact/service.go`: `Worktree:` field now appends `(informational — already your CWD; create files using relative paths only)`
+- **Problem solved**: agents reading the absolute `/mnt/c/...` path from `task.md` were also creating files in the main workspace alongside the worktree, causing untracked files that blocked `aom merge commit`
+
+#### `aom doctor` — git identity check
+
+- New check block after "git: initial commit" inside the `git` availability guard
+- Runs `git config --get user.email` and `git config --get user.name`; FAILs if either is empty
+- Output: `[PASS] git: identity    Your Name <you@example.com>` or `[FAIL]` with exact fix command
+- **Problem solved**: `aom worktree commit` was failing with "Author identity unknown" in WSL with no pre-flight warning
+
+#### `aom agent list` — model column
+
+- `internal/cli/agent_cmd.go`: added `MODEL` column between `ENABLED` and `PROFILE`
+- Displays configured model slug (e.g. `gpt-5.3-codex`) or `(default)` when none is set
+- **Problem solved**: operators could not tell which model each agent was using without reading `agents.yaml` directly
+
+#### `agents.yaml` templates — commented model examples
+
+- All 3 template files (`internal/project/templates/project-init/agents.yaml.tmpl`, `templates/project-init/default/agents.yaml.tmpl`, `templates/project-init/minimal/agents.yaml.tmpl`) now include commented `# model:` lines with valid aliases for each runtime
+- **Problem solved**: `model:` field was undiscoverable from the generated config file
+
 ## Immediate Next Step
 
 Milestones 0–17 and all E2E feedback improvements are complete. Remaining work:

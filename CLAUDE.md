@@ -145,6 +145,7 @@ Defined in full in `docs/state-machine.md`. Summary:
 - E2E feedback: smart codex deny-command wrapper, `aom capture --follow/--diff`, `aom status --active/--graph`, `aom doctor --global`, `--step-type` flag, branch name truncation, auto-flush outbox on capture
 - Agent profile system: profiles moved from hardcoded Go strings to embedded `.md.tmpl` template files with 3-level lookup (templateDir → `.aom/templates/profiles/` → embedded); built-in classes: builder, frontend, reviewer, orchestrator
 - Team building: `aom agent add --class <class>`, Team Building section in all agent profiles, operator workflow in `--help` with Option A (operator-as-orchestrator) and Option B (delegate to orchestrator agent)
+- E2E feedback (third round): `aom doctor` git identity check, `aom agent list` model column, `task.md` worktree path annotated as CWD-only, `agents.yaml` templates include commented `model:` examples
 
 ---
 

@@ -172,6 +172,20 @@ func (r Runner) executeDoctor(args []string) error {
 		}
 	}
 
+	// ── NTFS mount detection ──────────────────────────────────────────────────
+	// WSL2 mounts Windows NTFS volumes under /mnt/. Git lock files on NTFS are
+	// read-only, which causes "index.lock: Read-only file system" inside worktrees.
+	if cfg != nil {
+		repoSlash := filepath.ToSlash(cfg.RootPath)
+		if strings.HasPrefix(repoSlash, "/mnt/") {
+			results = append(results, doctorResult{
+				label:   "git: NTFS mount",
+				detail:  "repo is under /mnt/ (WSL2→NTFS) — use \"aom worktree commit <task-id>\" instead of git commit in worktrees",
+				warning: true,
+			})
+		}
+	}
+
 	// ── .aom/ writable ────────────────────────────────────────────────────────
 	if cfg != nil {
 		probe := filepath.Join(cfg.AOMPath, ".doctor-probe")

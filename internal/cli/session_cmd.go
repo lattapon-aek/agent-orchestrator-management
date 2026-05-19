@@ -479,8 +479,13 @@ type sessionReplaceParams struct {
 }
 
 func (r Runner) executeSessionList(args []string) error {
-	if len(args) > 0 {
-		return fmt.Errorf("session list does not accept positional arguments in the current milestone")
+	activeOnly := false
+	for _, arg := range args {
+		if arg == "--active" {
+			activeOnly = true
+		} else {
+			return fmt.Errorf("unknown flag %q — session list accepts only --active", arg)
+		}
 	}
 
 	result, err := r.app.Projects.Open(".")
@@ -493,14 +498,18 @@ func (r Runner) executeSessionList(args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(r.stdout, "Sessions")
-	fmt.Fprintln(r.stdout, "")
-	if len(sessions) == 0 {
-		fmt.Fprintln(r.stdout, "No sessions")
-		return nil
+	if activeOnly {
+		fmt.Fprintln(r.stdout, "Sessions (active)")
+	} else {
+		fmt.Fprintln(r.stdout, "Sessions")
 	}
+	fmt.Fprintln(r.stdout, "")
 
+	printed := 0
 	for _, item := range sessions {
+		if activeOnly && !isActiveSessionStatus(item.Status) {
+			continue
+		}
 		modelSuffix := ""
 		if item.Model != "" {
 			modelSuffix = " | model=" + item.Model
@@ -519,6 +528,15 @@ func (r Runner) executeSessionList(args []string) error {
 			item.TmuxWindow,
 			item.TmuxPane,
 		)
+		printed++
+	}
+
+	if printed == 0 {
+		if activeOnly {
+			fmt.Fprintln(r.stdout, "No active sessions")
+		} else {
+			fmt.Fprintln(r.stdout, "No sessions")
+		}
 	}
 
 	return nil
@@ -840,21 +858,31 @@ func (r Runner) executeSessionResume(args []string) error {
 		}
 	}
 
-	if newTaskID == "" {
-		return fmt.Errorf("--task is required")
-	}
-
 	record, err := r.loadSessionByIdentifier(sessionIdentifier)
 	if err != nil {
 		return err
-	}
-	if record.Status != "WaitingHandoff" && record.Status != "Idle" {
-		return fmt.Errorf("session %q cannot be resumed for a new task (status: %s); session must be Idle or WaitingHandoff", record.ID, record.Status)
 	}
 
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
 		return err
+	}
+
+	// With --task: rebind the session to a different task (original behaviour).
+	if newTaskID != "" {
+		return r.executeSessionResumeToTask(result, record, newTaskID)
+	}
+
+	// Without --task: smart auto-recovery — pick the best continuity path.
+	return r.executeSessionAutoResume(result, record)
+}
+
+// executeSessionResumeToTask rebinds an Idle or WaitingHandoff session to a
+// new task without spawning a new process. The live tmux pane is cd'd into the
+// new worktree and agent context is re-materialised there.
+func (r Runner) executeSessionResumeToTask(result *project.OpenResult, record *session.Record, newTaskID string) error {
+	if record.Status != "WaitingHandoff" && record.Status != "Idle" {
+		return fmt.Errorf("session %q cannot be resumed for a new task (status: %s); session must be Idle or WaitingHandoff", record.ID, record.Status)
 	}
 
 	newTaskRecord, err := r.loadTaskByID(result, newTaskID)
@@ -951,6 +979,177 @@ func (r Runner) executeSessionResume(args []string) error {
 	fmt.Fprintf(r.stdout, "Worktree: %s\n", updated.WorktreePath)
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintf(r.stdout, "Next: aom session send %s \"read .agent/task.md and begin\"\n", updated.ID)
+	return nil
+}
+
+// executeSessionAutoResume picks the best continuity path for a session without
+// requiring a new task assignment. Decision tree:
+//
+//  1. Tmux pane still alive → un-detach (fastest path, context fully intact)
+//  2. VendorSessionID exists → new tmux pane resuming the native agent session
+//     (claude --resume <uuid> / codex resume <session-id>)
+//  3. TaskID exists but no native session → print spawn hint, no state mutation
+//  4. Nothing recoverable → print archive hint
+func (r Runner) executeSessionAutoResume(result *project.OpenResult, record *session.Record) error {
+	// Path 1: pane still alive — un-detach without touching the agent process.
+	if strings.TrimSpace(record.TmuxPane) != "" && r.app.Tmux.Availability().Available {
+		if alive, _ := r.app.Tmux.PaneExists(record.TmuxPane); alive {
+			sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
+			if err != nil {
+				return err
+			}
+			defer sqlDB.Close()
+
+			record.Status = "Idle"
+			updated, err := sessionService.Save(*record)
+			if err != nil {
+				return err
+			}
+
+			if strings.TrimSpace(record.TaskID) != "" {
+				_ = r.syncTaskArtifacts(result, record.TaskID, artifact.Event{
+					Type:        "session.resumed",
+					Actor:       "aom",
+					SessionID:   record.ID,
+					Summary:     fmt.Sprintf("Session %s (%s) resumed — pane still alive", record.ID, record.AgentName),
+					StateEffect: "Session Idle",
+				}, false)
+			}
+
+			fmt.Fprintln(r.stdout, "Session resumed (pane still alive)")
+			fmt.Fprintln(r.stdout, "")
+			fmt.Fprintf(r.stdout, "Session: %s\n", updated.ID)
+			fmt.Fprintf(r.stdout, "Agent:   %s\n", updated.AgentName)
+			fmt.Fprintf(r.stdout, "Pane:    %s\n", updated.TmuxPane)
+			fmt.Fprintf(r.stdout, "Status:  Idle\n")
+			if updated.TaskID != "" {
+				fmt.Fprintf(r.stdout, "Task:    %s\n", updated.TaskID)
+			}
+			fmt.Fprintln(r.stdout, "")
+			fmt.Fprintf(r.stdout, "Next: aom attach %s\n", updated.ID)
+			return nil
+		}
+	}
+
+	// Path 2: native session ID available — re-open the agent in a new tmux pane.
+	if strings.TrimSpace(record.VendorSessionID) != "" {
+		return r.resumeSessionNative(result, record)
+	}
+
+	// Path 3: task-bound but no native session ID.
+	if strings.TrimSpace(record.TaskID) != "" {
+		fmt.Fprintln(r.stdout, "No live pane and no native session ID — full spawn required.")
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintf(r.stdout, "To resume with task context:  aom session spawn %s --task %s --real\n", record.AgentName, record.TaskID)
+		return nil
+	}
+
+	// Path 4: no recovery path.
+	fmt.Fprintln(r.stdout, "No recovery path available (no live pane, no native session, no task).")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "To clean up: aom session archive %s\n", record.ID)
+	return nil
+}
+
+// resumeSessionNative creates a new tmux pane that resumes the agent's native
+// conversation context using the stored VendorSessionID. No startup dialog is
+// sent — claude --resume and codex resume -a never skip interactive prompts.
+func (r Runner) resumeSessionNative(result *project.OpenResult, record *session.Record) error {
+	if !r.app.Tmux.Availability().Available {
+		return fmt.Errorf("tmux is not available; cannot create a new pane to resume session")
+	}
+
+	// Guard: if the session is still in an active status, re-check the pane before
+	// creating a new one. Prevents duplicate panes when the path-1 liveness check
+	// in executeSessionAutoResume suffered a transient tmux glitch.
+	if isActiveSessionStatus(record.Status) && strings.TrimSpace(record.TmuxPane) != "" {
+		if alive, _ := r.app.Tmux.PaneExists(record.TmuxPane); alive {
+			return fmt.Errorf(
+				"session %q is %s and pane %s is still alive — use \"aom attach %s\" to reconnect",
+				record.ID, record.Status, record.TmuxPane, record.ID,
+			)
+		}
+	}
+
+	workspace, err := r.app.Tmux.EnsureWorkspace(result.SessionPrefix, result.Project.RepoPath)
+	if err != nil {
+		return fmt.Errorf("ensure tmux workspace: %w", err)
+	}
+
+	executionPath := record.WorktreePath
+	if strings.TrimSpace(executionPath) == "" {
+		executionPath = result.Project.RepoPath
+	}
+
+	selfBin, _ := os.Executable()
+	launchCmd, err := newLaunchBuilder().Build(aomruntime.SessionSpec{
+		SessionID:      record.ID,
+		AgentName:      record.AgentName,
+		RoleName:       record.RoleName,
+		Runtime:        record.Runtime,
+		AgentSessionID: record.VendorSessionID,
+		DenyCommands:   result.Policy.Policy.DenyCommands,
+		ProjectBin:     selfBin,
+		Model:          record.Model,
+	}, aomruntime.LaunchModeReal)
+	if err != nil {
+		return fmt.Errorf("build resume launch command: %w", err)
+	}
+
+	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, launchCmd)
+	if err != nil {
+		return fmt.Errorf("create tmux pane for resume: %w", err)
+	}
+
+	sessionService, sqlDB, err := r.app.OpenSessionService(result.DBPath)
+	if err != nil {
+		_ = r.app.Tmux.KillPane(paneBinding.PaneID)
+		return err
+	}
+	defer sqlDB.Close()
+
+	record.Status = "Idle"
+	record.TmuxSessionName = workspace.Name
+	record.TmuxWindow = paneBinding.WindowID
+	record.TmuxPane = paneBinding.PaneID
+
+	updated, err := sessionService.Save(*record)
+	if err != nil {
+		_ = r.app.Tmux.KillPane(paneBinding.PaneID)
+		return err
+	}
+
+	_ = r.app.Tmux.RenameWindow(paneBinding.WindowID, record.AgentName)
+	_ = r.app.Tmux.AnnotatePane(paneBinding.PaneID, map[string]string{
+		"@aom_session_id": record.ID,
+		"@aom_agent":      record.AgentName,
+		"@aom_role":       record.RoleName,
+	})
+
+	if strings.TrimSpace(record.TaskID) != "" {
+		_ = r.syncTaskArtifacts(result, record.TaskID, artifact.Event{
+			Type:      "session.resumed",
+			Actor:     "aom",
+			SessionID: record.ID,
+			Summary: fmt.Sprintf("Session %s (%s) resumed native %s context (session %s) in new pane",
+				record.ID, record.AgentName, record.Runtime, record.VendorSessionID),
+			StateEffect: "Session Idle",
+		}, false)
+	}
+
+	fmt.Fprintln(r.stdout, "Session resumed (native context)")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Session:        %s\n", updated.ID)
+	fmt.Fprintf(r.stdout, "Agent:          %s\n", updated.AgentName)
+	fmt.Fprintf(r.stdout, "Runtime:        %s\n", updated.Runtime)
+	fmt.Fprintf(r.stdout, "Native session: %s (resumed)\n", updated.VendorSessionID)
+	fmt.Fprintf(r.stdout, "Pane:           %s\n", updated.TmuxPane)
+	fmt.Fprintf(r.stdout, "Window:         %s\n", updated.TmuxWindow)
+	if updated.TaskID != "" {
+		fmt.Fprintf(r.stdout, "Task:           %s\n", updated.TaskID)
+	}
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Next: aom attach %s\n", updated.ID)
 	return nil
 }
 

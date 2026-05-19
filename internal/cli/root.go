@@ -373,7 +373,7 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "  --fresh : force a new context even when a previous native session exists for this task")
 	fmt.Fprintln(r.stdout, "aom session send <session-id> <message> [--file <path>] : deliver a prompt into a live session (--file reads message from file, avoids shell escaping)")
 
-	fmt.Fprintln(r.stdout, "aom session list : list known sessions")
+	fmt.Fprintln(r.stdout, "aom session list [--active] : list known sessions (--active shows only running sessions)")
 	fmt.Fprintln(r.stdout, "aom session show <session-id> : inspect one session and its bindings")
 	fmt.Fprintln(r.stdout, "aom session stop <session-id> : stop a live session and keep continuity state")
 	fmt.Fprintln(r.stdout, "aom session archive <session-id> : archive an inactive session record")

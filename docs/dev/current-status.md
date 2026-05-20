@@ -339,12 +339,13 @@ Implemented commands:
 - `aom step update`
 - `aom session send`
 - `aom session spawn`
-- `aom session list`
+- `aom session list [--active]`
 - `aom session show`
 - `aom session replace`
 - `aom session stop`
 - `aom session archive`
 - `aom session health` (M16)
+- `aom session resume [--task <id>]` (smart auto-recovery without `--task`; rebind-to-task with `--task`)
 - `aom attach`
 - `aom capture`
 - `aom checkpoint`
@@ -353,9 +354,10 @@ Implemented commands:
 - `aom review close`
 - `aom session rebind`
 - `aom project resources`
-- `aom doctor`
+- `aom doctor [--fix]`
 - `aom runtime list`
 - `aom runtime inspect`
+- `aom policy list [--task <task-id>]`
 
 Current behavior notes:
 - `open` ensures tmux workspace and fails clearly when tmux is unavailable
@@ -637,10 +639,10 @@ From a second round of live feedback (Windows 11 + WSL, login-app pipeline).
 
 | Priority | Issue | Status |
 |---|---|---|
-| Critical | `project.yaml` stores absolute Windows path — Linux binary fails to read it | **NOT DONE** |
+| Critical | `project.yaml` stores absolute Windows path — Linux binary fails to read it | **DONE** — `repo: .` in all templates |
 | Critical | `aom` binary committed to repo is Windows PE — WSL operators must build manually | **NOT DONE** |
 | High | `aom merge commit` conflict: raw git error, no guidance | **DONE** — `aom merge continue` + `aom merge abort` added |
-| Medium | Planned→Ready requires 3 commands | **NOT DONE** — `aom task ready` still missing |
+| Medium | Planned→Ready requires 3 commands | **DONE** — `aom task ready` added |
 | Low | `aom session send` shell-escaping for long messages | **DONE** — `--file <path>` flag added |
 | Low | `aom merge commit` does not auto-run merge check first | **NOT DONE** |
 
@@ -650,18 +652,16 @@ From a second round of live feedback (Windows 11 + WSL, login-app pipeline).
 - **Channel content at spawn**: already injected via `materializeAgentContext()` from session before
 - **Team roster at spawn**: already injected via `buildTeamRosterNote()`
 
-#### Remaining work (next session)
+#### Remaining work
 
-1. `project.yaml.tmpl` → `repo: .` (1-line, zero risk)
-2. `.gitignore` + README WSL section (docs only)
-3. `aom task ready` command
-4. auto merge check before commit
+1. `.gitignore` + README WSL section (docs only)
+2. auto merge check before `aom merge commit`
 
 ---
 
 ### Windows/WSL2 Multi-Agent E2E Feedback — Planned Fixes (2026-05-18)
 
-From a full live run of the login-app pipeline on Windows 11 + WSL2 (3 agents: orchestrator-main claude-haiku, backend-main×2 codex gpt-5.5, reviewer-main claude-haiku). All 4 tasks completed successfully, but significant friction was identified. **Not yet implemented** — planned for next session.
+From a full live run of the login-app pipeline on Windows 11 + WSL2 (3 agents: orchestrator-main claude-haiku, backend-main×2 codex gpt-5.5, reviewer-main claude-haiku). All 4 tasks completed successfully, but significant friction was identified. All P0–P3 issues are now resolved.
 
 #### Hook System Analysis
 
@@ -680,16 +680,16 @@ There are two hook layers in AOM. This explains why "agents didn't use hooks":
 
 #### New Issues Found
 
-| Priority | Issue | Cause | Fix Plan |
-|---|---|---|---|
-| **P0** | `project init` fails with `mkdir .aom: file exists` on NTFS mount | `os.MkdirAll` returns false-positive "file exists" on WSL2→NTFS | Retry with stat-check: if `MkdirAll` fails but dir exists, treat as success; add NTFS hint in error message |
-| **P0** | Agents can't `git commit` — `index.lock: Read-only file system` on NTFS | git lock files are read-only on NTFS via WSL2 | (a) Add NTFS fallback instruction to agent profile template; (b) `aom watch`/`aom capture` auto-detect `task.completed` in `log.md` and trigger `aom worktree commit`; (c) `aom doctor` detect NTFS mount and warn |
-| **P0** | AOM hooks never fire — `.sh.example` not renamed | Operator doesn't know activation requires rename | `project init` generates `on-task-done.sh` (live, not example); `aom doctor` warns if `.example` exists without `.sh` |
-| **P1** | Model spawn fails silently — error appears after spawn | No model slug validation before session spawn | Add known model list per provider (claude/codex); soft-warn at spawn if model not in list |
-| **P2** | `CLAUDE.md` written by Claude agents → add/add merge conflict | `MaterializeMCPConfig` + `MaterializePolicyConstraints` write `CLAUDE.md` into worktree | Option A: add `CLAUDE.md` to worktree `.gitignore` template; Option B: `executeMergeCommit` auto-resolve `CLAUDE.md` conflicts with "ours" strategy |
-| **P2** | `--file /dev/stdin` permission denied in WSL2 | WSL2 sandbox blocks `/dev/stdin` | Detect `--file -` or `--file /dev/stdin` and read from `os.Stdin` instead |
-| **P3** | No `task cancel` — orphan Draft/Planned tasks accumulate | No cancel/delete path in task state machine | Add `aom task cancel <task-id>` for Draft/Planned/Ready tasks → transition to Archived |
-| **P3** | Skeleton files from T1 cause add/add conflict when T2/T3 merge | git can't resolve add/add without a strategy hint | Add `--prefer-branch` flag to `aom merge commit` — auto-resolve add/add conflicts using branch version; `aom merge check` detect this pattern and suggest the flag |
+| Priority | Issue | Status |
+|---|---|---|
+| **P0** | `project init` fails with `mkdir .aom: file exists` on NTFS mount | **DONE** — stat-check fallback in `project/service.go` |
+| **P0** | Agents can't `git commit` — `index.lock: Read-only file system` on NTFS | **DONE** — `aom doctor` NTFS mount warning + NTFS hint in `base.md.tmpl` |
+| **P0** | AOM hooks never fire — `.sh.example` not renamed | **DONE** — `ensureHooksDir` in `config_files.go` generates live `on-task-done.sh`; `aom doctor` warns on unactivated `.sh.example` |
+| **P1** | Model spawn fails silently — error appears after spawn | **DONE** — `KnownModels()` soft-warn in `session_spawn_helpers.go` |
+| **P2** | `CLAUDE.md` written by Claude agents → add/add merge conflict | **DONE** — `resolveAgentArtifactConflicts` in `merge_cmd.go` auto-resolves with "ours" |
+| **P2** | `--file /dev/stdin` permission denied in WSL2 | **DONE** — `--file -` reads from `os.Stdin` |
+| **P3** | No `task cancel` — orphan Draft/Planned tasks accumulate | **DONE** — `aom task cancel` added |
+| **P3** | Skeleton files from T1 cause add/add conflict when T2/T3 merge | **DONE** — `--prefer-branch` flag for `aom merge commit` |
 
 #### What Worked Well (no fix needed)
 
@@ -701,16 +701,9 @@ There are two hook layers in AOM. This explains why "agents didn't use hooks":
 - `aom task accept` / `aom capture` / session resume — all functioned as designed
 - Policy enforcement (`--disallowed-tools`) — enforced correctly for both claude and codex
 
-#### Implementation Order (next session)
+#### All P0–P3 Issues Resolved
 
-1. NTFS `mkdir` error handling (`internal/project/service.go:112`) — stat-check fallback + better error message
-2. NTFS fallback instruction in agent profile template (`templates/project-init/`)
-3. `project init` generate live `on-task-done.sh` (not `.example`); `aom doctor` hook warning
-4. Model validation soft-warn at spawn (`internal/runtime/launch.go`, `internal/provider/`)
-5. `CLAUDE.md` conflict auto-resolve in `executeMergeCommit` (`internal/cli/merge_cmd.go`)
-6. `--file -` stdin support (`internal/cli/session_cmd.go`)
-7. `aom task cancel` command (`internal/cli/task_cmd.go`, `internal/task/service.go`)
-8. `--prefer-branch` flag for `aom merge commit` + `aom merge check` pattern detection
+All items above are implemented. No remaining Windows/WSL2 work other than the binary distribution note (operators on WSL2 must build the binary from source — `go build -o aom cmd/aom/main.go`).
 
 ## What Is Intentionally Not Done Yet
 
@@ -807,9 +800,9 @@ Implemented from real-world usage feedback (`AOM_FEEDBACK.md`):
 ### Pending (Windows/WSL2 cross-platform)
 - `project.yaml.tmpl` → `repo: .` (absolute Windows path breaks Linux binary)
 - ~~NTFS `mkdir` false-positive in `project init` (`internal/project/service.go:112`)~~ **DONE** (stat-check fallback already in place)
-- NTFS `index.lock`: agent profile NTFS fallback instruction + `aom doctor` NTFS warning
-- `CLAUDE.md` add/add merge conflict: auto-resolve with "ours" in `executeMergeCommit`
-- `--prefer-branch` flag for `aom merge commit`
+- ~~NTFS `index.lock`: agent profile NTFS fallback instruction + `aom doctor` NTFS warning~~ **DONE** — `doctor.go` NTFS mount check + `base.md.tmpl` NTFS hint
+- ~~`CLAUDE.md` add/add merge conflict: auto-resolve with "ours" in `executeMergeCommit`~~ **DONE** — `resolveAgentArtifactConflicts` in `merge_cmd.go`
+- ~~`--prefer-branch` flag for `aom merge commit`~~ **DONE** — `merge_cmd.go`
 
 ### E2E Feedback — Second Round Fixes (2026-05-19)
 
@@ -907,138 +900,121 @@ Three spec-defined gaps implemented:
 - Sent after the startup dialog loop to avoid interfering with the "1" response keys
 - Eliminates the need to manually remind codex agents to commit via `aom session send`
 
-## Planned Next Work
+### Session UX Polish (2026-05-19)
 
-Milestones 0–17 and all E2E feedback improvements are complete. The following is the verified remaining work — checked against the actual source code to confirm nothing listed here already exists. Implement groups in order (A → B → C → D → E).
+Two targeted improvements to session operator UX:
 
----
+#### `aom session list --active`
 
-### Group A — Windows/WSL2 Stabilization
+- `executeSessionList` in `internal/cli/session_cmd.go` now accepts `--active` flag
+- Filters output to sessions in active statuses: `Booting`, `Idle`, `Working`, `WaitingApproval`, `WaitingHandoff`, `Blocked`
+- `isActiveSessionStatus` helper extracted to `session_spawn_helpers.go` (reused by `resumeSessionNative`)
+- Help text updated: `aom session list [--active]`
 
-#### A1. NTFS `index.lock` — agent profile fallback instruction + `aom doctor` warning
+#### `aom session resume` smart auto-recovery
 
-- **Profile templates**: add a short note in the "Git Workflow" section of `builder.md.tmpl`, `frontend.md.tmpl`, and `default.md.tmpl` (in `internal/project/templates/project-init/profiles/`) explaining that on NTFS mounts `git commit` may fail with `index.lock: Read-only file system`; instruct agents to use `aom worktree commit` as the fallback
-- **`aom doctor`** (`internal/cli/doctor.go`): after the existing git checks, add an NTFS detection block — on Linux/WSL2, run `findmnt --output FSTYPE --target <repoPath> --noheadings` (or read `/proc/mounts`); if filesystem type is `fuseblk` or `ntfs`, print `[WARN] NTFS mount detected — git index.lock operations may fail; use aom worktree commit instead of git commit inside worktrees`
+- `executeSessionResume` in `internal/cli/session_cmd.go` now supports two modes:
+  - **With `--task`**: original rebind-to-new-task behaviour (`executeSessionResumeToTask`)
+  - **Without `--task`**: new smart auto-recovery (`executeSessionAutoResume`)
+- Auto-recovery decision tree (4 paths in priority order):
+  1. Tmux pane still alive → un-detach (fastest, full context intact)
+  2. `VendorSessionID` exists → `resumeSessionNative` creates new tmux pane resuming the native agent session (`claude --resume` / `codex resume`)
+  3. Task-bound but no native session → prints `aom session spawn --task --real` hint
+  4. No recovery path → prints `aom session archive` hint
+- `resumeSessionNative` in `session_cmd.go`: creates a new pane using the stored `VendorSessionID`, updates session record, renames window, emits `session.resumed` log event
 
----
+### E2E Feedback — Fourth Round Fixes (2026-05-19)
 
-### Group B — Hook System Completion
+Fixes derived from live login-demo workflow with backend-main (Codex), frontend-main (Claude Haiku), and reviewer-main (Claude Haiku).
 
-`on-task-done.sh` is already generated as a live file and `on-session-spawn` / `on-task-done` / `on-task-ready` hook sites already fire. The following gaps remain:
+#### Codex commit loop root cause fix
 
-#### B1. `project init` — add `on-task-blocked.sh` stub
+- `session_cmd.go` commit reminder now instructs codex to run `git add -A && git commit` **synchronously in the foreground** (not in a background terminal)
+- Fallback changed from NTFS-only to **any failure**: "If that fails for ANY reason, use: `aom worktree commit <task-id>`"
+- Explicit prohibition: "Do NOT use timeout wrappers, perl alarms, or retry loops"
+- `base.md.tmpl` AGENTS.md template updated to match — expands NTFS-only fallback to all failure types
+- `artifact/service.go` task.md Success Criteria updated to reference `aom worktree commit` fallback
 
-- **File**: `internal/project/config_files.go` → `ensureHooksDir()` (already generates `on-task-done.sh`)
-- **Change**: also write `on-task-blocked.sh` with the same pattern (executable 0755, stub with env var comments: `AOM_TASK_ID`, `AOM_STATUS`)
+#### DB permissions fix (P0)
 
-#### B2. New hook fire sites
+- `internal/db/db.go`: pre-creates `sessions.db` with `0o664` permissions before `sql.Open`
+- Previously created by the SQLite driver with default `0o644`, blocking Codex sandbox writes (`attempt to write a readonly database`)
 
-- **`on-task-blocked`**: fire from `internal/task/service.go` → `UpdateStatus` when the new status is `Blocked` or `NeedsAttention`; pass `AOM_TASK_ID`, `AOM_STATUS` env vars; call `runHook("on-task-blocked", ...)` from the CLI layer (same pattern as `on-task-done` in `task_cmd.go`)
-- **`on-review-prepared`**: fire from `executeReview` in `internal/cli/review_cmd.go` after `review-notes.md` is written; pass `AOM_TASK_ID`, `AOM_REVIEWER_SESSION` (session ID if spawned, else empty)
+#### `aom doctor` improvements
 
----
+- Added **`aom in PATH`** check (warn if binary not findable by agents)
+- Improved **database** check: now tests write access with `os.OpenFile(O_WRONLY)` instead of just `os.Stat`; prints `chmod 664` fix hint when not writable
 
-### Group C — UX Fix
+#### `aom agent set-model <name> <model>`
 
-#### C1. `--force` flag for `aom merge commit` Red-score override
+- New command that safely updates only the `model:` field in `agents.yaml` without touching other required fields (`role`, `runtime`, `enabled`)
+- Prevents accidental full-overwrite of `agents.yaml` that previously caused `unknown role ""` errors
+- Validates model slug against provider's known list and warns with ChatGPT-vs-API distinction for codex
+- `internal/project/agent_profiles.go`: new `SetAgentModel(aomPath, agentName, model)` function
 
-- **Context**: `executeMergeCommit` already calls `executeMergeCheck()` before attempting `git merge`, but there is no way to override when the score is Red — the operator is blocked with no escape hatch
-- **File**: `internal/cli/merge_cmd.go` → `executeMergeCommit`
-- **Change**: add `--force` bool flag; when Red score is detected, print the overlap summary and exit with error unless `--force` is set; when `--force` is set, print a one-line warning `[warn] forcing merge despite high overlap — operator confirmed` and proceed
+#### Codex model slug warning clarity
 
----
+- `internal/provider/codex.go` `ModelHint()`: explicitly notes that `gpt-4.x` series (gpt-4o, gpt-4.1, gpt-4.1-mini) requires an **OpenAI API account**, not a ChatGPT account
 
-### Group D — New Features
+#### Builder profile: sandbox network constraint
 
-#### D1. `aom worktree push [<task-id>] [--remote <name>]`
+- `profiles/builder.md.tmpl`: added **Sandbox Constraints** section
+- Instructs agents: if npm/pip/go install fails with a network error, write a stub, note "requires npm install post-merge" in `state.md`, and continue — do not retry in a loop
+- Also instructs agents to always `cd` to the correct subdirectory before running package manager commands
 
-- **Purpose**: push the task's worktree branch to a configured remote — a common operation agents need but currently have no AOM command for
-- **Behavior**:
-  1. Resolve task worktree path and branch name from `worktree.Record`
-  2. Run `git push <remote> <branch>` inside the worktree path (default remote: `origin`)
-  3. Append `worktree.pushed` event to task `log.md` with remote and branch fields
-  4. Print push output + `Pushed <branch> to <remote>`
-- **Error cases**: no remote configured → clear error with `git remote add origin <url>` hint; no commits ahead → `Already up to date` info message (not an error)
-- **CLI**: `internal/cli/worktree_cmd.go` → add `push` subcommand alongside existing `repair`, `read-file`, `commit`
+### E2E Feedback — Fifth Round Fixes (2026-05-19)
 
-#### D2. `aom report [--days N] [--output <file>]`
+Fixes derived from live login-demo workflow (AOM-FEEDBACK.md — second full E2E run with backend-main/Codex, frontend-main/Claude Haiku, reviewer-main/Claude Haiku).
 
-- **Purpose**: sprint/period summary derived entirely from existing task DB records and `log.md` event timestamps — no new data stores needed
-- **Output sections**:
-  1. **Summary**: total tasks created / completed / cancelled / in-progress in the period
-  2. **Completed tasks**: table with task ID, title, assigned agent, duration (created→done), mode
-  3. **Blocker analysis**: count of `task.blocked` events per task and per agent; highlight tasks that were blocked more than once
-  4. **Agent breakdown**: per-agent row with tasks owned, tasks completed, avg duration, checkpoints made (from `checkpoint.created` events)
-  5. **Velocity trend**: tasks completed per day in the period (simple ASCII sparkline using `▁▂▃▄▅▆▇█`)
-- **Default**: `--days 7`; `--output` writes to a file path; default (no `--output`) prints to stdout
-- **Side-effect**: always writes `.aom/report.md` so agents and operators can always find the last report
-- **Implementation**: `internal/cli/report_cmd.go` (new file); reuse `BuildVelocityReport` / `parseBlockEvents` patterns from `internal/cli/metrics.go`
+#### P1 — `.agent/` directory permission fix
 
-#### D3. `aom tui`
+- `internal/artifact/service.go`: new `ensureDir(path)` helper that calls `os.MkdirAll` then `os.Chmod(0755)` — forces execute bits regardless of process umask
+- All `os.MkdirAll(dir, 0o755)` call sites in the artifact service replaced with `ensureDir(dir)` (covers `.agent/`, `.codex/`, `.aom/team-brief.md`, `.aom/project-board.md`)
+- **Root cause**: `os.MkdirAll` respects the caller's umask; a strict umask (e.g. `0113`) strips the execute bit from newly created directories, leaving `.agent/` at `drw-rw-r--` (0664) — which prevents `ls`, `cd`, or file writes inside it
+- **Effect**: `.agent/` is always created with `drwxr-xr-x` (0755); agents can write task artifacts without manual `chmod` workarounds
 
-- **Purpose**: live-refresh terminal dashboard — the "summary/control surface" described in `docs/AOM-planning.md` that has never been implemented
-- **Behavior**: every 2 seconds, clear the terminal and re-render the same layout as `aom status --active`; header shows last-refresh time; footer shows `q=quit  r=refresh`
-- **Implementation approach**: no external TUI library; use ANSI escape codes (`\033[2J\033[H` to clear+home); extract a `RenderStatusScreen(w io.Writer, ...)` function into `internal/cli/status_format.go` shared by both `aom status` and `aom tui`
-- **Key bindings**: put stdin in raw mode using `golang.org/x/term` (already a transitive dependency); handle `q`/`Q` and `Ctrl-C` as quit; `r`/`R` forces immediate refresh
-- **Fallback**: if stdout is not a TTY (piped/redirected), print one snapshot and exit (same as `aom status --active`)
-- **CLI**: `internal/cli/tui_cmd.go` (new file)
+#### P3 — `aom watch` no longer returns immediately when no active tasks
 
-#### D4. Session staleness / context window warning
+- `executeWatchAllTasks` in `internal/cli/observability_cmd.go`: instead of printing "No active tasks to watch." and returning, now calls `waitForActiveTasks(result, timeout)` which polls every 5 seconds until at least one active task appears or the timeout elapses
+- New `waitForActiveTasks` helper polls task + worktree service in a loop; starts streaming as soon as active tasks are found
+- **Fix**: `aom watch --timeout 8m` launched before tasks are started now blocks and begins streaming when tasks enter InProgress/Blocked/NeedsAttention/Ready
 
-- **Purpose**: warn when an agent session has been `Working` for a long time with no checkpoint — a likely sign the agent is approaching context limits or has stalled
-- **Threshold**: configurable via `policy.yaml` as `stale_session_hours` (default: `4`); if unset, default applies
-- **`aom status`** (`internal/cli/status_format.go`): for each `Working` session, read the last `checkpoint.created` timestamp from the task's `log.md`; if `time.Since(lastCheckpoint) > threshold`, append `[stale — no checkpoint in Xh Ym]` in yellow next to the session row
-- **`aom session health`** (`internal/cli/message_cmd.go`): already shows time since last checkpoint; add explicit `[WARN]` prefix when threshold is exceeded
-- **`aom doctor`** (`internal/cli/doctor.go`): add a staleness check block; list each stale Working session with its last checkpoint time and suggest `aom checkpoint <session-id>`
-- **No new log events needed**: `checkpoint.created` timestamps already exist in `log.md`
+#### P5 — `aom policy list [--task <task-id>]`
 
----
+- New command in `internal/cli/policy_cmd.go`; wired in `internal/cli/root.go` (`case "policy"`)
+- Without `--task`: prints project-level `deny_commands` (BLOCK list), `require_approval` (GATE list), yolo mode, and approval scope
+- With `--task <id>`: additionally shows the assigned agent, its runtime, and the enforcement level (`--disallowed-tools` flag, PATH wrapper scripts, or instruction-only) so agents can see exactly what is blocked without reading `policy.yaml`
 
-### Group E — Session Reliability
+#### P6 — `aom session stop` idempotent
 
-These items address silent failure modes and friction in the session resume path. Particularly important for AI orchestrators running unattended.
+- `internal/session/service.go` `Stop()`: returns no-op (`&record, nil`) when session status is already `"Stopped"` instead of returning an error
+- **Fix**: scripts that run `stop` + `accept` in sequence no longer need error handling for the double-stop case
 
-#### E1. `aom session resume` — help text clarification
+#### P7 — Dependent tasks auto-transition to Ready when all blockers Done
 
-- **File**: `internal/cli/session_cmd.go` → usage/short description of the `resume` subcommand
-- **Change**: add one line to the help text: `"rebinds an idle session to a new task — does not restart the native agent process; native conversation continues unaffected"`
-- **Why**: the name "resume" implies native session continuation to most users; the clarification prevents operators from using this command when they actually need `session spawn --real` to resume the agent context
+- `internal/task/service.go` `Update()`: after a task transitions to `Done`, calls new `promoteUnblockedDependents(taskID)` method
+- `promoteUnblockedDependents` iterates all tasks that depend on the completed task via `UnblocksIDs`; for each `Planned` dependent whose every blocker is `Done` or `Archived`, transitions it to `Ready`
+- Errors are swallowed so a Done transition never fails due to a dependent-promotion failure
+- **Fix**: review tasks (and any task with all blockers done) automatically become `Ready` without requiring a manual `aom task ready` call
 
-#### E2. Stale `vendor_session_id` graceful fallback
+#### `aom doctor --fix`
 
-- **Problem**: if Claude/Codex's own session DB no longer has the stored UUID (reinstall, new machine, expired session), AOM still passes `--resume <stale-uuid>` → the runtime silently starts a fresh context with no warning to the operator or orchestrator; the agent has no task context and the issue is invisible
-- **Detection**: after a real-mode spawn, poll `log.md` via the existing `waitForLogEvent` mechanism (`internal/cli/log_wait.go`) for a `session.ready` event within a short window (15s); if the pane exits early OR no event arrives, treat as resume failure
-- **Fallback on failure**:
-  1. Call `session.Service.SetVendorSessionID(sessionID, "")` to clear the stale ID from DB
-  2. Append `session.resume_failed` event to `log.md` (include the stale UUID for audit)
-  3. Print `[warn] native session resume failed — starting fresh; stale session ID cleared`
-  4. Spawn continues (agent is already running fresh); operator is informed
-- **Files**: `internal/cli/session_spawn_helpers.go` (post-spawn resume validation); `internal/session/repository.go` + `internal/session/service.go` (support clearing via `SetVendorSessionID` with empty string)
+- `internal/cli/doctor.go`: new `--fix` flag triggers `executeDoctorFix()` instead of the diagnostic run
+- Fixes: `sessions.db` → `chmod 664`; all `.agent/` directories in `.aom/worktrees/` → `chmod 755`; all `.agent/*.md` files → `chmod 664`
+- Reports `FIXED <path> → <mode>` per item and `Fixed: N  Failed: M` summary
 
-#### E3. `aom session recover --execute` / `--dry-run`
+#### `aom broadcast --file <path>`
 
-- **Problem**: `aom session recover` is diagnose-only; AI orchestrators must parse text output and run the suggested command as a second step — a 2-step pattern that breaks unattended loops
-- **File**: `internal/cli/session_cmd.go` → `executeSessionRecover`
-- **Add flags**:
-  - `--dry-run`: print what would be executed without doing it (makes current default behavior explicit)
-  - `--execute`: after diagnosis, automatically run the recommended single-path action (rebind / replace --real / spawn --real / archive); print each step before executing
-- **Safety rule**: only auto-executes when diagnosis produces exactly one unambiguous recommended action; if multiple possible actions exist or the situation is unclear, `--execute` prints the options and exits non-zero — operator must choose
+- `internal/cli/tmux_cmd.go` `executeBroadcast`: added `--file <path>` flag that reads message content from a file instead of an inline string argument
+- Mutually exclusive with inline message; enables sending detailed Markdown briefs (e.g. `aom broadcast --file .aom/team-brief.md --sessions ...`)
 
-#### E4. Lightweight pane liveness check in `aom status`
+#### macOS test fix
 
-- **Problem**: `aom status` reads session state from DB without checking whether the tmux pane still exists; dead panes appear as "Working" until explicitly reconciled via `aom open` or `aom session recover`; this makes `aom status` and the planned `aom tui` (D3) show stale/misleading data
-- **File**: `internal/cli/status_format.go` (or the session list builder that feeds it)
-- **Change**: when rendering the session rows, call `tmux.Manager.PaneExists(pane)` for each non-terminal session (skip Detached / Stopped / Archived / Failed — already settled); if the pane is dead and the DB status is Working / Idle / WaitingHandoff / WaitingApproval, append `[pane dead]` in red to the session row
-- **Display-only**: do NOT write to DB from this path — state transition still requires explicit `aom session recover` or `aom open`; this is purely a visual reconciliation so the operator sees accurate data immediately
-- **Performance**: `tmux has-session -t <pane>` is a fast local check; only runs for sessions that have a `tmux_pane` binding
-
----
+- `internal/cli/root_test.go` `TestExecuteSessionSpawnWithTaskRefreshesArtifacts`: `filepath.EvalSymlinks(repoRoot)` applied at test start so path comparisons work correctly on macOS where `/var` is a symlink to `/private/var`
 
 ## Immediate Next Step
 
-Start with **Group A** (1 targeted change in doctor.go + profile templates), then B → C → D → E.
-
-Gemini/Kiro runtime support remains deferred:
+Milestones 0–17, all E2E feedback improvements, and cross-platform polish are complete. Only deferred work remains:
 
 1. **gemini/kiro runtime support** — fill in `LaunchCommand` in `internal/provider/gemini.go` and `internal/provider/kiro.go`; blocked on confirmed CLI flags
 

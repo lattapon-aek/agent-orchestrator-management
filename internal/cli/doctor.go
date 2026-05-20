@@ -31,10 +31,18 @@ func (d doctorResult) prefix() string {
 
 func (r Runner) executeDoctor(args []string) error {
 	globalOnly := false
+	fixMode := false
 	for _, arg := range args {
-		if arg == "--global" {
+		switch arg {
+		case "--global":
 			globalOnly = true
+		case "--fix":
+			fixMode = true
 		}
+	}
+
+	if fixMode {
+		return r.executeDoctorFix()
 	}
 
 	var results []doctorResult
@@ -51,6 +59,20 @@ func (r Runner) executeDoctor(args []string) error {
 		results = append(results, doctorResult{
 			label:  "tmux",
 			detail: "not found in PATH — required for session management",
+		})
+	}
+
+	if aomPath, err := exec.LookPath("aom"); err != nil {
+		results = append(results, doctorResult{
+			label:   "aom in PATH",
+			detail:  "not found — agents cannot run \"aom\" commands; add the binary to your PATH or symlink to /usr/local/bin/aom",
+			warning: true,
+		})
+	} else {
+		results = append(results, doctorResult{
+			label:  "aom in PATH",
+			detail: aomPath,
+			ok:     true,
 		})
 	}
 
@@ -172,6 +194,20 @@ func (r Runner) executeDoctor(args []string) error {
 		}
 	}
 
+	// ── NTFS mount detection ──────────────────────────────────────────────────
+	// WSL2 mounts Windows NTFS volumes under /mnt/. Git lock files on NTFS are
+	// read-only, which causes "index.lock: Read-only file system" inside worktrees.
+	if cfg != nil {
+		repoSlash := filepath.ToSlash(cfg.RootPath)
+		if strings.HasPrefix(repoSlash, "/mnt/") {
+			results = append(results, doctorResult{
+				label:   "git: NTFS mount",
+				detail:  "repo is under /mnt/ (WSL2→NTFS) — use \"aom worktree commit <task-id>\" instead of git commit in worktrees",
+				warning: true,
+			})
+		}
+	}
+
 	// ── .aom/ writable ────────────────────────────────────────────────────────
 	if cfg != nil {
 		probe := filepath.Join(cfg.AOMPath, ".doctor-probe")
@@ -201,11 +237,21 @@ func (r Runner) executeDoctor(args []string) error {
 				warning: true,
 			})
 		} else {
-			results = append(results, doctorResult{
-				label:  "database",
-				detail: "sessions.db present",
-				ok:     true,
-			})
+			f, werr := os.OpenFile(dbPath, os.O_WRONLY, 0)
+			if werr != nil {
+				results = append(results, doctorResult{
+					label:   "database",
+					detail:  fmt.Sprintf("sessions.db not writable — agent sandbox commands will fail (fix: chmod 664 %s)", dbPath),
+					warning: true,
+				})
+			} else {
+				_ = f.Close()
+				results = append(results, doctorResult{
+					label:  "database",
+					detail: "sessions.db present and writable",
+					ok:     true,
+				})
+			}
 		}
 	}
 
@@ -435,6 +481,74 @@ func sanitizeProjectID(name string) string {
 		return "aom-project"
 	}
 	return result
+}
+
+// executeDoctorFix auto-fixes known permission issues:
+//   - .agent/ directories inside worktrees: chmod 755
+//   - .agent/*.md files inside worktrees: chmod 664
+//   - sessions.db: chmod 664
+func (r Runner) executeDoctorFix() error {
+	cfg, err := config.LoadProjectConfig(".")
+	if err != nil {
+		return fmt.Errorf("load project config: %w", err)
+	}
+
+	fixed := 0
+	failed := 0
+
+	fix := func(path string, mode os.FileMode) {
+		if err := os.Chmod(path, mode); err != nil {
+			fmt.Fprintf(r.stdout, "  FAIL  %s: %v\n", path, err)
+			failed++
+		} else {
+			fmt.Fprintf(r.stdout, "  FIXED %s → %04o\n", path, mode)
+			fixed++
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "AOM Doctor --fix")
+	fmt.Fprintln(r.stdout, "================")
+	fmt.Fprintln(r.stdout, "")
+
+	// Fix sessions.db permissions.
+	dbPath := filepath.Join(cfg.AOMPath, "sessions.db")
+	if _, err := os.Stat(dbPath); err == nil {
+		fix(dbPath, 0o664)
+	}
+
+	// Walk worktree directories and fix .agent/ dirs and their files.
+	worktreesRoot := filepath.Join(cfg.AOMPath, "worktrees")
+	entries, err := os.ReadDir(worktreesRoot)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read worktrees dir: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		agentDir := filepath.Join(worktreesRoot, entry.Name(), ".agent")
+		if _, err := os.Stat(agentDir); os.IsNotExist(err) {
+			continue
+		}
+		fix(agentDir, 0o755)
+
+		files, err := os.ReadDir(agentDir)
+		if err != nil {
+			continue
+		}
+		for _, f := range files {
+			if !f.IsDir() {
+				fix(filepath.Join(agentDir, f.Name()), 0o664)
+			}
+		}
+	}
+
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Fixed: %d  Failed: %d\n", fixed, failed)
+	if failed > 0 {
+		return fmt.Errorf("doctor --fix: %d item(s) could not be fixed", failed)
+	}
+	return nil
 }
 
 // sortedKeys returns map keys in sorted order.

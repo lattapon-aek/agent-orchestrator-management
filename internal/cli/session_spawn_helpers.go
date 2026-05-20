@@ -337,6 +337,16 @@ func sendableSessionStatus(status string) bool {
 	}
 }
 
+// isActiveSessionStatus reports whether the session is expected to have a live pane.
+func isActiveSessionStatus(status string) bool {
+	switch strings.TrimSpace(status) {
+	case "Booting", "Idle", "Working", "WaitingApproval", "WaitingHandoff", "Blocked":
+		return true
+	default:
+		return false
+	}
+}
+
 // detectUniqueVendorSessionID polls the provider's native session detection and
 // skips any session ID already registered to a live sibling session in the same
 // project. This prevents duplicate assignment when two sessions are spawned close

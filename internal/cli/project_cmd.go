@@ -518,6 +518,12 @@ func (r Runner) executeStatus(args []string) error {
 		return err
 	}
 
+	// Auto-stop Idle sessions whose bound task has signalled task.completed in log.md.
+	// This frees orphaned background processes (codex background terminals, caffeinate)
+	// the first time the operator checks status after work is done — without requiring
+	// an explicit "aom session stop" or "aom task accept" call.
+	sessions = r.autoStopCompletedSessions(result, sessions)
+
 	taskCount, err := r.loadTaskCount(result)
 	if err != nil {
 		return err
@@ -539,6 +545,32 @@ func (r Runner) executeStatus(args []string) error {
 
 	r.printProjectSummary("Project status", result, nil, sessions, taskCount, taskViews)
 	return nil
+}
+
+// autoStopCompletedSessions stops any Idle sessions whose bound task has signalled
+// task.completed in log.md. Returns the updated slice with those sessions showing
+// status=Stopped. Runs during aom status so that background processes (codex
+// background terminals, caffeinate, policy wrappers) are cleaned up the first time
+// the operator checks status after work is done — without needing explicit action.
+func (r Runner) autoStopCompletedSessions(result *project.OpenResult, sessions []session.Record) []session.Record {
+	for i, s := range sessions {
+		if s.Status != "Idle" || s.TmuxPane == "" || s.TaskID == "" || s.WorktreePath == "" {
+			continue
+		}
+		if alive, _ := r.app.Tmux.PaneExists(s.TmuxPane); !alive {
+			continue
+		}
+		logPath := filepath.Join(s.WorktreePath, ".agent", "log.md")
+		if !hasTaskCompletedEvent(logPath) {
+			continue
+		}
+		stopped, _, _ := r.stopSessionRecord(result, s, false)
+		if stopped != nil {
+			sessions[i] = *stopped
+			fmt.Fprintf(r.stdout, "ℹ  auto-stopped %s (%s): task.completed — background processes cleaned up\n", s.ID, s.AgentName)
+		}
+	}
+	return sessions
 }
 
 // statusJSONOutput is the JSON structure for `aom status --json`.

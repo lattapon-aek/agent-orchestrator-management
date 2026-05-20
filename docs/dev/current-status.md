@@ -1079,6 +1079,63 @@ Fixes derived from live login-demo workflow (AOM-FEEDBACK.md — second full E2E
 
 - `internal/cli/root_test.go` `TestExecuteSessionSpawnWithTaskRefreshesArtifacts`: `filepath.EvalSymlinks(repoRoot)` applied at test start so path comparisons work correctly on macOS where `/var` is a symlink to `/private/var`
 
+## E2E Feedback Rounds 8–11 — Codex Background Terminal Cleanup (2026-05-20)
+
+### Root cause identified
+
+Codex uses a **parallel background terminal model**: each exploratory/build command runs in a separate `/bin/zsh` subprocess. When codex hits a usage limit or gets interrupted, these child processes become orphaned. When `.aom/sessions.db` was tracked in git, every `git add -A` staged a 69 KB binary → git slow → codex spawned more background terminals trying to retry → fan activity.
+
+Claude Code does not have this problem: it uses a sequential tool-use loop (one bash subprocess, commands run serially).
+
+### Fixes applied
+
+#### `.aom/` gitignore + doctor check (round 10)
+- `config_files.go` `defaultGitignoreEntries`: added `.aom/` and `.agent/` as first entries so `aom project init` and `aom open` always write them before any agent commit
+- `doctor.go`: new `git: .aom/ tracked` check — warns with fix command if `sessions.db` or `channel.md` is committed
+- `builder.md.tmpl`, `reviewer.md.tmpl`: added commit guard warnings
+
+#### Agent name-runtime mismatch warning (round 10)
+- `agent_cmd.go` `executeAgentAdd`: checks if agent name contains a known runtime hint (codex, claude, gemini, kiro) that differs from `--runtime`; prints warning before creating agent
+- `base.md.tmpl` Team Building section: IMPORTANT note that agent name is a label only
+
+#### `Idle (pane live)` indicator (round 10)
+- `helpers.go` `printProjectSummary`: for Idle sessions with pane alive, appends `(pane live)` in yellow and a line `attached=yes — process still running; run: aom session stop <id>`
+
+#### Sandbox Constraints in all profiles (rounds 9–11)
+- `builder.md.tmpl`, `frontend.md.tmpl`, `reviewer.md.tmpl`, `orchestrator.md.tmpl`: each has a Sandbox Constraints section with the essential codex constraints (commit fallback, hang recovery)
+- `base.md.tmpl` Completing work step 2: one-line CODEX reminder not to use background terminal feature (shared, read by all agents)
+- Profiles trimmed: removed duplicate 10-line blocks; shared rule lives in base once
+
+#### `generic.md.tmpl` non-coding profile (round 9)
+- New file `internal/project/templates/project-init/profiles/generic.md.tmpl`
+- Responsibilities, Work Standards, Output & Handoff — no npm/git/sandbox assumptions
+- Used by `researcher`, `analyst`, `writer` classes via `aom agent add --class generic`
+
+#### SQLite concurrent write fix (round 9)
+- `internal/db/db.go`: `_txlock=immediate` in DSN forces `BEGIN IMMEDIATE` so `busy_timeout` fires at transaction start; `defaultBusyTimeoutMS = 30000`; `SetMaxOpenConns(1)` eliminates in-process contention
+
+#### `aom channel read` outbox warning (round 9)
+- `channel_cmd.go` `executeChannelRead`: calls `countPendingOutboxMessages()`; if n > 0 prints `⚠  N outbox message(s) pending — run: aom outbox flush` before channel content
+
+#### `KillPaneAndDescendants` — provider-level infrastructure fix (round 11)
+- `internal/tmux/manager.go`: new `PanePID(paneID)` reads `#{pane_pid}` from tmux; new `paneDescendants(rootPID)` BFS via `pgrep -P` (macOS + Linux); new `KillPaneAndDescendants(paneID)` SIGTERM all → 2 s → SIGKILL survivors → `kill-pane`
+- `internal/cli/session_cmd.go` `stopSessionRecord`: replaced `KillPane` with `KillPaneAndDescendants` in stop path — codex background terminals, caffeinate, policy wrappers all killed when operator stops a session
+
+#### 3-layer auto-cleanup chain (round 11)
+- **Layer 1 — `aom status`**: `executeStatus` calls `autoStopCompletedSessions()` after loading sessions; for each Idle session with pane alive + `task.completed` in `.agent/log.md` → auto-stop + print `ℹ  auto-stopped <id> (<agent>)`. No operator action required.
+- **Layer 2 — `aom task accept`**: `autoStopIdleSessionsForTask()` called at end of `executeTaskAccept`; stops any Idle/WaitingHandoff session bound to the accepted task
+- **Layer 3 — `aom session stop`**: always uses `KillPaneAndDescendants`
+
+#### Profile files changed
+| File | Change |
+|------|--------|
+| `profiles/base.md.tmpl` | commit fallback `--local`, CODEX no-background-terminal line, generic class examples |
+| `profiles/builder.md.tmpl` | Sandbox Constraints trimmed to 6 lines; `.aom/` gitignore warning |
+| `profiles/frontend.md.tmpl` | Sandbox Constraints + `.aom/` gitignore warning (new section) |
+| `profiles/reviewer.md.tmpl` | Commit Rules section + Sandbox Constraints (new section) |
+| `profiles/orchestrator.md.tmpl` | Sandbox Constraints (new section) |
+| `profiles/generic.md.tmpl` | New file — non-coding use cases |
+
 ## Immediate Next Step
 
 Milestones 0–17, all E2E feedback improvements, and cross-platform polish are complete. Only deferred work remains:

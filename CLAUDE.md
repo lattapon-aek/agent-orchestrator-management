@@ -124,6 +124,7 @@ Defined in full in `docs/state-machine.md`. Summary:
 | Post-M17 — Bug fixes, UX, merge commit, runtime policy | Complete |
 | E2E feedback rounds 1–5 — operator UX, agent profiles, SQLite | Complete |
 | E2E feedback rounds 6–7 — readiness labels, invariants, shared brief, JSON output | Complete |
+| E2E feedback rounds 8–11 — codex background terminal cleanup, profile trim, auto-stop | Complete |
 
 **Immediate next work** (see `docs/dev/current-status.md` for full detail):
 
@@ -147,6 +148,8 @@ Defined in full in `docs/state-machine.md`. Summary:
 - E2E feedback (fourth round): codex commit loop fix (foreground-only + universal fallback + no retry loops), `sessions.db` created with `0664` permissions, `aom doctor` adds PATH check + DB writable check, `aom agent set-model <name> <model>` (safe model update without overwriting agents.yaml), codex ModelHint clarifies ChatGPT vs OpenAI API account, builder profile adds Sandbox Constraints section (network + package manager guidance)
 - E2E feedback (fifth round): `ensureDir` fixes `.agent/` permission (umask-independent 0755), `aom watch` now waits for tasks instead of returning immediately, `aom policy list [--task <id>]` shows deny commands + per-task enforcement level, `aom session stop` is idempotent (no-op if already Stopped), dependent tasks auto-promote to Ready when all blockers Done, `aom doctor --fix` auto-corrects permissions, `aom broadcast --file <path>` for Markdown briefs
 - E2E feedback (sixth round — from AOM_FEEDBACK.md): SQLite WAL mode, `aom task verify`, commit guard in `aom task show`, `aom worktree prune`, spawn channel announcement, mini model warning, session `readiness=` label, `aom status --json`, collaboration step gate, task invariants (`--invariant` flag + `aom task verify`), `aom project share <file>` (broadcast to all active worktrees), `session replace --mock` bug fix
+- E2E feedback (rounds 8–9): SQLite `_txlock=immediate` + 30 s busy timeout + `SetMaxOpenConns(1)`, outbox pending warning in `aom channel read`, `generic.md.tmpl` non-coding profile, `base.md.tmpl` commit fallback + generic class examples
+- E2E feedback (rounds 10–11 — codex background terminal root-cause): `aom agent add` name-runtime mismatch warning, `Idle (pane live)` indicator in `aom status`, `.aom/` added to `defaultGitignoreEntries` + `aom doctor` `.aom/ tracked` check, `builder.md.tmpl` + `reviewer.md.tmpl` + `frontend.md.tmpl` + `orchestrator.md.tmpl` Sandbox Constraints section; **provider-level fix**: `KillPaneAndDescendants()` in tmux manager (BFS via `pgrep -P`, SIGTERM→SIGKILL) replaces `KillPane` in session stop path; **3-layer auto-cleanup**: `aom session stop` kills all descendant processes, `aom task accept` auto-stops bound Idle sessions, `aom status` auto-stops Idle sessions whose `log.md` contains `task.completed`
 
 ---
 

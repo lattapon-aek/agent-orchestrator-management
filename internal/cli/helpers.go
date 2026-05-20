@@ -526,6 +526,15 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 		fmt.Fprintln(r.stdout, "  None")
 	} else {
 		for _, item := range sessions {
+			statusLabel := colorStatus(item.Status, r.stdout)
+			// For Idle sessions, surface whether the tmux pane is still live.
+			// "Idle (pane live)" means the tmux pane + underlying process are still
+			// attached and consuming resources; operator may want to stop it.
+			if item.Status == "Idle" && item.TmuxPane != "" {
+				if alive, _ := r.app.Tmux.PaneExists(item.TmuxPane); alive {
+					statusLabel += colorize(" (pane live)", ansiYellow, r.stdout)
+				}
+			}
 			fmt.Fprintf(
 				r.stdout,
 				"  - %s | agent=%s | role=%s | runtime=%s | status=%s | tmux=%s %s %s\n",
@@ -533,13 +542,18 @@ func (r Runner) printProjectSummary(title string, result *project.OpenResult, wo
 				item.AgentName,
 				item.RoleName,
 				item.Runtime,
-				colorStatus(item.Status, r.stdout),
+				statusLabel,
 				item.TmuxSessionName,
 				item.TmuxWindow,
 				item.TmuxPane,
 			)
 			if item.Status == "Detached" {
 				fmt.Fprintf(r.stdout, "    next=%s\n", detachedSessionHint(item))
+			}
+			if item.Status == "Idle" && item.TmuxPane != "" {
+				if alive, _ := r.app.Tmux.PaneExists(item.TmuxPane); alive {
+					fmt.Fprintf(r.stdout, "    attached=yes — process still running; run: aom session stop %s\n", item.ID)
+				}
 			}
 			if readiness := sessionReadiness(result.Project.RepoPath, item); readiness != "" {
 				fmt.Fprintf(r.stdout, "    readiness=%s\n", readiness)

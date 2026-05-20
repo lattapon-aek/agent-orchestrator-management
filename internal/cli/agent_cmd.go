@@ -120,6 +120,20 @@ func (r Runner) executeAgentAdd(args []string) error {
 		return fmt.Errorf("unknown runtime %q; supported: %s", runtime, strings.Join(known, ", "))
 	}
 
+	// Warn when agent name hints at a different runtime than --runtime specifies.
+	// e.g. "codex-frontend" with --runtime claude is almost certainly a mistake —
+	// the name is a label only; --runtime controls which provider actually runs.
+	knownRuntimes := []string{"codex", "claude", "gemini", "kiro"}
+	lowerName := strings.ToLower(name)
+	for _, hint := range knownRuntimes {
+		if strings.Contains(lowerName, hint) && hint != runtime {
+			fmt.Fprintf(r.stdout, "⚠  Note: agent name %q contains %q but --runtime is %q.\n", name, hint, runtime)
+			fmt.Fprintf(r.stdout, "   The name is a label only — --runtime controls which provider runs the session.\n")
+			fmt.Fprintf(r.stdout, "   If you intended %s runtime, re-run with --runtime %s\n\n", hint, hint)
+			break
+		}
+	}
+
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
 		return err

@@ -94,6 +94,10 @@ Built-in classes (general purpose — no coding assumptions):
   aom agent add analyst-1    --role analyst    --class generic   --runtime claude
   aom agent add writer-1     --role writer     --class generic   --runtime claude
 
+IMPORTANT: The agent name is a label only — --runtime controls which provider runs the session.
+Naming an agent "codex-frontend" does NOT automatically use codex runtime.
+Always specify --runtime explicitly. AOM will warn you if the name implies a different provider.
+
 After adding, assign a task and spawn:
   aom task create "..." --agent <name>
   aom session spawn <name> --task <task-id>

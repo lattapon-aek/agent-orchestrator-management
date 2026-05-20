@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -422,6 +424,85 @@ func (m *Manager) KillPane(paneID string) error {
 	}
 
 	return nil
+}
+
+// PanePID returns the PID of the process currently running in the given tmux pane.
+// When the preamble uses "exec <runtime>", exec replaces the shell in-place so
+// pane_pid resolves to the runtime process (e.g. codex, claude). Returns 0 on error.
+func (m *Manager) PanePID(paneID string) int {
+	availability := m.Availability()
+	if !availability.Available || strings.TrimSpace(paneID) == "" {
+		return 0
+	}
+	out, err := m.exec(availability.BinaryPath, "display-message", "-p", "-t", paneID, "#{pane_pid}")
+	if err != nil {
+		return 0
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil || pid <= 0 {
+		return 0
+	}
+	return pid
+}
+
+// KillPaneAndDescendants kills all descendant processes of the pane's root process
+// (SIGTERM then SIGKILL after 2 s) before removing the pane itself.
+// This is important for runtimes like codex that spawn background terminal children
+// which outlive the pane when it is killed directly. For runtimes that do not
+// accumulate background children (e.g. claude) the call is a safe no-op.
+func (m *Manager) KillPaneAndDescendants(paneID string) error {
+	if pid := m.PanePID(paneID); pid > 0 {
+		if descendants := paneDescendants(pid); len(descendants) > 0 {
+			// Send SIGTERM first to allow graceful cleanup.
+			for _, childPID := range descendants {
+				if p, err := os.FindProcess(childPID); err == nil {
+					_ = p.Signal(syscall.SIGTERM)
+				}
+			}
+			time.Sleep(2 * time.Second)
+			// SIGKILL any survivors.
+			for _, childPID := range descendants {
+				if p, err := os.FindProcess(childPID); err == nil {
+					_ = p.Signal(syscall.SIGKILL)
+				}
+			}
+		}
+	}
+	return m.KillPane(paneID)
+}
+
+// paneDescendants returns all descendant PIDs of rootPID using pgrep -P (macOS + Linux).
+// It performs a BFS so grandchildren and deeper descendants are included.
+// The root PID itself is not included in the result.
+func paneDescendants(rootPID int) []int {
+	var result []int
+	visited := map[int]bool{rootPID: true}
+	queue := []int{rootPID}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		out, err := exec.Command("pgrep", "-P", strconv.Itoa(current)).Output()
+		if err != nil {
+			// pgrep exits non-zero when no children found — not an error.
+			continue
+		}
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			childPID, err := strconv.Atoi(line)
+			if err != nil || childPID <= 0 || visited[childPID] {
+				continue
+			}
+			visited[childPID] = true
+			result = append(result, childPID)
+			queue = append(queue, childPID)
+		}
+	}
+	return result
 }
 
 func combinedOutput(name string, args ...string) ([]byte, error) {

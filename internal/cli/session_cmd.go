@@ -801,7 +801,10 @@ func (r Runner) stopSessionRecord(result *project.OpenResult, record session.Rec
 			return nil, "", err
 		}
 		if paneExists {
-			if err := r.app.Tmux.KillPane(record.TmuxPane); err != nil {
+			// KillPaneAndDescendants terminates all background child processes
+			// (e.g. codex background terminals) before removing the pane. This
+			// prevents orphaned processes from accumulating after session stop.
+			if err := r.app.Tmux.KillPaneAndDescendants(record.TmuxPane); err != nil {
 				warning = fmt.Sprintf("tmux pane cleanup failed for %s: %v", record.TmuxPane, err)
 			}
 		}

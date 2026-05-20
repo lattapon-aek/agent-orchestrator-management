@@ -29,6 +29,8 @@
    - "## Open Questions" — anything unresolved
 2. Commit synchronously in the foreground (NOT in a background terminal):
    git add -A && git commit -m "..."
+   CODEX: never use the background terminal feature — run every command sequentially in the
+   foreground. Background terminals accumulate and cause orphaned processes and lock contention.
    IMPORTANT: always use `git add -A` (never `git add .` or `git add <file>`).
    The -A flag stages additions, modifications, AND deletions of tracked files.
    If you physically deleted a file with `rm`, only `git add -A` will include

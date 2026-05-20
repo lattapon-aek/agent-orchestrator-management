@@ -130,16 +130,20 @@ func (r Runner) executeWorktreeReadFile(args []string) error {
 // executeWorktreeCommit stages and commits all changes in a task worktree using
 // explicit GIT_DIR and GIT_WORK_TREE env vars, bypassing the .git pointer file
 // so the commit works correctly regardless of how the worktree was provisioned.
+//
+// --local mode: skips all DB access and commits the current working directory
+// directly using git's auto-detected directories. Use this when the AOM DB is
+// unreachable (e.g., from inside a sandbox-restricted agent session where the
+// database file lives outside the writable workspace).
 func (r Runner) executeWorktreeCommit(args []string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("task identifier is required")
-	}
-
-	taskID := strings.TrimSpace(args[0])
+	localMode := false
+	var taskID string
 	var commitMsg string
 
-	for i := 1; i < len(args); i++ {
+	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--local":
+			localMode = true
 		case "-m", "--message":
 			i++
 			if i >= len(args) {
@@ -147,12 +151,29 @@ func (r Runner) executeWorktreeCommit(args []string) error {
 			}
 			commitMsg = strings.TrimSpace(args[i])
 		default:
-			return fmt.Errorf("unknown flag %q", args[i])
+			if strings.HasPrefix(args[i], "-") {
+				return fmt.Errorf("unknown flag %q", args[i])
+			}
+			if taskID == "" {
+				taskID = strings.TrimSpace(args[i])
+			} else {
+				return fmt.Errorf("unexpected argument %q", args[i])
+			}
 		}
 	}
 
+	if !localMode && taskID == "" {
+		return fmt.Errorf("task identifier is required (or use --local to commit current directory without DB lookup)")
+	}
 	if commitMsg == "" {
 		return fmt.Errorf("commit message is required (-m <msg>)")
+	}
+
+	// --local mode: commit CWD without touching the AOM database.
+	// This is safe to use from inside a sandboxed agent session where the
+	// DB lives outside the sandbox-writable workspace.
+	if localMode {
+		return r.executeWorktreeCommitLocal(commitMsg)
 	}
 
 	result, err := r.app.Projects.Open(".")
@@ -188,32 +209,54 @@ func (r Runner) executeWorktreeCommit(args []string) error {
 		"GIT_WORK_TREE="+wtPath,
 	)
 
+	return runGitAddAndCommit(r.stdout, commitMsg, wtPath, env)
+}
+
+// executeWorktreeCommitLocal performs git add -A && git commit in the current
+// working directory without any DB access. It lets git auto-detect GIT_DIR and
+// GIT_WORK_TREE, which works correctly inside a git worktree.
+func (r Runner) executeWorktreeCommitLocal(commitMsg string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+	return runGitAddAndCommit(r.stdout, commitMsg, cwd, nil)
+}
+
+// runGitAddAndCommit stages all changes and creates a commit in dir.
+// If env is nil, the current process environment is used unchanged.
+func runGitAddAndCommit(out interface{ Write([]byte) (int, error) }, commitMsg, dir string, env []string) error {
 	const gitTimeout = 60 * time.Second
+
 	addCtx, addCancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer addCancel()
 	addCmd := exec.CommandContext(addCtx, "git", "add", "-A")
-	addCmd.Env = env
-	addCmd.Dir = wtPath
-	if out, addErr := addCmd.CombinedOutput(); addErr != nil {
+	if env != nil {
+		addCmd.Env = env
+	}
+	addCmd.Dir = dir
+	if addOut, addErr := addCmd.CombinedOutput(); addErr != nil {
 		if addCtx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("git add timed out after %s", gitTimeout)
 		}
-		return fmt.Errorf("git add: %w\n%s", addErr, strings.TrimSpace(string(out)))
+		return fmt.Errorf("git add: %w\n%s", addErr, strings.TrimSpace(string(addOut)))
 	}
 
 	commitCtx, commitCancel := context.WithTimeout(context.Background(), gitTimeout)
 	defer commitCancel()
 	commitCmd := exec.CommandContext(commitCtx, "git", "commit", "-m", commitMsg)
-	commitCmd.Env = env
-	commitCmd.Dir = wtPath
-	out, err := commitCmd.CombinedOutput()
+	if env != nil {
+		commitCmd.Env = env
+	}
+	commitCmd.Dir = dir
+	commitOut, err := commitCmd.CombinedOutput()
 	if err != nil {
 		if commitCtx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("git commit timed out after %s", gitTimeout)
 		}
-		return fmt.Errorf("git commit: %w\n%s", err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("git commit: %w\n%s", err, strings.TrimSpace(string(commitOut)))
 	}
-	fmt.Fprint(r.stdout, string(out))
+	fmt.Fprint(out, string(commitOut))
 	return nil
 }
 

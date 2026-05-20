@@ -23,6 +23,10 @@ func (p *codexProvider) LaunchShellSpec(spec LaunchSpec, lookPath func(string) (
 	preamble := []string{
 		"export AOM_RUNTIME=codex",
 		"export PYTHONDONTWRITEBYTECODE=1",
+		// Use a /tmp-based npm cache so npm install never hits EPERM from the
+		// workspace-write sandbox, which restricts writes to paths outside the
+		// worktree (including the default ~/.npm cache directory).
+		`export npm_config_cache="/tmp/aom-npm-cache-$(id -u)"`,
 		`[ -f "$HOME/.codex/version.json" ] || { mkdir -p "$HOME/.codex" && printf '{"dismissed_version":"9999.0.0"}\n' > "$HOME/.codex/version.json"; }`,
 	}
 	if len(spec.DenyCommands) > 0 {

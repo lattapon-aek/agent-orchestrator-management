@@ -14,10 +14,17 @@
 
 ## Sandbox Constraints
 - Outbound network access is enabled — npm install / pip install / go get should work normally
-- If a package install fails (network error, registry timeout, or sandbox restriction on this platform):
+- The sandbox sets `npm_config_cache=/tmp/aom-npm-cache-<uid>` automatically to prevent
+  EPERM errors from the default ~/.npm cache path; do NOT override this variable
+- If a package install fails (network error, registry timeout, or sandbox restriction):
   do NOT retry in a loop — write stub/placeholder code, note "requires: npm install post-merge"
   in .agent/state.md, and continue with the task
-- If git commit fails with `index.lock: Read-only file system` (NTFS mount via WSL2):
-  use `aom worktree commit <task-id>` as the fallback instead of git commit directly
+- If git commit fails or hangs:
+  use `aom worktree commit --local -m "<message>"` as the sandbox-safe fallback;
+  this commits the current directory without requiring DB access
+- Never run commands in the background (`&`, `nohup`, `disown`, `screen`, `tmux`),
+  never use timeout wrappers (`timeout`, `perl -e 'alarm(...)'`), and never spawn
+  retry loops — if a foreground command hangs, press Ctrl+C once and use the
+  `aom worktree commit --local` fallback or report the block via `aom message send`
 - Always cd into the correct subdirectory before running npm/pip/go commands to avoid
   creating stray package files at the repo root

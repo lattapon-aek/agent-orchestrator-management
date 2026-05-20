@@ -410,10 +410,13 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 		commitReminder := fmt.Sprintf(
 			"IMPORTANT: when finished, commit synchronously in the foreground (NOT in a background terminal):\n"+
 				"  git add -A && git commit -m \"implement %s\"\n"+
-				"  If that fails for ANY reason, use: aom worktree commit %s -m \"implement %s\"\n"+
-				"  Do NOT use timeout wrappers, perl alarms, or retry loops — use aom worktree commit instead.\n"+
+				"  If that fails for ANY reason (DB error, sandbox restriction, etc.), use:\n"+
+				"  aom worktree commit --local -m \"implement %s\"\n"+
+				"  (--local commits the current directory without DB access — safe inside this sandbox)\n"+
+				"  Do NOT use timeout wrappers, perl alarms, background shells (&/nohup), or retry loops.\n"+
+				"  If git hangs: press Ctrl+C once, then use the --local fallback above.\n"+
 				"Then append task.completed to .agent/log.md",
-			params.taskID, params.taskID, params.taskID,
+			params.taskID, params.taskID,
 		)
 		_ = r.app.Tmux.SendKeys(record.TmuxPane, commitReminder)
 	}

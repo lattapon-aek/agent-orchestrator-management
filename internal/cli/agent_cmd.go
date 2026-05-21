@@ -13,7 +13,7 @@ import (
 
 func (r Runner) executeAgent(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("agent subcommand is required: list, add, show, profile, set-model")
+		return fmt.Errorf("agent subcommand is required: list, add, show, profile, set-model, provision")
 	}
 	for _, a := range args {
 		if a == "--help" || a == "-h" {
@@ -32,8 +32,10 @@ func (r Runner) executeAgent(args []string) error {
 		return r.executeAgentProfile(args[1:])
 	case "set-model":
 		return r.executeAgentSetModel(args[1:])
+	case "provision":
+		return r.executeAgentProvision(args[1:])
 	default:
-		return fmt.Errorf("unknown agent subcommand %q — valid: list, add, show, profile, set-model", args[0])
+		return fmt.Errorf("unknown agent subcommand %q — valid: list, add, show, profile, set-model, provision", args[0])
 	}
 }
 
@@ -389,6 +391,61 @@ func (r Runner) executeAgentSetModel(args []string) error {
 	fmt.Fprintf(r.stdout, "Model:   %s\n", model)
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Next: aom session spawn "+name+" (to apply on next session)")
+	return nil
+}
+
+func (r Runner) executeAgentProvision(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("agent name is required")
+	}
+	agentName := strings.TrimSpace(args[0])
+	if agentName == "" {
+		return fmt.Errorf("agent name is required")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	var found *agent.Record
+	for i := range result.Agents {
+		if result.Agents[i].Name == agentName {
+			found = &result.Agents[i]
+			break
+		}
+	}
+	if found == nil {
+		return fmt.Errorf("agent %q not found", agentName)
+	}
+
+	worktreeService, wtDB, err := r.app.OpenWorktreeService(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer wtDB.Close()
+
+	workspacePath, err := worktreeService.ProvisionAgentWorkspace(result.Project.RepoPath, agentName)
+	if err != nil {
+		return err
+	}
+
+	agentRepo, agentDB, err := r.app.OpenAgentRepository(result.DBPath)
+	if err != nil {
+		return err
+	}
+	defer agentDB.Close()
+
+	if err := agentRepo.SetWorkspacePath(result.Project.ID, agentName, workspacePath); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(r.stdout, "Agent:     %s\n", agentName)
+	fmt.Fprintf(r.stdout, "Workspace: %s\n", workspacePath)
+	fmt.Fprintf(r.stdout, "Branch:    agents/%s\n", agentName)
+	fmt.Fprintf(r.stdout, "Status:    provisioned\n")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintf(r.stdout, "Next: aom session spawn %s --real\n", agentName)
 	return nil
 }
 

@@ -62,9 +62,9 @@ func (p *codexProvider) LaunchShellSpec(spec LaunchSpec, lookPath func(string) (
 	// characters, so no quoting is needed at all.
 	var execCmd string
 	if spec.AgentSessionID != "" {
-		execCmd = fmt.Sprintf(codexNiceExecPrefix+"codex resume %s --sandbox workspace-write -a never -c sandbox_workspace_write.network_access=true -c agents.max_threads=1", spec.AgentSessionID)
+		execCmd = fmt.Sprintf(codexNiceExecPrefix+"codex resume %s --sandbox danger-full-access -a never -c agents.max_threads=1", spec.AgentSessionID)
 	} else {
-		execCmd = codexNiceExecPrefix + "codex --sandbox workspace-write -a never -c sandbox_workspace_write.network_access=true -c agents.max_threads=1"
+		execCmd = codexNiceExecPrefix + "codex --sandbox danger-full-access -a never -c agents.max_threads=1"
 	}
 	if spec.Model != "" {
 		execCmd += " -m " + spec.Model
@@ -220,33 +220,28 @@ func codexSessionAfterSpawn(_ string, spawnedAt time.Time, timeout time.Duration
 	}
 	dbPath := filepath.Join(home, ".codex", "logs_2.sqlite")
 
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if id := queryNewestCodexSession(dbPath, spawnedAt); id != "" {
-			return id, nil
-		}
-		time.Sleep(time.Second)
-	}
-	return "", nil
-}
-
-// queryNewestCodexSession opens codex's logs_2.sqlite read-only and returns the
-// first thread_id logged at or after spawnedAt, or "" if none found yet.
-func queryNewestCodexSession(dbPath string, spawnedAt time.Time) string {
+	// Open a single read-only connection for the entire polling window.
+	// Previously this opened and closed a new connection every second (up to 90
+	// times), which caused ~100% CPU sustained during native session detection.
 	db, err := sql.Open("sqlite", "file:"+dbPath+"?mode=ro&_busy_timeout=1000")
 	if err != nil {
-		return ""
+		return "", nil // DB not ready yet; caller will get empty session ID
 	}
 	defer db.Close()
 
-	var id string
-	if err := db.QueryRow(
-		`SELECT DISTINCT thread_id FROM logs
-		 WHERE thread_id IS NOT NULL AND ts >= ?
-		 ORDER BY ts ASC, ts_nanos ASC LIMIT 1`,
-		spawnedAt.Unix(),
-	).Scan(&id); err != nil {
-		return ""
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		var id string
+		err := db.QueryRow(
+			`SELECT DISTINCT thread_id FROM logs
+			 WHERE thread_id IS NOT NULL AND ts >= ?
+			 ORDER BY ts ASC, ts_nanos ASC LIMIT 1`,
+			spawnedAt.Unix(),
+		).Scan(&id)
+		if err == nil && id != "" {
+			return id, nil
+		}
+		time.Sleep(3 * time.Second) // poll every 3s — codex needs a few seconds to boot anyway
 	}
-	return id
+	return "", nil
 }

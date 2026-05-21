@@ -323,7 +323,7 @@ func (r Runner) executeMerge(args []string) error {
 
 func (r Runner) executeMessage(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("message subcommand is required (send | read | clear)")
+		return fmt.Errorf("message subcommand is required (send | read | clear | watch | reply)")
 	}
 	for _, a := range args {
 		if a == "--help" || a == "-h" {
@@ -338,6 +338,10 @@ func (r Runner) executeMessage(args []string) error {
 		return r.executeMessageRead(args[1:])
 	case "clear":
 		return r.executeMessageClear(args[1:])
+	case "watch":
+		return r.executeMessageWatch(args[1:])
+	case "reply":
+		return r.executeMessageReply(args[1:])
 	default:
 		return fmt.Errorf("unknown message command %q", args[0])
 	}

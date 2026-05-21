@@ -103,7 +103,7 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 	executionPath := result.Project.RepoPath
 	var taskWorktree *worktree.Record
 	if taskRecord != nil {
-		taskWorktree, executionPath, err = r.resolveTaskExecutionPath(result, *taskRecord)
+		taskWorktree, executionPath, err = r.resolveTaskExecutionPath(result, agentRecord, *taskRecord)
 		if err != nil {
 			return nil, err
 		}
@@ -243,6 +243,12 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 
 	if err := r.materializeAgentContext(result, agentRecord, executionPath); err != nil {
 		return nil, fmt.Errorf("materialize agent context: %w", err)
+	}
+
+	// Write current-task pointer into workspace so the agent always knows
+	// which task it is working on (workspace mode only).
+	if agentRecord != nil && strings.TrimSpace(agentRecord.WorkspacePath) != "" && strings.TrimSpace(params.taskID) != "" && taskRecord != nil {
+		writeCurrentTaskFile(agentRecord.WorkspacePath, params.taskID, taskRecord.Title)
 	}
 
 	r.enforcePolicyDefaults(result, agentRecord.Runtime, agentRecord.Model)
@@ -1033,7 +1039,7 @@ func (r Runner) executeSessionResumeToTask(result *project.OpenResult, record *s
 		return err
 	}
 
-	newTaskWorktree, newExecutionPath, err := r.resolveTaskExecutionPath(result, *newTaskRecord)
+	newTaskWorktree, newExecutionPath, err := r.resolveTaskExecutionPath(result, agentRecord, *newTaskRecord)
 	if err != nil {
 		return err
 	}

@@ -94,7 +94,13 @@ func (r Runner) enforceWriterWorktreeBoundary(result *project.OpenResult, agentR
 	return nil
 }
 
-func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, taskRecord task.Record) (*worktree.Record, string, error) {
+func (r Runner) resolveTaskExecutionPath(result *project.OpenResult, agentRecord *agent.Record, taskRecord task.Record) (*worktree.Record, string, error) {
+	// Per-Agent Workspace: if this agent has a provisioned workspace, always
+	// use it — the agent never needs to change CWD between tasks.
+	if agentRecord != nil && strings.TrimSpace(agentRecord.WorkspacePath) != "" {
+		return nil, agentRecord.WorkspacePath, nil
+	}
+
 	worktreeService, worktreeDB, err := r.app.OpenWorktreeService(result.DBPath)
 	if err != nil {
 		return nil, "", err
@@ -592,4 +598,13 @@ func (r Runner) detectUniqueVendorSessionID(
 		return sid
 	}
 	return ""
+}
+
+// writeCurrentTaskFile writes .agent/current-task.md into the agent workspace
+// so the agent always knows which task it is currently working on.
+func writeCurrentTaskFile(workspacePath, taskID, taskTitle string) {
+	agentDir := filepath.Join(workspacePath, ".agent")
+	_ = os.MkdirAll(agentDir, 0o755)
+	content := fmt.Sprintf("# Current Task\n\nTask: %s\nTitle: %s\nArtifacts: .agent/\n", taskID, taskTitle)
+	_ = os.WriteFile(filepath.Join(agentDir, "current-task.md"), []byte(content), 0o644)
 }

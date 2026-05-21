@@ -12,6 +12,7 @@ import (
 
 	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/app"
 	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/project"
+	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/provider"
 	aomruntime "github.com/lattapon-aek/agents-orchestrator-management-private/internal/runtime"
 	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/step"
 	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/tmux"
@@ -565,6 +566,10 @@ func TestExecuteSessionSpawnWithRealRuntime(t *testing.T) {
 				return []byte("@1 %5\n"), nil
 			case "set-option":
 				return nil, nil
+			case "display-message":
+				// Echo the pane ID back so PaneExists reports the pane as alive.
+				// args layout: ["display-message", "-p", "-t", "<paneID>", "<format>"]
+				return []byte(args[len(args)-2] + "\n"), nil
 			default:
 				return nil, nil
 			}
@@ -577,6 +582,8 @@ func TestExecuteSessionSpawnWithRealRuntime(t *testing.T) {
 		func(string) (string, error) { return "/opt/homebrew/bin/codex", nil },
 	))
 	defer restoreLaunchBuilder()
+	restoreRegistry := stubRegistryFactory(t)
+	defer restoreRegistry()
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -599,8 +606,9 @@ func TestExecuteSessionSpawnWithRealRuntime(t *testing.T) {
 	if len(splitCommands) != 1 {
 		t.Fatalf("len(splitCommands) = %d, want 1", len(splitCommands))
 	}
-	if !strings.Contains(splitCommands[0], "exec codex --sandbox workspace-write -a never") {
-		t.Fatalf("split command = %q, want codex exec launch", splitCommands[0])
+	// NiceExecPrefix prepends "exec nice -n 10 " before the binary name.
+	if !strings.Contains(splitCommands[0], "exec nice -n 10 codex --sandbox workspace-write -a never") {
+		t.Fatalf("split command = %q, want codex exec launch with nice prefix", splitCommands[0])
 	}
 }
 
@@ -641,6 +649,10 @@ func TestExecuteSessionSpawnWithRealClaudeRuntime(t *testing.T) {
 				return []byte("@1 %5\n"), nil
 			case "set-option":
 				return nil, nil
+			case "display-message":
+				// Echo the pane ID back so PaneExists reports the pane as alive.
+				// args layout: ["display-message", "-p", "-t", "<paneID>", "<format>"]
+				return []byte(args[len(args)-2] + "\n"), nil
 			default:
 				return nil, nil
 			}
@@ -653,6 +665,8 @@ func TestExecuteSessionSpawnWithRealClaudeRuntime(t *testing.T) {
 		func(string) (string, error) { return "/opt/homebrew/bin/claude", nil },
 	))
 	defer restoreLaunchBuilder()
+	restoreRegistry := stubRegistryFactory(t)
+	defer restoreRegistry()
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -676,11 +690,12 @@ func TestExecuteSessionSpawnWithRealClaudeRuntime(t *testing.T) {
 		t.Fatalf("len(splitCommands) = %d, want 1", len(splitCommands))
 	}
 	// The command must launch claude with the permissions flag.
+	// NiceExecPrefix prepends "exec nice -n 10 " before the binary name.
 	// When policy.yaml configures deny_commands the --disallowed-tools flag
 	// will also be present; we check the essential parts rather than exact equality.
-	if !strings.Contains(splitCommands[0], "exec claude") ||
+	if !strings.Contains(splitCommands[0], "exec nice -n 10 claude") ||
 		!strings.Contains(splitCommands[0], "--dangerously-skip-permissions") {
-		t.Fatalf("split command = %q, want claude exec launch", splitCommands[0])
+		t.Fatalf("split command = %q, want claude exec launch with nice prefix", splitCommands[0])
 	}
 }
 
@@ -5133,6 +5148,47 @@ func stubLaunchBuilderFactory(t *testing.T, builder *aomruntime.Builder) func() 
 		newLaunchBuilder = original
 	}
 }
+
+// stubRegistryFactory replaces the package-level registry factory with one that
+// wraps each provider to disable NativeSessionDetection and StartupDialogResponse.
+// This prevents real-runtime spawn tests from blocking for 90 s waiting for a
+// native session ID that will never appear in the test environment.
+func stubRegistryFactory(t *testing.T) func() {
+	t.Helper()
+
+	type noDetectProvider struct{ provider.Provider }
+	noDetect := func(p provider.Provider) provider.Provider {
+		return struct {
+			provider.Provider
+			nativeSessionDetection func() *provider.NativeSessionStrategy
+			startupDialogResponse  func() string
+		}{
+			Provider:               p,
+			nativeSessionDetection: func() *provider.NativeSessionStrategy { return nil },
+			startupDialogResponse:  func() string { return "" },
+		}
+	}
+	_ = noDetect
+
+	original := newRegistry
+	newRegistry = func() provider.Registry {
+		base := provider.DefaultRegistry()
+		patched := make(provider.Registry, len(base))
+		for name, p := range base {
+			patched[name] = noDetectProviderWrapper{Provider: p}
+		}
+		return patched
+	}
+	return func() { newRegistry = original }
+}
+
+// noDetectProviderWrapper wraps a Provider and disables NativeSessionDetection
+// and StartupDialogResponse so spawn tests complete without waiting 90 s for a
+// native session ID that will never appear in the test environment.
+type noDetectProviderWrapper struct{ provider.Provider }
+
+func (noDetectProviderWrapper) NativeSessionDetection() *provider.NativeSessionStrategy { return nil }
+func (noDetectProviderWrapper) StartupDialogResponse() string                           { return "" }
 
 func extractSessionID(output string) string {
 	return extractEntityID(output, "Session: ")

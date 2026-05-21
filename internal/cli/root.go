@@ -13,6 +13,7 @@ import (
 
 var newApp = app.New
 var newLaunchBuilder = aomruntime.NewBuilder
+var newRegistry = func() provider.Registry { return provider.DefaultRegistry() }
 
 // Runner executes top-level CLI behavior.
 type Runner struct {
@@ -32,7 +33,7 @@ func Execute(args []string, stdout, stderr io.Writer) error {
 		stdout:   stdout,
 		stderr:   stderr,
 		isTTY:    isTTYReader,
-		registry: provider.DefaultRegistry(),
+		registry: newRegistry(),
 	}
 	return r.Execute(args)
 }

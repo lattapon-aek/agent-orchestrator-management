@@ -1,0 +1,1659 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates2997744509\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir3474727799\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting937747206\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3184153498\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole891358468\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent4148419581\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\agents.yaml.tmpl
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertIsIdempotent2809986709\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertIsIdempotent2809986709
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryFindByRepoPath1780664035\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryFindByRepoPath1780664035
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\frontend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\templates\profiles\frontend.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\reviewer-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\templates\profiles\reviewer.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\reviewer-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\reviewer-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\backend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\frontend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB1804438356\001\.aom\agents\reviewer-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\agents.yaml.tmpl
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents\custom-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents\custom-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\project-init-templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents\custom-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir4260186744\001\.aom\agents\custom-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\project.yaml
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents\backend-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2403755669\001\.aom\agents\backend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\reviewer-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\templates\profiles\reviewer.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\reviewer-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents1509449083\001\.aom\agents\reviewer-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\frontend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\frontend-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1535512178\001\.aom\agents\frontend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\frontend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\templates\profiles\frontend.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\reviewer-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\templates\profiles\reviewer.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\reviewer-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\reviewer-main\profile.md
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1974216696\001\.aom\agents\backend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp

@@ -185,19 +185,24 @@ func (r Runner) materializeAgentContext(result *project.OpenResult, agentRecord 
 				_ = f.Close()
 			}
 		}
+
+		// Write standalone .agent/team-roster.md so the agent can refresh
+		// their team view at any point during work with `aom team roster`.
+		r.writeTeamRosterArtifact(result, agentRecord, worktreePath)
 	}
 
 	return nil
 }
 
 // buildTeamRosterNote returns a markdown "Your Team" section listing all project agents
-// with their current task assignments, for injection into the spawned agent's identity file.
+// with their current task assignments and session status, for injection into the spawned
+// agent's identity file. Non-fatal: returns "" on any DB error.
 func (r Runner) buildTeamRosterNote(result *project.OpenResult, selfName string) string {
 	if len(result.Agents) == 0 {
 		return ""
 	}
 
-	// Build agent → task title map from task service (best-effort, non-fatal).
+	// Build agent → task title map (non-fatal).
 	agentTask := make(map[string]string)
 	if taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath); err == nil {
 		defer sqlDB.Close()
@@ -210,20 +215,37 @@ func (r Runner) buildTeamRosterNote(result *project.OpenResult, selfName string)
 		}
 	}
 
+	// Build agent → live session status map (non-fatal).
+	agentStatus := make(map[string]string)
+	if sessService, sessDB, err := r.app.OpenSessionService(result.DBPath); err == nil {
+		defer sessDB.Close()
+		if sessions, err := sessService.ListByProject(result.Project.ID); err == nil {
+			for _, s := range sessions {
+				if s.AgentName != "" && isActiveSessionStatus(s.Status) {
+					agentStatus[s.AgentName] = s.Status
+				}
+			}
+		}
+	}
+
 	var sb strings.Builder
 	sb.WriteString("\n## Your Team\n\n")
-	sb.WriteString("| Agent | Role | Runtime | Current Task |\n")
-	sb.WriteString("|-------|------|---------|-------------|\n")
+	sb.WriteString("| Agent | Role | Runtime | Session | Current Task |\n")
+	sb.WriteString("|-------|------|---------|---------|-------------|\n")
 	for _, a := range result.Agents {
 		assignment := agentTask[a.Name]
 		if assignment == "" {
 			assignment = "(unassigned)"
 		}
+		status := agentStatus[a.Name]
+		if status == "" {
+			status = "—"
+		}
 		marker := ""
 		if a.Name == selfName {
 			marker = " *(you)*"
 		}
-		fmt.Fprintf(&sb, "| %s%s | %s | %s | %s |\n", a.Name, marker, a.Role, a.Runtime, assignment)
+		fmt.Fprintf(&sb, "| %s%s | %s | %s | %s | %s |\n", a.Name, marker, a.Role, a.Runtime, status, assignment)
 	}
 	sb.WriteString("\nTo message a teammate directly:\n")
 	for _, a := range result.Agents {
@@ -252,6 +274,192 @@ func buildChannelSnapshotNote(repoPath string) string {
 		sb.WriteString(m)
 		sb.WriteString("\n\n")
 	}
+	return sb.String()
+}
+
+// writeTeamRosterArtifact writes .agent/team-roster.md into the worktree so the agent
+// has a standalone, refreshable view of the team and their task dependencies.
+// Silently skipped when worktreePath is empty or any write fails (non-fatal).
+func (r Runner) writeTeamRosterArtifact(result *project.OpenResult, agentRecord *agent.Record, worktreePath string) {
+	if strings.TrimSpace(worktreePath) == "" {
+		return
+	}
+	content := r.buildTeamRosterFileContent(result, agentRecord)
+	if content == "" {
+		return
+	}
+	agentDir := filepath.Join(worktreePath, ".agent")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		return
+	}
+	_ = os.WriteFile(filepath.Join(agentDir, "team-roster.md"), []byte(content), 0o644)
+}
+
+// buildTeamRosterFileContent generates the full content for .agent/team-roster.md
+// for a given agent: team table with session status, dependency graph, and
+// communication quick-reference. All DB queries are non-fatal.
+func (r Runner) buildTeamRosterFileContent(result *project.OpenResult, agentRecord *agent.Record) string {
+	if agentRecord == nil || len(result.Agents) == 0 {
+		return ""
+	}
+
+	// 1. Agent → task map + locate self task (all in one DB open).
+	agentTask := make(map[string]string) // agent name → "TASK-xxx — title"
+	var selfTaskID, selfTaskTitle string
+	var blockedBy, unblocks []task.Record
+
+	if taskSvc, db, err := r.app.OpenTaskService(result.DBPath); err == nil {
+		defer db.Close()
+		if tasks, err := taskSvc.ListByProject(result.Project.ID); err == nil {
+			for _, t := range tasks {
+				if t.PreferredAgent != "" && t.Status != "Done" && t.Status != "Archived" {
+					agentTask[t.PreferredAgent] = fmt.Sprintf("%s — %s", t.ID, t.Title)
+					if t.PreferredAgent == agentRecord.Name {
+						selfTaskID = t.ID
+						selfTaskTitle = t.Title
+					}
+				}
+			}
+		}
+		if selfTaskID != "" {
+			blockedBy, _ = taskSvc.BlockedBy(selfTaskID)
+			unblocks, _ = taskSvc.Unblocks(selfTaskID)
+		}
+	}
+
+	// 2. Agent → live session status map (non-fatal).
+	agentStatus := make(map[string]string)
+	if sessService, sessDB, err := r.app.OpenSessionService(result.DBPath); err == nil {
+		defer sessDB.Close()
+		if sessions, err := sessService.ListByProject(result.Project.ID); err == nil {
+			for _, s := range sessions {
+				if s.AgentName != "" && isActiveSessionStatus(s.Status) {
+					agentStatus[s.AgentName] = s.Status
+				}
+			}
+		}
+	}
+
+	var sb strings.Builder
+	now := time.Now()
+
+	// Header.
+	fmt.Fprintf(&sb, "# Team Roster\n")
+	fmt.Fprintf(&sb, "- Generated: %s\n", now.Format(time.RFC3339))
+	fmt.Fprintf(&sb, "- Agent: %s\n", agentRecord.Name)
+	if selfTaskID != "" {
+		fmt.Fprintf(&sb, "- Task: %s — %s\n", selfTaskID, selfTaskTitle)
+	}
+	fmt.Fprintf(&sb, "- Refresh anytime: `aom team roster`\n\n")
+
+	// Your Place section.
+	fmt.Fprintf(&sb, "## Your Place in the Team\n\n")
+	fmt.Fprintf(&sb, "You are **%s** — role: %s, runtime: %s\n", agentRecord.Name, agentRecord.Role, agentRecord.Runtime)
+	if selfTaskID != "" {
+		fmt.Fprintf(&sb, "Working on: %s — %s\n\n", selfTaskID, selfTaskTitle)
+	} else {
+		fmt.Fprintf(&sb, "Working on: (unassigned — run `aom next` to see available tasks)\n\n")
+	}
+
+	// Teammates table (skip self).
+	fmt.Fprintf(&sb, "## Teammates\n\n")
+	hasTeammates := false
+	for _, a := range result.Agents {
+		if a.Name != agentRecord.Name {
+			hasTeammates = true
+			break
+		}
+	}
+	if !hasTeammates {
+		fmt.Fprintf(&sb, "No other agents configured.\n\n")
+	} else {
+		fmt.Fprintf(&sb, "| Agent | Role | Runtime | Session | Current Task |\n")
+		fmt.Fprintf(&sb, "|-------|------|---------|---------|-------------|\n")
+		for _, a := range result.Agents {
+			if a.Name == agentRecord.Name {
+				continue
+			}
+			assignment := agentTask[a.Name]
+			if assignment == "" {
+				assignment = "(unassigned)"
+			}
+			status := agentStatus[a.Name]
+			if status == "" {
+				status = "—"
+			}
+			fmt.Fprintf(&sb, "| %s | %s | %s | %s | %s |\n", a.Name, a.Role, a.Runtime, status, assignment)
+		}
+		sb.WriteString("\n")
+	}
+
+	// Dependencies section.
+	fmt.Fprintf(&sb, "## Your Dependencies\n\n")
+
+	activeBlockers := make([]task.Record, 0, len(blockedBy))
+	for _, b := range blockedBy {
+		if b.Status != "Done" && b.Status != "Archived" {
+			activeBlockers = append(activeBlockers, b)
+		}
+	}
+	if len(activeBlockers) == 0 {
+		fmt.Fprintf(&sb, "Blocked by: none — you can start work immediately.\n\n")
+	} else {
+		fmt.Fprintf(&sb, "You are blocked by (wait for these to finish first):\n")
+		for _, b := range activeBlockers {
+			owner := b.PreferredAgent
+			if owner == "" {
+				owner = b.PreferredRole
+			}
+			if owner == "" {
+				owner = "unassigned"
+			}
+			fmt.Fprintf(&sb, "  - %s — %s (owner: %s, status: %s)\n", b.ID, b.Title, owner, b.Status)
+			if owner != "unassigned" {
+				fmt.Fprintf(&sb, "    → check status: aom message send %s \"Status update on %s?\"\n", owner, b.ID)
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	activeUnblocks := make([]task.Record, 0, len(unblocks))
+	for _, u := range unblocks {
+		if u.Status != "Done" && u.Status != "Archived" {
+			activeUnblocks = append(activeUnblocks, u)
+		}
+	}
+	if len(activeUnblocks) == 0 {
+		fmt.Fprintf(&sb, "Your output unblocks: none.\n\n")
+	} else {
+		fmt.Fprintf(&sb, "Your output unblocks (notify them when you are done):\n")
+		for _, u := range activeUnblocks {
+			owner := u.PreferredAgent
+			if owner == "" {
+				owner = u.PreferredRole
+			}
+			if owner == "" {
+				owner = "unassigned"
+			}
+			fmt.Fprintf(&sb, "  - %s — %s (owner: %s)\n", u.ID, u.Title, owner)
+			if owner != "unassigned" {
+				fmt.Fprintf(&sb, "    → when done: aom message send %s \"READY: <one-line summary>\"\n", owner)
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	// Communication quick-reference.
+	fmt.Fprintf(&sb, "## Communication Quick Reference\n\n")
+	fmt.Fprintf(&sb, "  aom channel append \"%s: <message>\"    # broadcast to team\n", agentRecord.Name)
+	fmt.Fprintf(&sb, "  aom message read %s                       # check your inbox\n", agentRecord.Name)
+	for _, a := range result.Agents {
+		if a.Name == agentRecord.Name {
+			continue
+		}
+		fmt.Fprintf(&sb, "  aom message send %s \"<message>\"   # DM %s\n", a.Name, a.Name)
+	}
+	fmt.Fprintf(&sb, "  aom team roster                            # refresh this file\n")
+	fmt.Fprintf(&sb, "  aom next                                   # see available tasks\n")
+
 	return sb.String()
 }
 

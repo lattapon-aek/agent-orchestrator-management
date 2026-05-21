@@ -1,0 +1,11 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertAndListByTaskID2007122501\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceUpdateStatusAndOwnership900391022\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceUpdateRejectsReadyWithoutOwner1094720150\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceAssignOwnerAllowsClearingAssignedAgent2786367340\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateReadyStepRequiresOwnerAndPersistsDependencies2996570888\001
+open C:\Users\lattapon.kea\AppData\Local\Temp

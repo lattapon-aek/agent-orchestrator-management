@@ -1,0 +1,624 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesRendersTemplates4082842970\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesUsesCustomTemplateDir194045752\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExisting1066942048\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesFiltersSelectedAgents3043585042\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsInlineAgentUsingExistingRole1387152176\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestWriteConfigFilesAddsDefaultRoleForInlineAgent3157056100\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\agents.yaml.tmpl
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertIsIdempotent3498740514\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertIsIdempotent3498740514
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryFindByRepoPath58286439\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryFindByRepoPath58286439
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\frontend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\templates\profiles\frontend.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\reviewer-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\templates\profiles\reviewer.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\frontend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\backend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\frontend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceOpenSyncsConfigToDB3971670103\001\.aom\agents\reviewer-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\project.yaml.tmpl
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents\custom-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents\custom-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\project-init-templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents\custom-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesCustomTemplateDir3613392321\001\.aom\agents\custom-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal
+stat C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\project.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\project.yaml
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\agents.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\resources.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\policy.yaml.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\Desktop\agents-orchestrator-management-private\templates\project-init\minimal\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitUsesPresetTemplate2028542061\001\.aom\agents\backend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\reviewer-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\templates\profiles\reviewer.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitFiltersSelectedAgents2962561118\001\.aom\agents\reviewer-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\frontend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitSupportsInlineAgentSelection1117944851\001\.aom\agents\frontend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.gitignore
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\hooks\on-task-done.sh
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\backend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\templates\profiles\builder.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\frontend-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\templates\profiles\frontend.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\reviewer-main
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\templates\profiles\reviewer.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\templates\profiles\base.md.tmpl
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001
+getenv PATHEXT
+getenv NoDefaultCurrentDirectoryInExePath
+getenv path
+stat C:\Program Files\Go\bin\git.com
+stat C:\Program Files\Go\bin\git.exe
+stat C:\Program Files\Go\bin\git.bat
+stat C:\Program Files\Go\bin\git.cmd
+stat C:\Program Files\Go\bin\git.vbs
+stat C:\Program Files\Go\bin\git.vbe
+stat C:\Program Files\Go\bin\git.js
+stat C:\Program Files\Go\bin\git.jse
+stat C:\Program Files\Go\bin\git.wsf
+stat C:\Program Files\Go\bin\git.wsh
+stat C:\Program Files\Go\bin\git.msc
+stat C:\Program Files\Go\bin\git.cpl
+stat C:\Users\lattapon.kea\bin\git.com
+stat C:\Users\lattapon.kea\bin\git.exe
+stat C:\Users\lattapon.kea\bin\git.bat
+stat C:\Users\lattapon.kea\bin\git.cmd
+stat C:\Users\lattapon.kea\bin\git.vbs
+stat C:\Users\lattapon.kea\bin\git.vbe
+stat C:\Users\lattapon.kea\bin\git.js
+stat C:\Users\lattapon.kea\bin\git.jse
+stat C:\Users\lattapon.kea\bin\git.wsf
+stat C:\Users\lattapon.kea\bin\git.wsh
+stat C:\Users\lattapon.kea\bin\git.msc
+stat C:\Users\lattapon.kea\bin\git.cpl
+stat C:\Program Files\Git\mingw64\bin\git.com
+stat C:\Program Files\Git\mingw64\bin\git.exe
+getenv PATHEXT
+open NUL
+open C:\Program Files\Git\mingw64\bin\git.exe
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\policy.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.gitignore
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\hooks
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\hooks\on-task-done.sh
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\project.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\resources.yaml
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\policy.yaml
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\backend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\frontend-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\reviewer-main\profile.md
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceInitDoesNotOverwriteExistingAgentProfile1500594040\001\.aom\agents\backend-main\profile.md
+open C:\Users\lattapon.kea\AppData\Local\Temp

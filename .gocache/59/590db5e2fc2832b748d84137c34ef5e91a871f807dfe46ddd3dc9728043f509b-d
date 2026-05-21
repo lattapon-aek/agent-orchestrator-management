@@ -1,0 +1,4 @@
+=== RUN   TestExecuteTaskUpdateCloseAndStepUpdate
+--- PASS: TestExecuteTaskUpdateCloseAndStepUpdate (4.46s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/cli	5.392s

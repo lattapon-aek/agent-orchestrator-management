@@ -1,0 +1,13 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertGetAndCount583247756\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateCreatesTaskAndInitialStep3454491225\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceUpdateValidatesTransitions1886471138\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCloseMarksDoneWhenAllowed3357422574\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateFromPlanCreatesMultipleSequentialSteps340267123\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceAssignOwnerAllowsClearingPreferredAgent615479086\001
+open C:\Users\lattapon.kea\AppData\Local\Temp

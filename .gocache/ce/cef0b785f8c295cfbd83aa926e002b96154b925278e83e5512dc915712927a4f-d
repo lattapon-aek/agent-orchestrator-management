@@ -1,0 +1,19 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertAndListByProjectID647132168\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertUpdatesExistingRecord3265584777\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateAndListByProject1291280199\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateValidatesRequiredFields3925433130\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceReconcileBindingMarksDetachedWhenPaneIsGone1826535484\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceReconcileBindingRestoresDetachedSessionWhenPaneReturn2684656906\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceStopMarksSessionStopped2238570602\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceArchiveMarksStoppedSessionArchived3590157580\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceArchiveRejectsIdleSession1548268832\001
+open C:\Users\lattapon.kea\AppData\Local\Temp

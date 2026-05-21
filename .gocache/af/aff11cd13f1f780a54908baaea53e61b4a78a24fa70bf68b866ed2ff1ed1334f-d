@@ -1,0 +1,5 @@
+./claude.go
+./codex.go
+./gemini.go
+./kiro.go
+./provider.go

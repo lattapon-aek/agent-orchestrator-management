@@ -1,0 +1,24 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001\sessions.db
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001\sessions.db-wal
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001\sessions.db-wal
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001\sessions.db-shm
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV11251707737\001\sessions.db-shm
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-wal
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-wal
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-shm
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-shm
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-wal
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-wal
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-shm
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent2867707136\001\sessions.db-shm
+open C:\Users\lattapon.kea\AppData\Local\Temp
+open C:\Users\lattapon.kea\AppData\Local\Temp

@@ -120,6 +120,53 @@ NOTE: If your runtime sandbox restricts writes outside your worktree, "channel a
 and "message send" will stage to .agent/outbox.md instead. The operator runs
 "aom outbox flush" to publish them. Seeing "Message staged to outbox" is expected.
 
+## Collaboration Routines
+
+These protocols let you work as a self-coordinating team without waiting for the operator.
+
+### Starting a session — do this FIRST before any implementation work
+1. Read your team context and task dependencies:
+     cat .agent/team-roster.md
+2. Check your inbox for messages from teammates:
+     aom message read {{.AgentName}}
+3. Announce you are starting:
+     aom channel append "{{.AgentName}}: STARTING — <one-line summary of your goal>"
+
+### After completing each step — before starting the next
+Check your inbox for new messages from teammates:
+     aom message read {{.AgentName}}
+
+### When you are BLOCKED and cannot continue
+1. Broadcast the block immediately:
+     aom channel append "{{.AgentName}}: BLOCKED — <what is blocking you> — need: <specific thing> — from: <agent or operator>"
+2. Send a direct message to whoever can help:
+     aom message send <agent-name> "<specific question or request>"
+3. Add the blocker to .agent/state.md under "## Open Questions"
+4. Poll your inbox while you wait:
+     aom message read {{.AgentName}}
+
+### When your work can unblock a teammate
+1. Broadcast that your output is ready:
+     aom channel append "{{.AgentName}}: READY — <what was produced> — at: <path> — unblocks: <teammate>"
+2. Send a direct message to the unblocked teammate:
+     aom message send <teammate> "Your blocker is resolved. I finished: <summary>. Output: <path>"
+
+### When you finish your task
+Before signalling task.completed, check .agent/team-roster.md for "Your output unblocks"
+and notify each dependent teammate explicitly.
+
+### When you have no assigned task — self-service claiming
+1. See what is unblocked and ready:
+     aom next
+2. Claim the best fit for your role:
+     aom task claim <task-id>
+3. Announce the claim so teammates know:
+     aom channel append "{{.AgentName}}: CLAIMING <task-id> — <one-line reason>"
+
+### Refreshing your team view mid-session
+     aom team roster             # regenerates .agent/team-roster.md with live data
+     cat .agent/team-roster.md   # read the updated roster
+
 ## Constraints
 - Stay within the current task scope
 - Do not modify .agent/index.md or .agent/log.md directly — those are AOM-owned

@@ -1,0 +1,7 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenCreatesSchemaV13698107172\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent1900467250\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestOpenIsIdempotent1900467250\001
+open C:\Users\lattapon.kea\AppData\Local\Temp
+open C:\Users\lattapon.kea\AppData\Local\Temp

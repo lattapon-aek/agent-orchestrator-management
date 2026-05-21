@@ -1,0 +1,42 @@
+=== RUN   TestWriteConfigFilesRendersTemplates
+--- PASS: TestWriteConfigFilesRendersTemplates (0.03s)
+=== RUN   TestWriteConfigFilesUsesCustomTemplateDir
+--- PASS: TestWriteConfigFilesUsesCustomTemplateDir (0.06s)
+=== RUN   TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExistingGitignore
+--- PASS: TestWriteConfigFilesAppendsAgentIgnoreWithoutOverwritingExistingGitignore (0.03s)
+=== RUN   TestWriteConfigFilesFiltersSelectedAgents
+--- PASS: TestWriteConfigFilesFiltersSelectedAgents (0.03s)
+=== RUN   TestWriteConfigFilesAddsInlineAgentUsingExistingRole
+--- PASS: TestWriteConfigFilesAddsInlineAgentUsingExistingRole (0.03s)
+=== RUN   TestWriteConfigFilesAddsDefaultRoleForInlineAgent
+--- PASS: TestWriteConfigFilesAddsDefaultRoleForInlineAgent (0.03s)
+=== RUN   TestParseInitAgentSelectionsRejectsInvalidEntries
+=== RUN   TestParseInitAgentSelectionsRejectsInvalidEntries/invalid_bare_name
+=== RUN   TestParseInitAgentSelectionsRejectsInvalidEntries/invalid_runtime
+=== RUN   TestParseInitAgentSelectionsRejectsInvalidEntries/duplicate_agent
+--- PASS: TestParseInitAgentSelectionsRejectsInvalidEntries (0.00s)
+    --- PASS: TestParseInitAgentSelectionsRejectsInvalidEntries/invalid_bare_name (0.00s)
+    --- PASS: TestParseInitAgentSelectionsRejectsInvalidEntries/invalid_runtime (0.00s)
+    --- PASS: TestParseInitAgentSelectionsRejectsInvalidEntries/duplicate_agent (0.00s)
+=== RUN   TestResolvePresetTemplateDirFindsTopLevelTemplate
+--- PASS: TestResolvePresetTemplateDirFindsTopLevelTemplate (0.00s)
+=== RUN   TestRepositoryUpsertIsIdempotent
+--- PASS: TestRepositoryUpsertIsIdempotent (0.08s)
+=== RUN   TestRepositoryFindByRepoPath
+--- PASS: TestRepositoryFindByRepoPath (0.07s)
+=== RUN   TestServiceOpenSyncsConfigToDB
+--- PASS: TestServiceOpenSyncsConfigToDB (1.15s)
+=== RUN   TestServiceInitUsesCustomTemplateDir
+--- PASS: TestServiceInitUsesCustomTemplateDir (0.90s)
+=== RUN   TestServiceInitUsesPresetTemplate
+--- PASS: TestServiceInitUsesPresetTemplate (0.94s)
+=== RUN   TestServiceInitFiltersSelectedAgents
+--- PASS: TestServiceInitFiltersSelectedAgents (0.85s)
+=== RUN   TestServicePreviewInitAgentsReturnsTemplateAgents
+--- PASS: TestServicePreviewInitAgentsReturnsTemplateAgents (0.00s)
+=== RUN   TestServiceInitSupportsInlineAgentSelection
+--- PASS: TestServiceInitSupportsInlineAgentSelection (0.93s)
+=== RUN   TestServiceInitDoesNotOverwriteExistingAgentProfile
+--- PASS: TestServiceInitDoesNotOverwriteExistingAgentProfile (1.28s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/project	6.570s

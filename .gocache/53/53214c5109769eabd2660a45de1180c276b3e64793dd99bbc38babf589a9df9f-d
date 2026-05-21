@@ -1,0 +1,26 @@
+=== RUN   TestServiceCreatePlannedCreatesMapping
+--- PASS: TestServiceCreatePlannedCreatesMapping (0.08s)
+=== RUN   TestServiceEnsureProvisionedSkipsNonGitRepo
+--- PASS: TestServiceEnsureProvisionedSkipsNonGitRepo (0.07s)
+=== RUN   TestServiceValidateProvisioningPreconditionsSkipsNonGitRepo
+--- PASS: TestServiceValidateProvisioningPreconditionsSkipsNonGitRepo (0.06s)
+=== RUN   TestServiceValidateProvisioningPreconditionsRejectsUnbornDefaultBranch
+--- PASS: TestServiceValidateProvisioningPreconditionsRejectsUnbornDefaultBranch (0.06s)
+=== RUN   TestServiceEnsureProvisionedMarksReadyAfterGitWorktreeAdd
+--- PASS: TestServiceEnsureProvisionedMarksReadyAfterGitWorktreeAdd (0.07s)
+=== RUN   TestServiceReconcileMarksActiveForRegisteredWorktree
+--- PASS: TestServiceReconcileMarksActiveForRegisteredWorktree (0.07s)
+=== RUN   TestServiceReconcileMarksNeedsRepairWhenReadyPathIsMissing
+--- PASS: TestServiceReconcileMarksNeedsRepairWhenReadyPathIsMissing (0.09s)
+=== RUN   TestServiceRepairRecreatesMissingRegisteredWorktreeUsingExistingBranch
+--- PASS: TestServiceRepairRecreatesMissingRegisteredWorktreeUsingExistingBranch (0.09s)
+=== RUN   TestServiceRepairFailsWhenPathExistsButRegistrationIsMissing
+--- PASS: TestServiceRepairFailsWhenPathExistsButRegistrationIsMissing (0.08s)
+=== RUN   TestServiceRepairRecreatesUnregisteredArtifactOnlyPath
+--- PASS: TestServiceRepairRecreatesUnregisteredArtifactOnlyPath (0.09s)
+=== RUN   TestPlannedBranchNameTruncatesLongTitle
+--- PASS: TestPlannedBranchNameTruncatesLongTitle (0.00s)
+=== RUN   TestServiceDriftKindClassifiesMissingAndUnregisteredPaths
+--- PASS: TestServiceDriftKindClassifiesMissingAndUnregisteredPaths (0.07s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/worktree	0.971s

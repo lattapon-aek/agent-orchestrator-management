@@ -1,0 +1,6 @@
+=== RUN   TestExecuteTaskUpdateCloseAndStepUpdate
+[hook: on-task-done]
+[aom hook] on-task-done: TASK-1779273655789299800-1 (Implement milestone 3) -> Done
+--- PASS: TestExecuteTaskUpdateCloseAndStepUpdate (2.57s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/cli	2.821s

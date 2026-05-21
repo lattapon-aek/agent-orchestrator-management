@@ -1,0 +1,5 @@
+./app.go
+./init.go
+./sessions.go
+./tasks.go
+./worktrees.go

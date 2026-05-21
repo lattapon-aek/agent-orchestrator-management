@@ -1,0 +1,8 @@
+=== RUN   TestOpenCreatesSchemaV1
+--- PASS: TestOpenCreatesSchemaV1 (0.03s)
+=== RUN   TestOpenIsIdempotent
+--- PASS: TestOpenIsIdempotent (0.04s)
+=== RUN   TestMigrateUpgradesSchemaV1DatabaseToLatest
+--- PASS: TestMigrateUpgradesSchemaV1DatabaseToLatest (0.06s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/db	0.515s

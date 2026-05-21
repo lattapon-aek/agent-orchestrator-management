@@ -1,0 +1,7 @@
+./claude.go
+./cleanup.go
+./cleanup_unix.go
+./codex.go
+./gemini.go
+./kiro.go
+./provider.go

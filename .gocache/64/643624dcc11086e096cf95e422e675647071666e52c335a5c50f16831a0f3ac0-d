@@ -1,0 +1,10 @@
+=== RUN   TestCaptureAllNoSessions
+--- PASS: TestCaptureAllNoSessions (0.92s)
+=== RUN   TestCaptureAllMutuallyExclusiveWithSessionID
+--- PASS: TestCaptureAllMutuallyExclusiveWithSessionID (0.80s)
+=== RUN   TestCaptureAllWithActiveSessions
+--- PASS: TestCaptureAllWithActiveSessions (0.88s)
+=== RUN   TestCaptureAllSummaryMode
+--- PASS: TestCaptureAllSummaryMode (0.88s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/cli	4.001s

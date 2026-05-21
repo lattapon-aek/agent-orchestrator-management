@@ -1,0 +1,25 @@
+# test log
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertGetAndCount4141245025\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertGetAndCount4141245025\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestRepositoryUpsertGetAndCount4141245025\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateCreatesTaskAndInitialStep2967050599\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateCreatesTaskAndInitialStep2967050599\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateCreatesTaskAndInitialStep2967050599\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceUpdateValidatesTransitions24028589\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceUpdateValidatesTransitions24028589\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceUpdateValidatesTransitions24028589\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCloseMarksDoneWhenAllowed427471683\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCloseMarksDoneWhenAllowed427471683\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCloseMarksDoneWhenAllowed427471683\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateFromPlanCreatesMultipleSequentialSteps4038400064\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateFromPlanCreatesMultipleSequentialSteps4038400064\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceCreateFromPlanCreatesMultipleSequentialSteps4038400064\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceAssignOwnerAllowsClearingPreferredAgent1767424482\001
+stat C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceAssignOwnerAllowsClearingPreferredAgent1767424482\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp\TestServiceAssignOwnerAllowsClearingPreferredAgent1767424482\001\sessions.db
+open C:\Users\lattapon.kea\AppData\Local\Temp

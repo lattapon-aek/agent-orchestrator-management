@@ -1,0 +1,22 @@
+=== RUN   TestMarshalAgentsFileAlwaysIncludesModelField
+    marshal_test.go:24: Output:
+        roles:
+          reviewer:
+            class: reviewer
+            worktree_mode: read-only
+            checkpoint_expectation: required
+            default_session_mode: interactive
+        agents:
+          claude-reviewer:
+            runtime: claude
+            role: reviewer
+            enabled: true
+            model: # leave empty = provider default | options: sonnet | opus | haiku | claude-sonnet-4-6 | claude-opus-4-7
+          reviewer-main:
+            runtime: claude
+            role: reviewer
+            enabled: true
+            model: sonnet # leave empty = provider default | options: sonnet | opus | haiku | claude-sonnet-4-6 | claude-opus-4-7
+--- PASS: TestMarshalAgentsFileAlwaysIncludesModelField (0.00s)
+PASS
+ok  	github.com/lattapon-aek/agents-orchestrator-management-private/internal/project	0.440s

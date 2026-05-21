@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -360,12 +361,14 @@ func (r Runner) waitForActiveTasks(result *project.OpenResult, timeout time.Dura
 
 func (r Runner) executeTeam(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("team subcommand is required (try: team brief)")
+		return fmt.Errorf("team subcommand is required (try: team brief, team roster)")
 	}
 
 	switch args[0] {
 	case "brief":
 		return r.executeTeamBrief(args[1:])
+	case "roster":
+		return r.executeTeamRoster(args[1:])
 	default:
 		return fmt.Errorf("unknown team command %q", args[0])
 	}
@@ -482,6 +485,73 @@ func (r Runner) executeTeamBrief(args []string) error {
 	fmt.Fprintf(r.stdout, "Path:    %s\n", briefPath)
 	fmt.Fprintf(r.stdout, "Tasks:   %d active\n", len(briefTasks))
 	fmt.Fprintf(r.stdout, "Pending requests: %d\n", len(pendingReqs))
+	return nil
+}
+
+// executeTeamRoster refreshes .agent/team-roster.md in the current working directory
+// (the agent's worktree) with a live snapshot of the team, session statuses, and
+// dependency graph. Agents call this mid-session to get an up-to-date team view.
+//
+// Usage: aom team roster [--agent <name>]
+// When --agent is omitted, the agent name is read from the AOM_ACTOR env var.
+func (r Runner) executeTeamRoster(args []string) error {
+	agentName := ""
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--agent":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--agent requires a value")
+			}
+			agentName = strings.TrimSpace(args[i])
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	// Fall back to AOM_ACTOR environment variable.
+	if agentName == "" {
+		agentName = strings.TrimSpace(os.Getenv("AOM_ACTOR"))
+	}
+	if agentName == "" {
+		return fmt.Errorf("--agent <name> is required (or set AOM_ACTOR env var)")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	agentRecord, err := findAgent(result.Agents, agentName)
+	if err != nil {
+		return fmt.Errorf("agent %q not found in project config: %w", agentName, err)
+	}
+
+	// Write the roster file into .agent/ in the current working directory.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get working directory: %w", err)
+	}
+
+	content := r.buildTeamRosterFileContent(result, agentRecord)
+	if content == "" {
+		fmt.Fprintln(r.stdout, "No team data available.")
+		return nil
+	}
+
+	agentDir := filepath.Join(cwd, ".agent")
+	if err := os.MkdirAll(agentDir, 0o755); err != nil {
+		return fmt.Errorf("create .agent dir: %w", err)
+	}
+	rosterPath := filepath.Join(agentDir, "team-roster.md")
+	if err := os.WriteFile(rosterPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write team-roster.md: %w", err)
+	}
+
+	fmt.Fprintf(r.stdout, "Team roster updated\n\n")
+	fmt.Fprintf(r.stdout, "Path:  %s\n", rosterPath)
+	fmt.Fprintf(r.stdout, "Agent: %s\n", agentName)
+	fmt.Fprintf(r.stdout, "\nRead it: cat .agent/team-roster.md\n")
 	return nil
 }
 

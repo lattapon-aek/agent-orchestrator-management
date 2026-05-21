@@ -1400,12 +1400,12 @@ func (r Runner) executeTaskClaim(args []string) error {
 		return err
 	}
 
+	// Load agent record to check for workspace mode.
+	agentRecord := findAgentByName(result.Agents, agentName)
+
 	roleName := ""
-	for _, a := range result.Agents {
-		if a.Name == agentName {
-			roleName = a.Role
-			break
-		}
+	if agentRecord != nil {
+		roleName = agentRecord.Role
 	}
 
 	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
@@ -1425,6 +1425,13 @@ func (r Runner) executeTaskClaim(args []string) error {
 		Summary: fmt.Sprintf("Task claimed by %s", agentName),
 	}, false); err != nil {
 		return err
+	}
+
+	// Workspace mode: write current-task.md into the agent workspace.
+	// Worktree provisioning is skipped — the agent works from its permanent workspace.
+	if agentRecord != nil && strings.TrimSpace(agentRecord.WorkspacePath) != "" {
+		writeCurrentTaskFile(agentRecord.WorkspacePath, updated.ID, updated.Title)
+		fmt.Fprintf(r.stdout, "Workspace: %s (agent workspace mode — no worktree provisioned)\n", agentRecord.WorkspacePath)
 	}
 
 	_ = r.refreshProjectBoard(result)

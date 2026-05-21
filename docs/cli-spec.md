@@ -28,7 +28,7 @@ The CLI is grouped by intent:
 - `aom open`
 - `aom status`
 - `aom plan`
-- `aom agent ...`
+- `aom agent ...` (`add`, `list`, `set-model`, `provision`)
 - `aom runtime ...` (`list`, `inspect`)
 - `aom doctor`
 - `aom task ...` (`create`, `show`, `update`, `close`)
@@ -45,10 +45,131 @@ The CLI is grouped by intent:
 - `aom reanalyze`
 - `aom broadcast`
 - `aom channel ...` (`append`, `read`)
+- `aom message ...` (`send`, `read`, `clear`, `watch`, `reply`)
 - `aom watch`
 - `aom events ...`
 
 Not every command must be fully implemented in the first coding slice, but the intent and naming should be locked now.
+
+## Agent Workspace Commands
+
+### aom agent provision
+
+#### Purpose
+
+Creates a permanent git worktree for an agent at `<repo>/.aom/agents/<name>/workspace/`
+on branch `agents/<name>`. The workspace persists across all tasks assigned to the agent.
+After provisioning, session spawns for this agent use the workspace as the execution path
+instead of a per-task worktree.
+
+#### Example
+
+```bash
+aom agent provision backend-main
+aom agent provision frontend-main
+```
+
+#### Inputs
+
+- positional: `name` (required) — agent name as defined in `agents.yaml`
+
+#### Behavior
+
+- Validates that the agent exists in the project config
+- Creates `<repo>/.aom/agents/<name>/workspace/` via `git worktree add -b agents/<name> <path>`
+- If branch already exists, uses `git worktree add <path> agents/<name>` (no `-b`)
+- If workspace directory already exists and is a valid worktree: prints "already provisioned" and exits 0 (idempotent)
+- Writes `workspace_path` to agent DB record
+- Materializes agent context (identity file, skills, MCP config) into the new workspace
+- Prints the workspace path on success
+
+#### Output
+
+```
+Agent:     backend-main
+Workspace: /path/to/repo/.aom/agents/backend-main/workspace
+Branch:    agents/backend-main
+Status:    provisioned
+
+Next: aom session spawn backend-main --real
+```
+
+---
+
+## Free-Roam Messaging Commands
+
+### aom message watch
+
+#### Purpose
+
+Stream new inbox messages for an agent as they arrive (reactive inbox).
+Eliminates the need to poll `aom message read` repeatedly.
+
+#### Example
+
+```bash
+aom message watch --agent backend-main
+aom message watch --agent backend-main --timeout 2h
+```
+
+#### Inputs
+
+- required flag: `--agent <name>`
+- optional flag: `--timeout <duration>` (default: 30m)
+
+#### Behavior
+
+- Locates `.aom/mailbox/<agent>.md`
+- Tracks current byte offset; polls every 2 seconds for new content beyond that offset
+- Prints each new `### ...` entry as it appears, with a blank line separator
+- Exits 0 on timeout (informational message printed)
+- Exits 1 on error (file not found, permission error)
+- Reuses the `tailLogEvents` byte-offset pattern from `internal/cli/log_wait.go`
+
+#### Output (streaming)
+
+```
+[inbox] 2026-05-21T14:30:01Z | MSG-1748123456 | from: frontend-main
+  Hey, is the auth endpoint ready?
+
+[inbox] 2026-05-21T14:38:22Z | MSG-1748129012 | from: operator
+  Please review frontend-main's latest commit
+```
+
+---
+
+### aom message reply
+
+#### Purpose
+
+Reply to a specific message by ID. Automatically routes the reply to the original sender
+without the agent needing to know who sent it or construct a `send` command manually.
+
+#### Example
+
+```bash
+aom message reply MSG-1748123456789 "yes, JWT endpoint is ready at /api/auth/login"
+```
+
+#### Inputs
+
+- positional: `<msg-id>` — message ID in the format `MSG-<unix-nano>`
+- positional: `<message>` — reply text
+
+#### Behavior
+
+- Reads `.aom/mailbox/` to find the message with the given ID
+- Extracts the `from:` field as the reply-to target agent
+- Calls `appendMailboxMessage` targeting the sender's mailbox
+- Prefixes the reply body with `[reply to MSG-xxx] ` for traceability
+- Reads sender identity from `AOM_ACTOR` env var (falls back to `"operator"`)
+- Prints confirmation: `Reply sent to <agent> (MSG-xxx)`
+
+#### Output
+
+```
+Reply sent to frontend-main (MSG-1748123456789)
+```
 
 ## Project Commands
 

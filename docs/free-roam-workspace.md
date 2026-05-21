@@ -249,16 +249,28 @@ aom message reply MSG-1748123456789 "yes, JWT endpoint is ready at /api/auth/log
 
 ### Track A — Per-Agent Workspace (architectural foundation)
 
-| Step | File(s) | What Changes |
-|------|---------|-------------|
-| A1 | `internal/db/db.go` | Schema migration v9: `ALTER TABLE agents ADD COLUMN workspace_path TEXT NOT NULL DEFAULT ''` |
-| A2 | `internal/agent/repository.go` | Add `WorkspacePath string` field; update Upsert + scan |
-| A3 | `internal/worktree/service.go` | Add `ProvisionAgentWorkspace(repoPath, agentName) (string, error)` — creates `<repo>/.aom/agents/<name>/workspace/` as git worktree on branch `agents/<name>`; idempotent |
-| A4 | `internal/cli/agent_cmd.go` | Add `aom agent provision <name>` subcommand; wire to `ProvisionAgentWorkspace`; store path via `SetAgentWorkspacePath` |
-| A5 | `internal/cli/session_spawn_helpers.go` | `resolveTaskExecutionPath`: check `agentRecord.WorkspacePath != ""` first; return workspace path immediately if set |
-| A6 | `internal/artifact/service.go` | `TaskArtifactRoot(worktreePath, workspacePath, taskID)` — returns `<workspace>/.agent/tasks/<taskID>` when workspace set, else legacy `.agent/` |
-| A7 | `internal/cli/task_cmd.go` | `aom task claim`: when agent has workspace, skip `ensurePlannedWorktree`; write `current-task.md` to workspace |
-| A8 | `internal/cli/merge_cmd.go` | `aom merge commit`: `resolveSourceBranch` helper — for workspace agents uses `agents/<name>` branch and verifies `[TASK-xxx]` tagged commits exist before merge; `aom merge continue` updated consistently |
+> **Status: ✅ All steps complete** — verified in WSL E2E test (2026-05-21)
+
+| Step | Status | File(s) | What Changes |
+|------|--------|---------|-------------|
+| A1 | ✅ Done | `internal/db/db.go` | Schema migration v9: `ALTER TABLE agents ADD COLUMN workspace_path TEXT NOT NULL DEFAULT ''` |
+| A2 | ✅ Done | `internal/agent/repository.go` | Add `WorkspacePath string` field; update Upsert + scan |
+| A3 | ✅ Done | `internal/worktree/service.go` | Add `ProvisionAgentWorkspace(repoPath, agentName) (string, error)` — creates `<repo>/.aom/agents/<name>/workspace/` as git worktree on branch `agents/<name>`; idempotent |
+| A4 | ✅ Done | `internal/cli/agent_cmd.go` | Add `aom agent provision <name>` subcommand; wire to `ProvisionAgentWorkspace`; store path via `SetAgentWorkspacePath` |
+| A5 | ✅ Done | `internal/cli/session_cmd.go` | `executionPath` set to workspace before task guard; workspace agent spawns at workspace CWD |
+| A6 | ✅ Done | `internal/artifact/service.go` | `SyncParams.AgentWorkspacePath` field; 3-case render in `renderTaskMarkdown` — workspace (absolute path), worktree, unprovisioned |
+| A7 | ✅ Done | `internal/cli/task_cmd.go` | `aom task claim`: when agent has workspace, skip `ensurePlannedWorktree`; write `current-task.md` to workspace |
+| A8 | ✅ Done | `internal/cli/merge_cmd.go` | `aom merge commit`: `resolveSourceBranch` helper — for workspace agents uses `agents/<name>` branch and verifies `[TASK-xxx]` tagged commits exist before merge; `aom merge continue` updated consistently |
+
+### Additional Fixes Applied
+
+| Fix | File(s) | Description |
+|-----|---------|-------------|
+| G1 — Spawn conflict guard | `internal/cli/session_cmd.go` | Warns when spawning a non-workspace agent when another same-runtime non-workspace agent already exists |
+| G2 — Doctor check | `internal/cli/doctor.go` | `aom doctor` shows `[WARN]` when ≥2 enabled agents share a runtime but lack dedicated workspaces |
+| G3 — Init hint | `internal/cli/project_cmd.go` | `aom project init` prints `aom agent provision <name>` + `aom session spawn <name> --real` for each agent |
+| Resume picks newest session | `internal/cli/helpers.go` | `loadSessionByIdentifier` previously returned the first (oldest) session match; now scans all and picks the last (newest) to avoid re-binding dead sessions |
+| task.md absolute path | `internal/artifact/service.go` | Workspace agents now get an absolute `Artifact Root` path in task.md (CWD mismatch otherwise loses the relative path) |
 
 ### Track B — Free-Roam Messaging
 
@@ -293,12 +305,13 @@ B1 ─→ B2 ─→ B3   (can start in parallel after A3 is done)
 
 | Document | Status | What to Add |
 |----------|--------|-------------|
-| `docs/free-roam-workspace.md` | ✅ **This file** | Concept + implementation plan |
+| `docs/free-roam-workspace.md` | ✅ **This file** | Concept + implementation plan; Track A completion status; G1/G2/G3 guards; additional fixes table |
 | `docs/AOM-planning.md` | ✅ Done | Added "Option C — Free-Roam" to Interaction Models section |
 | `docs/cli-spec.md` | ✅ Done | Added `aom message watch`, `aom message reply`, `aom agent provision` |
 | `profiles/base.md.tmpl` | ✅ Done | Free-Roam communication workflow (Track B4) |
 | `profiles/orchestrator.md.tmpl` | ✅ Done | Peer relay protocol (Track B5) |
-| `docs/dev/current-status.md` | ✅ Done | Track A + Track B status tables with per-step completion |
+| `docs/dev/current-status.md` | ✅ Done | Per-Agent Workspace full implementation section with E2E results |
+| `CLAUDE.md` | ✅ Done | New milestone row; detailed bullet in Recent additions |
 
 ---
 

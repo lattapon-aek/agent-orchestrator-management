@@ -304,6 +304,24 @@ func (r Runner) executeProjectInit(args []string) error {
 		fmt.Fprintln(r.stdout, "Git: initial commit created")
 	}
 
+	// G3: recommend per-agent workspace provisioning after init.
+	// Without workspaces, agents sharing the same runtime overwrite each other's
+	// identity files (CLAUDE.md / AGENTS.md) in the repo root.
+	if len(params.agentSelections) > 0 {
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintln(r.stdout, "Next: provision a dedicated workspace for each agent (prevents identity-file")
+		fmt.Fprintln(r.stdout, "      conflicts when multiple agents use the same runtime, e.g. two claude agents):")
+		fmt.Fprintln(r.stdout, "")
+		for _, sel := range params.agentSelections {
+			fmt.Fprintf(r.stdout, "  aom agent provision %s\n", sel.Name)
+		}
+		fmt.Fprintln(r.stdout, "")
+		fmt.Fprintln(r.stdout, "Then spawn agents:")
+		for _, sel := range params.agentSelections {
+			fmt.Fprintf(r.stdout, "  aom session spawn %s --real\n", sel.Name)
+		}
+	}
+
 	return nil
 }
 

@@ -413,6 +413,58 @@ func (r Runner) executeDoctor(args []string) error {
 		}
 	}
 
+	// ── Same-runtime workspace isolation ─────────────────────────────────────
+	// Multiple enabled agents sharing the same runtime (e.g., two claude agents)
+	// must each have a dedicated workspace.  Without it they both write CLAUDE.md /
+	// AGENTS.md to the repo root and overwrite each other's identity files.
+	if cfg != nil && dbPath != "" {
+		agentRepo, agentDB, agentRepoErr := r.app.OpenAgentRepository(dbPath)
+		if agentRepoErr == nil {
+			projectID := sanitizeProjectID(cfg.Project.Name)
+			agentRecs, listErr := agentRepo.ListByProjectID(projectID)
+			agentDB.Close()
+			if listErr == nil {
+				// Group enabled agents by runtime; track which lack a workspace.
+				type runtimeGroup struct {
+					total    int
+					noWs     []string
+				}
+				groups := make(map[string]*runtimeGroup)
+				for _, ag := range agentRecs {
+					if !ag.Enabled {
+						continue
+					}
+					if groups[ag.Runtime] == nil {
+						groups[ag.Runtime] = &runtimeGroup{}
+					}
+					groups[ag.Runtime].total++
+					if strings.TrimSpace(ag.WorkspacePath) == "" {
+						groups[ag.Runtime].noWs = append(groups[ag.Runtime].noWs, ag.Name)
+					}
+				}
+				for rt, grp := range groups {
+					if grp.total > 1 && len(grp.noWs) > 0 {
+						cmds := make([]string, len(grp.noWs))
+						for i, n := range grp.noWs {
+							cmds[i] = "aom agent provision " + n
+						}
+						results = append(results, doctorResult{
+							label:   fmt.Sprintf("workspace: %s", rt),
+							detail:  fmt.Sprintf("%d %s agent(s) lack a workspace: %s — run: %s", len(grp.noWs), rt, strings.Join(grp.noWs, ", "), strings.Join(cmds, " && ")),
+							warning: true,
+						})
+					} else if grp.total > 1 {
+						results = append(results, doctorResult{
+							label:  fmt.Sprintf("workspace: %s", rt),
+							detail: fmt.Sprintf("all %d %s agents have dedicated workspaces", grp.total, rt),
+							ok:     true,
+						})
+					}
+				}
+			}
+		}
+	}
+
 	// ── Stale policy dirs + session count ────────────────────────────────────
 	if cfg != nil && dbPath != "" {
 		sessService, sessDB, sessErr := r.app.OpenSessionService(dbPath)

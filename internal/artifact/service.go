@@ -44,6 +44,11 @@ type SyncParams struct {
 	CreatedBy             string
 	UpdatedBy             string
 	RecommendedNextAction string
+	// AgentWorkspacePath is set when the assigned agent uses a permanent
+	// per-agent workspace instead of a per-task worktree.  It changes how
+	// the Worktree and Artifact Root lines are rendered in task.md so that
+	// the agent does not try to resolve relative paths from the wrong CWD.
+	AgentWorkspacePath string
 }
 
 // Service writes task-local operational memory artifacts.
@@ -432,15 +437,30 @@ func (s *Service) writeArtifacts(params SyncParams) error {
 }
 
 func (s *Service) renderTaskMarkdown(params SyncParams) string {
+	// Default: relative path from repo root (works for traditional agents whose CWD = worktree)
 	artifactRoot := fmt.Sprintf(".aom/%s/%s", s.stateDir, params.Task.ID)
 	worktreePath := "not provisioned yet"
+	worktreeNote := "(informational — already your CWD; create files using relative paths only)"
 	worktreeBranch := "-"
-	if params.Worktree != nil {
+
+	switch {
+	case strings.TrimSpace(params.AgentWorkspacePath) != "":
+		// Workspace agent: permanent workspace, no per-task worktree.
+		// The CWD is the workspace, not the repo root, so the relative ".aom/..."
+		// path would resolve to the wrong location.  Use the absolute path instead.
+		worktreePath = params.AgentWorkspacePath
+		worktreeNote = "(your permanent workspace — all tasks share this directory; commits go to branch agents/<agent-name>)"
+		worktreeBranch = "agents/" + strings.TrimSpace(params.Task.PreferredAgent)
+		// Absolute path so agent can find artifacts regardless of CWD.
+		artifactRoot = filepath.Join(s.repoPath, ".aom", s.stateDir, params.Task.ID)
+	case params.Worktree != nil:
+		// Traditional per-task worktree: agent CWD = worktree path.
 		worktreePath = params.Worktree.WorktreePath
 		worktreeBranch = params.Worktree.BranchName
 		if usesWorktreeArtifactRoot(params.Worktree) {
 			artifactRoot = filepath.Join(params.Worktree.WorktreePath, ".agent")
 		}
+	// default: "not provisioned yet" — leave worktreePath / note as initialised above
 	}
 
 	// Build Pipeline Position section.
@@ -487,7 +507,7 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 - Created By: %s
 - Assigned Role: %s
 - Assigned Agent: %s
-- Worktree: %s (informational — already your CWD; create files using relative paths only)
+- Worktree: %s %s
 - Worktree Branch: %s
 - Artifact Root: %s
 
@@ -547,6 +567,7 @@ runs "aom outbox flush" to publish. Seeing "Message staged to outbox" is expecte
 		emptyFallback(params.Task.PreferredRole),
 		emptyFallback(params.Task.PreferredAgent),
 		worktreePath,
+		worktreeNote,
 		worktreeBranch,
 		artifactRoot,
 		params.Task.Title,

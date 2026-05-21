@@ -68,9 +68,43 @@ an AI orchestrator session (runtime: claude, role: orchestrator) acting on behal
 of the human project owner. All state transitions remain explicit CLI commands
 regardless of whether the operator is human or AI.
 
-## Interaction Model
+## Interaction Models
 
-### Main surfaces
+AOM supports three interaction models. Choose based on your workflow.
+
+### Option A — Operator as Orchestrator
+
+Operator runs `aom` commands directly to dispatch tasks, monitor workers, and manage handoffs.
+Best for: structured pipelines, sequential handoffs, strict git isolation per task.
+
+### Option B — AI Orchestrator
+
+Delegate an AI session as `orchestrator-main` (runtime: claude, role: orchestrator).
+The AI manages workers, reads artifacts, sends prompts, and reports back to the operator.
+Best for: long-running parallel work, automated pipeline loops, minimal operator intervention.
+
+The orchestrator should be spawned **without `--task`** so it lives at the repo root
+and has full visibility over all task artifacts without being bound to one worktree.
+
+### Option C — Free-Roam Workspace
+
+Operator walks freely between agent terminals. Any agent can relay messages to peers via
+AOM messaging. No single orchestrator required. AOM is the communication backbone.
+
+Best for: exploratory work, direct feedback loops, creative collaboration, team discussions.
+
+Key properties:
+- Each agent has a **permanent workspace** at `<repo>/.aom/agents/<name>/workspace/`
+- Agents never need to change CWD — new tasks arrive as artifacts within the workspace
+- Operator uses `aom attach <agent>` to enter any terminal and talk directly
+- Agents relay feedback using `aom message send`, `aom broadcast`, `aom channel append`
+- No hierarchy required — every agent is a peer
+
+See `docs/free-roam-workspace.md` for the full concept and implementation plan.
+
+---
+
+### Main surfaces (applies to all models)
 
 AOM should provide three primary surfaces:
 

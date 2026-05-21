@@ -772,6 +772,63 @@ There are two hook layers in AOM. This explains why "agents didn't use hooks":
 
 All items above are implemented. No remaining Windows/WSL2 work other than the binary distribution note (operators on WSL2 must build the binary from source — `go build -o aom cmd/aom/main.go`).
 
+---
+
+### Per-Agent Workspace (Free-Roam) — Full Implementation (2026-05-21)
+
+Complete implementation of the per-agent workspace model described in `docs/free-roam-workspace.md`.
+Verified end-to-end in WSL with real `--real` claude sessions.
+
+#### Track A — Per-Agent Workspace (all steps done)
+
+| Step | Status | Notes |
+|------|--------|-------|
+| A1 — DB schema: `workspace_path` column | ✅ Done | `internal/db/db.go` migration v9 |
+| A2 — `agent.Record.WorkspacePath` + Upsert | ✅ Done | `internal/agent/repository.go` + CASE WHEN preservation |
+| A3 — `ProvisionAgentWorkspace` | ✅ Done | `internal/worktree/service.go` |
+| A4 — `aom agent provision <name>` | ✅ Done | `internal/cli/agent_cmd.go` |
+| A5 — session spawn uses workspace CWD | ✅ Done | `internal/cli/session_cmd.go` — checks `WorkspacePath` before task guard |
+| A6 — artifact root routes to workspace | ✅ Done | `internal/artifact/service.go` + `SyncParams.AgentWorkspacePath` |
+| A7 — task create skips per-task worktree | ✅ Done | `internal/cli/task_cmd.go` — `agentHasWorkspace` guard |
+| A8 — merge uses `agents/<name>` branch | ✅ Done | `internal/cli/merge_cmd.go` — `resolveSourceBranch` + `--fixed-strings` |
+
+#### Bug Fixes (found during E2E testing)
+
+| Bug | Fix | File |
+|-----|-----|------|
+| `workspace_path` reset to `""` by `agentRepo.Sync()` on every project Open | CASE WHEN SQL preserves existing value when incoming path is empty | `internal/agent/repository.go` |
+| `task create` still provisioned per-task worktree for workspace agents | Skip `ensurePlannedWorktree` when `agentHasWorkspace` | `internal/cli/task_cmd.go` |
+| `merge check/prepare` crashed for workspace agents (`Worktree == nil`) | Use `resolveSourceBranch` in all merge paths | `internal/cli/merge_cmd.go` |
+| `session spawn` without `--task` wrote identity files to repo root, not workspace | Check `WorkspacePath` before task guard in `executeResolvedSessionSpawn` | `internal/cli/session_cmd.go` |
+| `aom session resume <agent>` picked oldest dead session, not newest | `loadSessionByIdentifier` now keeps last match when scanning by agent name | `internal/cli/helpers.go` |
+| `task.md` showed relative `Artifact Root` — wrong path from workspace CWD | 3-case `renderTaskMarkdown`: workspace → absolute path + workspace note; worktree → relative + CWD note | `internal/artifact/service.go` |
+| 5 runtime test assertions stale after `NiceExecPrefix` + `npm_config_cache` added | Updated all 5 expected strings | `internal/runtime/launch_test.go` |
+
+#### Same-Runtime Conflict Guards (G1/G2/G3)
+
+Multiple agents using the same runtime (e.g. two claude agents) without workspaces
+would overwrite each other's `CLAUDE.md`/`AGENTS.md` in the repo root.
+Three guards prevent this:
+
+- **G1** (`session_cmd.go`): `aom session spawn` warns when the agent has no workspace and another enabled agent with the same runtime also lacks a workspace — prints fix command.
+- **G2** (`doctor.go`): `aom doctor` adds a `workspace: <runtime>` check — `[WARN]` lists agents missing workspaces with exact `aom agent provision` commands; `[PASS]` when all same-runtime agents have workspaces.
+- **G3** (`project_cmd.go`): `aom project init` prints a "Next: provision a dedicated workspace" block with `aom agent provision <name>` for every agent created.
+
+#### E2E Verification (WSL, 2026-05-21)
+
+All features verified in `/tmp/aom-g1g2g3-test` (WSL Ubuntu, 3 agents: frontend-main/claude, reviewer-main/claude, backend-main/codex):
+
+- G3: init shows provision hints ✅
+- G2: doctor WARN → partial WARN → PASS as agents are provisioned ✅
+- G1: spawn warns when both claude agents lack workspace; no warning after one is provisioned ✅
+- Bug 1 (workspace_path persistence): `aom agent list` shows workspace after re-open ✅
+- Bug 2 (no worktree): `.aom/worktrees/` absent for workspace-agent tasks ✅
+- Bug 4 (workspace CWD): `CLAUDE.md` written to workspace, not repo root; session shows correct `Worktree path` ✅
+- Real `--real` spawn: native session ID `b2731ec2-...` auto-detected; conversation file created at `~/.claude/projects/-tmp-aom-g1g2g3-test--aom-agents-frontend-main-workspace/` ✅
+- `claude -r` from workspace finds the session ✅
+- `task.md` for workspace agent shows absolute Artifact Root ✅
+- Both models (workspace + traditional worktree) coexist in same project ✅
+
 ## What Is Intentionally Not Done Yet
 
 Still out of scope at the current handoff point:

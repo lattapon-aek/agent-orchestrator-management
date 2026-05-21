@@ -275,10 +275,21 @@ func (r Runner) loadSessionByIdentifier(identifier string) (*session.Record, err
 		return nil, err
 	}
 
-	for _, item := range sessions {
-		if item.AgentName == identifier {
-			return r.reconcileSessionRecord(sessionService, item)
+	// When matching by agent name, prefer the most recently created session.
+	// ListByProject returns sessions in ascending creation order, so we scan
+	// all of them and keep the last match.  This matters for workspace agents
+	// that accumulate multiple sessions (e.g. one per task): the operator
+	// running "aom session resume <agent>" from the workspace should land on
+	// the newest session, not an old dead one.
+	var best *session.Record
+	for i := range sessions {
+		if sessions[i].AgentName == identifier {
+			cp := sessions[i]
+			best = &cp
 		}
+	}
+	if best != nil {
+		return r.reconcileSessionRecord(sessionService, *best)
 	}
 
 	return nil, fmt.Errorf("session %q not found", identifier)
@@ -373,6 +384,7 @@ func (r Runner) syncTaskArtifactsWithSessionEvents(result *project.OpenResult, t
 		ReviewOwnerHint:       view.ReviewOwnerHint,
 		ReviewOwnerAmbiguous:  view.ReviewOwnerAmbiguous,
 		RecommendedNextAction: recommendTaskAction(view.Task.Status, view.Steps, view.Worktree, view.WorktreeDrift, view.UnresolvedReviewItems, view.ReviewOwnerHint, view.ReviewOwnerAmbiguous),
+		AgentWorkspacePath:    agentWorkspacePath(result.Agents, view.Task.PreferredAgent),
 	}
 	if seed {
 		return service.SeedTaskArtifacts(params)
@@ -863,6 +875,21 @@ func findAgentByName(agents []agent.Record, name string) *agent.Record {
 		}
 	}
 	return nil
+}
+
+// agentWorkspacePath returns the WorkspacePath for the named agent, or ""
+// if the agent has no workspace or the name is blank.  Used to populate
+// SyncParams.AgentWorkspacePath so artifact rendering can adjust paths.
+func agentWorkspacePath(agents []agent.Record, agentName string) string {
+	if strings.TrimSpace(agentName) == "" {
+		return ""
+	}
+	for _, ag := range agents {
+		if ag.Name == agentName {
+			return strings.TrimSpace(ag.WorkspacePath)
+		}
+	}
+	return ""
 }
 
 func activeStepID(steps []step.Record) string {

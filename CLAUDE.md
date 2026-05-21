@@ -125,6 +125,7 @@ Defined in full in `docs/state-machine.md`. Summary:
 | E2E feedback rounds 1–5 — operator UX, agent profiles, SQLite | Complete |
 | E2E feedback rounds 6–7 — readiness labels, invariants, shared brief, JSON output | Complete |
 | E2E feedback rounds 8–11 — codex background terminal cleanup, profile trim, auto-stop | Complete |
+| Per-Agent Workspace (Free-Roam) — A1–A8 + guards G1/G2/G3 + resume fix + task.md fix | Complete |
 
 **Immediate next work** (see `docs/dev/current-status.md` for full detail):
 
@@ -150,6 +151,11 @@ Defined in full in `docs/state-machine.md`. Summary:
 - E2E feedback (sixth round — from AOM_FEEDBACK.md): SQLite WAL mode, `aom task verify`, commit guard in `aom task show`, `aom worktree prune`, spawn channel announcement, mini model warning, session `readiness=` label, `aom status --json`, collaboration step gate, task invariants (`--invariant` flag + `aom task verify`), `aom project share <file>` (broadcast to all active worktrees), `session replace --mock` bug fix
 - E2E feedback (rounds 8–9): SQLite `_txlock=immediate` + 30 s busy timeout + `SetMaxOpenConns(1)`, outbox pending warning in `aom channel read`, `generic.md.tmpl` non-coding profile, `base.md.tmpl` commit fallback + generic class examples
 - E2E feedback (rounds 10–11 — codex background terminal root-cause): `aom agent add` name-runtime mismatch warning, `Idle (pane live)` indicator in `aom status`, `.aom/` added to `defaultGitignoreEntries` + `aom doctor` `.aom/ tracked` check, `builder.md.tmpl` + `reviewer.md.tmpl` + `frontend.md.tmpl` + `orchestrator.md.tmpl` Sandbox Constraints section; **provider-level fix**: `KillPaneAndDescendants()` in tmux manager (BFS via `pgrep -P`, SIGTERM→SIGKILL) replaces `KillPane` in session stop path; **3-layer auto-cleanup**: `aom session stop` kills all descendant processes, `aom task accept` auto-stops bound Idle sessions, `aom status` auto-stops Idle sessions whose `log.md` contains `task.completed`
+- Per-Agent Workspace (Free-Roam A1–A8): `aom agent provision <name>` creates permanent git worktree at `.aom/agents/<name>/workspace/` on `agents/<name>` branch; `workspace_path` persists through DB Upsert (CASE WHEN); workspace agents skip per-task worktree creation; session spawn uses workspace path as CWD; `materializeAgentContext` writes identity files to workspace; merge check/prepare/continue uses `agents/<name>` branch with `--fixed-strings` for `[TASK-xxx]` grep; real E2E verified in WSL with native claude session auto-detection
+- Same-runtime conflict guards: **G1** — `aom session spawn` warns when two agents share a runtime but neither has a workspace; **G2** — `aom doctor` `[WARN] workspace: <runtime>` lists agents missing workspaces with fix commands; **G3** — `aom project init` prints `aom agent provision` next-steps for each agent
+- Session resume fix: `loadSessionByIdentifier` now picks the **newest** session when matching by agent name (previously picked oldest dead session — workspace agents accumulate multiple sessions over time)
+- `task.md` workspace-agent fix: `SyncParams.AgentWorkspacePath` added; `renderTaskMarkdown` uses 3-way logic — workspace agent gets **absolute** `Artifact Root` path + workspace note; traditional worktree gets relative path + CWD note; unprovisioned gets "not provisioned yet"
+- Runtime test fix: 5 assertions in `internal/runtime/launch_test.go` updated to include `NiceExecPrefix` (`exec nice -n 10`) and `npm_config_cache` that had been added without corresponding test updates
 
 ---
 

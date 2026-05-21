@@ -229,11 +229,13 @@ func (r Runner) executeMergeCheck(args []string) error {
 	if view == nil {
 		return fmt.Errorf("task %q not found", taskID)
 	}
-	if view.Worktree == nil {
-		return fmt.Errorf("task %q has no worktree", taskID)
-	}
 
-	sourceBranch := view.Worktree.BranchName
+	// Resolve source branch — workspace agent or legacy per-task worktree.
+	// Pass empty targetBranch to skip the [TASK-xxx] tag check (check is for commit phase).
+	sourceBranch, err := r.resolveSourceBranch(result, view, taskID, "")
+	if err != nil {
+		return err
+	}
 
 	// Resolve --against: accept a task ID or a branch name.
 	otherBranch := againstFlag
@@ -245,10 +247,10 @@ func (r Runner) executeMergeCheck(args []string) error {
 		if otherView == nil {
 			return fmt.Errorf("task %q not found", againstFlag)
 		}
-		if otherView.Worktree == nil {
-			return fmt.Errorf("task %q has no worktree", againstFlag)
+		otherBranch, err = r.resolveSourceBranch(result, otherView, againstFlag, "")
+		if err != nil {
+			return err
 		}
-		otherBranch = otherView.Worktree.BranchName
 	}
 
 	if otherBranch == "" {
@@ -323,16 +325,17 @@ func (r Runner) executeMergePrepare(args []string) error {
 	if view == nil {
 		return fmt.Errorf("task %q not found", taskID)
 	}
-	if view.Worktree == nil {
-		return fmt.Errorf("task %q has no worktree", taskID)
-	}
 
 	targetBranch := intoFlag
 	if targetBranch == "" {
 		targetBranch = result.Project.DefaultBranch
 	}
 
-	sourceBranch := view.Worktree.BranchName
+	// Resolve source branch — workspace agent or legacy per-task worktree.
+	sourceBranch, err := r.resolveSourceBranch(result, view, taskID, "")
+	if err != nil {
+		return err
+	}
 	base := result.Project.DefaultBranch
 
 	checkResult, err := aommerge.CheckOverlaps(result.Project.RepoPath, sourceBranch, targetBranch, base)
@@ -428,10 +431,12 @@ func (r Runner) resolveSourceBranch(result *project.OpenResult, view *taskView, 
 			if ag.Name == agentName && strings.TrimSpace(ag.WorkspacePath) != "" {
 				sourceBranch := "agents/" + agentName
 				// Verify at least one [TASK-xxx] tagged commit exists on the agent branch.
+				// Use --fixed-strings so "[TASK-xxx]" is treated as a literal string,
+				// not a regex character class — git's default POSIX regex would error on it.
 				if targetBranch != "" {
 					taskTag := "[" + taskID + "]"
 					taggedOut, _ := exec.Command("git", "-C", result.Project.RepoPath,
-						"log", "--oneline", "--grep="+taskTag,
+						"log", "--oneline", "--fixed-strings", "--grep="+taskTag,
 						targetBranch+".."+sourceBranch).Output()
 					if strings.TrimSpace(string(taggedOut)) == "" {
 						return "", fmt.Errorf(

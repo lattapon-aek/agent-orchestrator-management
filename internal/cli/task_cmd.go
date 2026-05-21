@@ -104,8 +104,15 @@ func (r Runner) executeTaskCreate(args []string) error {
 		return err
 	}
 
-	if _, err := r.ensurePlannedWorktree(result, createResult.Task); err != nil {
-		return err
+	// Skip per-task worktree provisioning when the assigned agent has a permanent
+	// workspace. Workspace agents never need to cd to a new worktree — their tasks
+	// land as artifacts inside workspace/.agent/tasks/<taskID>/.
+	assignedAgent := findAgentByName(result.Agents, params.agent)
+	agentHasWorkspace := assignedAgent != nil && strings.TrimSpace(assignedAgent.WorkspacePath) != ""
+	if !agentHasWorkspace {
+		if _, err := r.ensurePlannedWorktree(result, createResult.Task); err != nil {
+			return err
+		}
 	}
 
 	if len(params.invariants) > 0 {

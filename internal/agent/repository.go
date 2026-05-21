@@ -64,6 +64,9 @@ func (r *Repository) Upsert(record Record) error {
 		enabled = 1
 	}
 
+	// workspace_path is runtime state set by "aom agent provision".
+	// It must NOT be overwritten during config sync (Sync passes workspace_path="").
+	// Preserve the existing DB value whenever the incoming value is empty.
 	_, err := r.db.Exec(`
 INSERT INTO agents (id, project_id, name, runtime, role, enabled, model, workspace_path)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -74,7 +77,10 @@ ON CONFLICT(id) DO UPDATE SET
 	role = excluded.role,
 	enabled = excluded.enabled,
 	model = excluded.model,
-	workspace_path = excluded.workspace_path
+	workspace_path = CASE
+		WHEN excluded.workspace_path != '' THEN excluded.workspace_path
+		ELSE agents.workspace_path
+	END
 `,
 		record.ID,
 		record.ProjectID,

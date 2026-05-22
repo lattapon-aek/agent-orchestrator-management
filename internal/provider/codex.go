@@ -27,6 +27,15 @@ func (p *codexProvider) LaunchShellSpec(spec LaunchSpec, lookPath func(string) (
 		// workspace-write sandbox, which restricts writes to paths outside the
 		// worktree (including the default ~/.npm cache directory).
 		`export npm_config_cache="/tmp/aom-npm-cache-$(id -u)"`,
+		// GIT_OPTIONAL_LOCKS=0: prevents git from acquiring optional lock files
+		// (e.g., commit-graph.lock, FETCH_LOCK) that it does not strictly need.
+		// Without this, git can spin at 95%+ CPU on WSL2 when codex's Landlock
+		// sandbox restricts creation of these lock files — git retries the lock
+		// in a tight loop instead of proceeding without it.
+		// GIT_TERMINAL_PROMPT=0: prevents git from blocking on credential prompts
+		// (which would cause git to hang indefinitely in a non-interactive sandbox).
+		"export GIT_OPTIONAL_LOCKS=0",
+		"export GIT_TERMINAL_PROMPT=0",
 		// IMPORTANT: printf format must use hex escapes for { " } — no single quotes allowed here.
 		// This preamble is assembled inside sh -lc '...' by assembleLoginShellCommand; any single
 		// quote inside the preamble would prematurely close the outer quoted string, truncating the
@@ -49,22 +58,35 @@ func (p *codexProvider) LaunchShellSpec(spec LaunchSpec, lookPath func(string) (
 	// lighter runtimes like claude.
 	const codexNiceExecPrefix = "exec nice -n 19 "
 
-	// -c agents.max_threads=1 serialises codex's internal tool execution to one
-	// call at a time, preventing parallel fan-out from spiking CPU on the host.
-	// This trades some throughput for a meaningfully lower and steadier CPU
-	// footprint — the right default for a shared developer machine.
+	// -c flags: codex v0.133.0 silently accepts any -c key=value regardless of
+	// whether the key is valid — even a completely made-up key returns no error.
+	// Empirical testing shows these flags may not be enforced at runtime either
+	// (background terminals ran 2+ minutes despite background_terminal_max_timeout=60000).
+	// The reliable fallback is ~/.codex/config.toml — see "aom doctor" which checks
+	// and advises on that file.
+	//
+	// We still pass these flags because they DO work on some codex versions / builds,
+	// and they document the intent. The preamble env vars above (GIT_OPTIONAL_LOCKS,
+	// GIT_TERMINAL_PROMPT) are the primary mitigation for git spinning on WSL2.
+	//
+	// Flags used:
+	//   agents.max_threads=1             — serialise tool execution; prevents parallel
+	//                                      fan-out from spiking CPU on the host.
+	//   background_terminal_max_timeout=60000 — kill stalled background terminals after
+	//                                      60 s (codex default is 3 600 000 ms = 1 hr).
+	//   agents.job_max_runtime_seconds=120 — hard-kill each agent turn after 2 min.
+	//
 	// NOTE: the -c values must NOT be wrapped in single quotes here. The entire
 	// ExecCmd is joined into sh -lc '...' by assembleLoginShellCommand, which uses
 	// single quotes for the outer wrapper. Any inner single quote would prematurely
-	// terminate the outer quoted string, causing the shell to split the value into
-	// a positional parameter rather than passing it as the argument to -c. The
-	// values (network_access=true, agents.max_threads=1) contain no special
+	// terminate the outer quoted string. The values here contain no special
 	// characters, so no quoting is needed at all.
+	const codexRuntimeFlags = " -c agents.max_threads=1 -c background_terminal_max_timeout=60000 -c agents.job_max_runtime_seconds=120"
 	var execCmd string
 	if spec.AgentSessionID != "" {
-		execCmd = fmt.Sprintf(codexNiceExecPrefix+"codex resume %s --sandbox danger-full-access -a never -c agents.max_threads=1", spec.AgentSessionID)
+		execCmd = fmt.Sprintf(codexNiceExecPrefix+"codex resume %s --sandbox danger-full-access -a never"+codexRuntimeFlags, spec.AgentSessionID)
 	} else {
-		execCmd = codexNiceExecPrefix + "codex --sandbox danger-full-access -a never -c agents.max_threads=1"
+		execCmd = codexNiceExecPrefix + "codex --sandbox danger-full-access -a never" + codexRuntimeFlags
 	}
 	if spec.Model != "" {
 		execCmd += " -m " + spec.Model

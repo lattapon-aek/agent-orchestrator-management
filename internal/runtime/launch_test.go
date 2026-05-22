@@ -148,7 +148,7 @@ func TestBuilderBuildResumesCodexSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build failed: %v", err)
 	}
-	want := "sh -lc 'export AOM_RUNTIME=codex; export PYTHONDONTWRITEBYTECODE=1; export npm_config_cache=\"/tmp/aom-npm-cache-$(id -u)\"; [ -f \"$HOME/.codex/version.json\" ] || { mkdir -p \"$HOME/.codex\" && printf \"\\x7b\\x22dismissed_version\\x22:\\x229999.0.0\\x22\\x7d\\n\" > \"$HOME/.codex/version.json\"; }; exec nice -n 19 codex resume sess-xyz-789 --sandbox danger-full-access -a never -c agents.max_threads=1'"
+	want := "sh -lc 'export AOM_RUNTIME=codex; export PYTHONDONTWRITEBYTECODE=1; export npm_config_cache=\"/tmp/aom-npm-cache-$(id -u)\"; export GIT_OPTIONAL_LOCKS=0; export GIT_TERMINAL_PROMPT=0; [ -f \"$HOME/.codex/version.json\" ] || { mkdir -p \"$HOME/.codex\" && printf \"\\x7b\\x22dismissed_version\\x22:\\x229999.0.0\\x22\\x7d\\n\" > \"$HOME/.codex/version.json\"; }; exec nice -n 19 codex resume sess-xyz-789 --sandbox danger-full-access -a never -c agents.max_threads=1 -c background_terminal_max_timeout=60000 -c agents.job_max_runtime_seconds=120'"
 	if command != want {
 		t.Fatalf("command = %q, want %q", command, want)
 	}

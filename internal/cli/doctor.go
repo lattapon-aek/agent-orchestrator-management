@@ -322,6 +322,30 @@ func (r Runner) executeDoctor(args []string) error {
 					ok:     true,
 				})
 			}
+
+			// ── Codex: background_terminal_max_timeout ────────────────────────────
+			// codex v0.133.0 silently ignores -c flags passed on the command line.
+			// The only reliable way to enforce background_terminal_max_timeout is via
+			// ~/.codex/config.toml. Without it, stuck background bash terminals (e.g.
+			// a git command spinning on WSL2) survive for the codex default of
+			// 3,600,000 ms (1 hour), continuously consuming 40–100% CPU.
+			home, _ = os.UserHomeDir()
+			globalCfgPath := filepath.Join(home, ".codex", "config.toml")
+			globalCfgData, cfgReadErr := os.ReadFile(globalCfgPath)
+			hasBgTimeout := cfgReadErr == nil && strings.Contains(string(globalCfgData), "background_terminal_max_timeout")
+			if !hasBgTimeout {
+				results = append(results, doctorResult{
+					label:   "codex: bg terminal timeout",
+					detail:  `background_terminal_max_timeout not set in ~/.codex/config.toml — stuck git/shell processes can spin at 100% CPU for up to 1 hour; fix: add 'background_terminal_max_timeout = 60000' to ~/.codex/config.toml`,
+					warning: true,
+				})
+			} else {
+				results = append(results, doctorResult{
+					label:  "codex: bg terminal timeout",
+					detail: "background_terminal_max_timeout set in ~/.codex/config.toml",
+					ok:     true,
+				})
+			}
 		}
 	}
 

@@ -58,9 +58,19 @@ func (r Runner) Execute(args []string) (retErr error) {
 	}
 
 	switch args[0] {
+	case "--version", "-v":
+		return r.executeVersion()
 	case "help", "--help", "-h":
 		r.printHelp()
 		return nil
+	case "version":
+		return r.executeVersion()
+	case "install":
+		return r.executeInstall(args[1:])
+	case "uninstall":
+		return r.executeUninstall()
+	case "update":
+		return r.executeUpdate(args[1:])
 	case "agent":
 		return r.executeAgent(args[1:])
 	case "attach":
@@ -292,7 +302,6 @@ func (r Runner) executeWorktree(args []string) error {
 	}
 }
 
-
 // ── M15: merge coordination ──────────────────────────────────────────────────
 
 func (r Runner) executeMerge(args []string) error {
@@ -408,6 +417,10 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom project resources : show role bindings, skills, MCP servers, and policy")
 	fmt.Fprintln(r.stdout, "aom open : load project state and reconcile tmux/worktree/session state")
 	fmt.Fprintln(r.stdout, "aom status : show project, tasks, sessions, worktrees, and next-action hints")
+	fmt.Fprintln(r.stdout, "aom version : print build metadata for the installed binary")
+	fmt.Fprintln(r.stdout, "aom install [--test] [--dry] : build and install from the current checkout")
+	fmt.Fprintln(r.stdout, "aom update [--test] : pull latest source and reinstall from the current checkout")
+	fmt.Fprintln(r.stdout, uninstallHelpLine())
 	fmt.Fprintln(r.stdout, "aom plan \"work\" [--create] : draft a task plan and optionally persist it")
 	fmt.Fprintln(r.stdout, "aom doctor : validate environment (tmux, config, runtimes, db, worktrees)")
 	fmt.Fprintln(r.stdout, "")
@@ -503,4 +516,3 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "- .agent/*.md artifacts inside the task worktree are the source of truth for worker continuity.")
 	fmt.Fprintln(r.stdout, "- Session status Idle means ready for the next prompt or task; Working means the agent is busy.")
 }
-

@@ -1193,6 +1193,71 @@ Claude Code does not have this problem: it uses a sequential tool-use loop (one 
 | `profiles/orchestrator.md.tmpl` | Sandbox Constraints (new section) |
 | `profiles/generic.md.tmpl` | New file — non-coding use cases |
 
+## WSL2 Bwrap Root-Cause Fix — E2E Feedback (2026-05-22)
+
+### Root cause identified
+
+Codex bundles its own **bwrap (bubblewrap)** binary and routes **ALL** subprocesses through
+`codex-linux-sandbox → bwrap` — even with `--sandbox danger-full-access`. On WSL2, the bwrap
+overlay FS causes git VFS operations to spin at 60–100% CPU in a tight retry loop for optional
+lock files (e.g. `commit-graph.lock`, `FETCH_LOCK`). `GIT_OPTIONAL_LOCKS=0` partially mitigates
+this but cannot reach git processes inside bwrap's mount namespace.
+
+### Fixes applied
+
+#### Step 1 — Environment-level mitigation (`GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`)
+
+- `internal/provider/codex.go` preamble now sets `GIT_OPTIONAL_LOCKS=0` and `GIT_TERMINAL_PROMPT=0`
+- Reduces git lock spinning for processes outside the bwrap namespace; prevents git from blocking on credential prompts
+- Not a complete fix — git inside bwrap's mount namespace does not inherit these env vars
+- `aom doctor` adds a **`codex: bg terminal timeout`** check: warns when `~/.codex/config.toml` is missing
+  `background_terminal_max_timeout = 60000`; global safety net — kills stuck background terminals within 60 s
+  (codex default is 1 hour = 3 600 000 ms); must be placed at the **top level** of `config.toml`, not under `[agents]`
+
+#### Step 2 — Root fix: `codex_bypass_sandbox: true` policy option
+
+- **New policy field**: `CodexBypassSandbox bool \`yaml:"codex_bypass_sandbox"\`` added to `PolicyConfig` in `internal/config/config.go`
+- Propagation chain: `PolicyConfig.CodexBypassSandbox → SessionSpec.BypassSandbox → LaunchSpec.BypassSandbox → codex provider`
+- Files changed: `internal/config/config.go`, `internal/runtime/launch.go`, `internal/provider/provider.go`,
+  `internal/provider/codex.go`, `internal/cli/session_cmd.go` (3 `SessionSpec` construction sites)
+- When enabled, replaces `--sandbox danger-full-access -a never` with `--dangerously-bypass-approvals-and-sandbox` — skips bwrap entirely
+- Fresh start: `exec nice -n 19 codex --dangerously-bypass-approvals-and-sandbox <flags>`
+- Resume: `exec nice -n 19 codex resume <id> --dangerously-bypass-approvals-and-sandbox <flags>`
+- Safe on WSL2: AOM is the external control boundary; deny_commands are enforced via wrapper scripts
+- Enable via `.aom/policy.yaml`:
+  ```yaml
+  policy:
+    codex_bypass_sandbox: true
+  ```
+- `aom doctor` adds a **`codex: wsl2 bypass`** check: detects WSL2 via `/proc/version` (case-insensitive
+  "microsoft" or "wsl" string match); warns with fix command when `codex_bypass_sandbox` is not set;
+  shows `[PASS]` with confirmation message when enabled
+
+#### Step 3 — Deny-command wrapper infinite loop on bwrap PATH
+
+- **Root cause**: `buildCodexWrapperPreamble` in `internal/provider/codex.go` generated smart wrappers that used
+  `exec env "PATH=${PATH#binDir:}" git "$@"` to strip the AOM policy dir before exec-ing real git.
+  Inside bwrap, `codex-linux-sandbox` prepends `.codex/tmp/arg0/...` and `vendor/codex-path` entries **before**
+  the AOM policy dir — `${PATH#binDir:}` only strips when PATH *starts* with `binDir:`, so it never matched
+  → wrapper exec'd itself recursively at 100% CPU until the session was killed.
+- **Fix**: `passThroughLine` now uses sed:
+  ```sh
+  exec env "PATH=$(echo "$PATH" | sed 's|/tmp/aom-policy-SESS/bin:||g;s|:/tmp/aom-policy-SESS/bin||g')" git "$@"
+  ```
+  Two patterns cover all positions: `binDir:` (start/middle) and `:binDir` (end of PATH).
+- The fix applies to all smart wrappers regardless of whether `codex_bypass_sandbox` is set, so deny_commands work
+  correctly even when bwrap is active.
+
+#### New test coverage
+
+- `TestBuilderBuildCodexBypassSandbox` added to `internal/runtime/launch_test.go`
+  - Verifies fresh start with `BypassSandbox: true` contains `--dangerously-bypass-approvals-and-sandbox` and does not contain `--sandbox`
+  - Verifies resume with `BypassSandbox: true` produces `codex resume <id> --dangerously-bypass-approvals-and-sandbox`
+  - Verifies default (no bypass) still produces `--sandbox danger-full-access`
+  - All 14 launch tests pass
+
+---
+
 ## Immediate Next Step
 
 Milestones 0–17, all E2E feedback improvements, and cross-platform polish are complete.

@@ -15,6 +15,16 @@ import (
 	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/task"
 )
 
+// handoffTemplateSentinels is the set of placeholder strings that AOM seeds into
+// new handoff.md files. Any handoff.md that still contains one of these strings
+// is considered unfilled and will fail the verify check or block promotion.
+var handoffTemplateSentinels = []string{
+	"Fill this in when the work is ready for transfer",
+	"Fill in what was completed in this session",
+	"Fill in what still needs to happen next",
+	"Record touched files before signaling",
+}
+
 func (r Runner) executeTaskCreate(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("task title is required")
@@ -1738,12 +1748,6 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 	// the worktree) as a fallback when the task artifact still has template text.
 	// Agents that write to their workspace .agent/handoff.md produce valid content
 	// there; this fallback mirrors the state.md and log.md patterns above.
-	handoffTemplateSentinels := []string{
-		"Fill this in when the work is ready for transfer",
-		"Fill in what was completed in this session",
-		"Fill in what still needs to happen next",
-		"Record touched files before signaling",
-	}
 	handoffDataOK := func(data []byte) bool {
 		if len(strings.TrimSpace(string(data))) <= 80 {
 			return false
@@ -1771,13 +1775,19 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 	if !handoffOK {
 		if handoffErr != nil {
 			handoffNote = "handoff.md not found"
-		} else if strings.Contains(string(handoffData), handoffTemplateSentinels[0]) ||
-			strings.Contains(string(handoffData), handoffTemplateSentinels[1]) ||
-			strings.Contains(string(handoffData), handoffTemplateSentinels[2]) ||
-			strings.Contains(string(handoffData), handoffTemplateSentinels[3]) {
-			handoffNote = "handoff.md still contains template placeholder text — update it before signaling completion"
 		} else {
-			handoffNote = "handoff.md appears empty or too sparse"
+			hasTemplate := false
+			for _, s := range handoffTemplateSentinels {
+				if strings.Contains(string(handoffData), s) {
+					hasTemplate = true
+					break
+				}
+			}
+			if hasTemplate {
+				handoffNote = "handoff.md still contains template placeholder text — update it before signaling completion"
+			} else {
+				handoffNote = "handoff.md appears empty or too sparse"
+			}
 		}
 	}
 	checks = append(checks, verifyCheck{"handoff.md filled", handoffOK, handoffNote})
@@ -2210,19 +2220,13 @@ func appendSignalToWorkspaceLog(logPath, eventType, actor, taskID, summary strin
 // to their workspace handoff.md have it automatically reflected in the task
 // artifact that aom task verify reads.  Silently ignores errors — best-effort.
 func promoteWorkspaceHandoff(workspacePath, artifactHandoffPath string) {
-	templateSentinels := []string{
-		"Fill this in when the work is ready for transfer",
-		"Fill in what was completed in this session",
-		"Fill in what still needs to happen next",
-		"Record touched files before signaling",
-	}
 	// Read workspace handoff.md — if it doesn't exist or is sparse, skip.
 	wsData, err := os.ReadFile(filepath.Join(workspacePath, ".agent", "handoff.md"))
 	if err != nil || len(strings.TrimSpace(string(wsData))) <= 80 {
 		return
 	}
 	// Skip if workspace copy also has template text.
-	for _, s := range templateSentinels {
+	for _, s := range handoffTemplateSentinels {
 		if strings.Contains(string(wsData), s) {
 			return
 		}
@@ -2231,7 +2235,7 @@ func promoteWorkspaceHandoff(workspacePath, artifactHandoffPath string) {
 	artifactData, artifactErr := os.ReadFile(artifactHandoffPath)
 	if artifactErr == nil {
 		hasTemplate := false
-		for _, s := range templateSentinels {
+		for _, s := range handoffTemplateSentinels {
 			if strings.Contains(string(artifactData), s) {
 				hasTemplate = true
 				break

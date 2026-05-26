@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/lattapon-aek/agents-orchestrator-management-private/internal/config"
 )
@@ -30,7 +31,9 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// Sync upserts agents from config into the database.
+// Sync upserts agents from config into the database and removes any agents
+// that are no longer present in agents.yaml. Config is the authoritative source:
+// agents deleted from the YAML file are pruned from the DB on the next open/init.
 func (r *Repository) Sync(projectID string, cfg config.AgentsFile) error {
 	names := make([]string, 0, len(cfg.Agents))
 	for name := range cfg.Agents {
@@ -54,7 +57,29 @@ func (r *Repository) Sync(projectID string, cfg config.AgentsFile) error {
 		}
 	}
 
-	return nil
+	return r.pruneRemovedAgents(projectID, names)
+}
+
+// pruneRemovedAgents deletes DB rows for agents that are no longer in the config.
+// knownNames is the sorted slice of agent names currently in agents.yaml.
+func (r *Repository) pruneRemovedAgents(projectID string, knownNames []string) error {
+	if len(knownNames) == 0 {
+		_, err := r.db.Exec(`DELETE FROM agents WHERE project_id = ?`, projectID)
+		return err
+	}
+	placeholders := strings.Repeat("?,", len(knownNames))
+	placeholders = placeholders[:len(placeholders)-1] // trim trailing comma
+	args := make([]interface{}, 0, 1+len(knownNames))
+	args = append(args, projectID)
+	for _, n := range knownNames {
+		args = append(args, n)
+	}
+	query := fmt.Sprintf(
+		`DELETE FROM agents WHERE project_id = ? AND name NOT IN (%s)`,
+		placeholders,
+	)
+	_, err := r.db.Exec(query, args...)
+	return err
 }
 
 // Upsert inserts or updates an agent record.

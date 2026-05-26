@@ -136,6 +136,15 @@ func (s *Service) Init(params InitParams) (*InitResult, error) {
 		return nil, fmt.Errorf("git setup: %w", gitErr)
 	}
 
+	// Commit .gitignore immediately after init so it is tracked in git.
+	// Without this, agents that create their own .gitignore in a workspace
+	// branch cause an add/add merge conflict when their branch is merged to main.
+	// commitGitignoreIfUntracked is idempotent — it is a no-op when .gitignore
+	// is already tracked or when git is not available.
+	if err := commitGitignoreIfUntracked(repoAbsPath); err != nil {
+		return nil, fmt.Errorf("commit .gitignore: %w", err)
+	}
+
 	dbPath := filepath.Join(aomPath, "sessions.db")
 	sqlDB, err := db.Open(dbPath)
 	if err != nil {
@@ -337,6 +346,40 @@ func ensureGitReady(repoPath string) (gitInitialized, gitInitialCommit bool, err
 	}
 
 	return gitInitialized, gitInitialCommit, nil
+}
+
+// commitGitignoreIfUntracked stages and commits .gitignore when it exists in the
+// repo root but is not yet tracked by git. This prevents add/add merge conflicts
+// that occur when an agent independently creates a .gitignore in its workspace
+// branch and both the workspace branch and main have untracked copies at merge time.
+// The function is idempotent: it is a no-op when .gitignore is already tracked,
+// when the file does not exist, or when git is not in PATH.
+func commitGitignoreIfUntracked(repoPath string) error {
+	if _, lookErr := exec.LookPath("git"); lookErr != nil {
+		return nil
+	}
+	// Check if .gitignore exists on disk.
+	if _, statErr := os.Stat(filepath.Join(repoPath, ".gitignore")); statErr != nil {
+		return nil
+	}
+	// ls-files --error-unmatch exits non-zero when the file is NOT tracked.
+	if err := aomGit(repoPath, "ls-files", "--error-unmatch", ".gitignore").Run(); err == nil {
+		return nil // already tracked — nothing to do
+	}
+	// Stage .gitignore.
+	if addOut, addErr := aomGit(repoPath, "add", ".gitignore").CombinedOutput(); addErr != nil {
+		return fmt.Errorf("git add .gitignore: %w\n%s", addErr, addOut)
+	}
+	// Commit it.
+	commitCmd := aomGit(repoPath,
+		"-c", "user.email=aom@aom",
+		"-c", "user.name=AOM",
+		"commit", "-m", "chore: add .gitignore [aom init]",
+	)
+	if commitOut, commitErr := commitCmd.CombinedOutput(); commitErr != nil {
+		return fmt.Errorf("git commit .gitignore: %w\n%s", commitErr, commitOut)
+	}
+	return nil
 }
 
 func detectDefaultBranch(repoPath string) string {

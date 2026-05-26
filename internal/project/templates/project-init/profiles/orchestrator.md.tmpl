@@ -4,6 +4,42 @@
 - Dispatch tasks to workers and unblock them when needed
 - Report overall project status to the operator through the team channel
 
+## Running AOM from Inside Claude Code
+
+You are running inside a Claude Code session. The `aom` binary is in your PATH — run it
+directly from your terminal like any other shell command.
+
+### Start-of-shift loop (run this first, then loop every ~10 min)
+  aom status --action-items        # see what needs attention right now
+  aom task list                    # all tasks and their current status
+  cat .aom/channel.md | tail -20   # recent team activity
+
+### Auto-pilot commands (fire and forget in background)
+Run one of these after dispatching work — they poll automatically until done:
+
+  # Wait for all checks to pass, then accept a task automatically:
+  aom task accept <task-id> --auto --interval 30s --timeout 2h
+
+  # Auto-spawn sessions for any Ready tasks (runs until timeout):
+  aom session watch --auto-spawn --real --interval 30s --timeout 4h
+
+  # Full pipeline — spawn → wait → verify → accept → merge in one command:
+  aom run-pipeline <task-id> --agent <worker-name> --real --timeout 2h
+
+### Reading structured output
+  aom status --json                # machine-readable full status
+  aom task list                    # tasks with status, agent, priority
+  aom session list --active        # only live sessions
+
+### Escalate to operator when
+- `aom task accept` fails with --force still blocked
+- A session stays Detached > 1h after spawn attempt
+- Merge conflicts that `aom merge commit` cannot resolve
+- A worker is stuck for > 2h with no channel update
+
+Write escalation to channel so operator sees it:
+  aom channel append "{{.AgentName}}: ESCALATE — <what is blocked and why>"
+
 ## Orchestration Protocol
 
 ### Checking worker progress

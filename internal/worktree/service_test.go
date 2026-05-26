@@ -582,3 +582,88 @@ func TestServiceDriftKindClassifiesMissingAndUnregisteredPaths(t *testing.T) {
 		t.Fatalf("DriftKind = %q, want %q", driftKind, DriftUnregisteredDirtyPath)
 	}
 }
+
+// TestProvisionAgentWorkspaceIdempotentRegistered verifies that ProvisionAgentWorkspace
+// returns immediately when the directory exists AND appears in `git worktree list`.
+func TestProvisionAgentWorkspaceIdempotentRegistered(t *testing.T) {
+	repoRoot := t.TempDir()
+	agentName := "backend-main"
+	wsPath := filepath.Join(repoRoot, ".aom", "agents", agentName, "workspace")
+
+	if err := os.MkdirAll(wsPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	service := &Service{
+		stat: func(path string) (os.FileInfo, error) { return os.Stat(path) },
+		mkdirAll: func(path string, perm os.FileMode) error {
+			return os.MkdirAll(path, perm)
+		},
+		runGit: func(repoPath string, args ...string) ([]byte, error) {
+			if len(args) >= 3 && args[0] == "worktree" && args[1] == "list" {
+				// Return porcelain output containing the workspace path.
+				out := "worktree " + wsPath + "\nHEAD abc123\nbranch refs/heads/agents/" + agentName + "\n\n"
+				return []byte(out), nil
+			}
+			return nil, fmt.Errorf("unexpected git call: %v", args)
+		},
+	}
+
+	got, err := service.ProvisionAgentWorkspace(repoRoot, agentName)
+	if err != nil {
+		t.Fatalf("ProvisionAgentWorkspace returned error for registered worktree: %v", err)
+	}
+	if !strings.HasSuffix(got, agentName+string(filepath.Separator)+"workspace") &&
+		!strings.HasSuffix(got, agentName+"/workspace") {
+		t.Fatalf("unexpected path returned: %q", got)
+	}
+}
+
+// TestProvisionAgentWorkspaceReregistersStaleDir verifies that ProvisionAgentWorkspace
+// falls through to git worktree add when the directory exists on disk but is NOT listed
+// in `git worktree list --porcelain` (stale directory from a previous partial provision).
+func TestProvisionAgentWorkspaceReregistersStaleDir(t *testing.T) {
+	repoRoot := t.TempDir()
+	agentName := "backend-main"
+	wsPath := filepath.Join(repoRoot, ".aom", "agents", agentName, "workspace")
+
+	if err := os.MkdirAll(wsPath, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	var pruneWasCalled bool
+	var addWasCalled bool
+
+	service := &Service{
+		stat: func(path string) (os.FileInfo, error) { return os.Stat(path) },
+		mkdirAll: func(path string, perm os.FileMode) error {
+			return os.MkdirAll(path, perm)
+		},
+		runGit: func(repoPath string, args ...string) ([]byte, error) {
+			switch {
+			case len(args) >= 3 && args[0] == "worktree" && args[1] == "list":
+				// Return output that does NOT contain the workspace path → stale.
+				return []byte("worktree " + repoRoot + "\nHEAD abc123\nbranch refs/heads/main\n\n"), nil
+			case args[0] == "worktree" && args[1] == "prune":
+				pruneWasCalled = true
+				return nil, nil
+			case args[0] == "worktree" && args[1] == "add":
+				addWasCalled = true
+				return nil, nil
+			default:
+				return nil, nil
+			}
+		},
+	}
+
+	_, err := service.ProvisionAgentWorkspace(repoRoot, agentName)
+	if err != nil {
+		t.Fatalf("ProvisionAgentWorkspace returned unexpected error: %v", err)
+	}
+	if !pruneWasCalled {
+		t.Error("expected git worktree prune to be called for stale directory")
+	}
+	if !addWasCalled {
+		t.Error("expected git worktree add to be called for stale directory")
+	}
+}

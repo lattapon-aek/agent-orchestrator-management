@@ -25,3 +25,15 @@
   use `aom worktree commit --local -m "<message>"` as the fallback
 - If a command hangs: press Ctrl+C once, then report via `aom message send`
 - Always cd into the correct subdirectory before running npm/pip/go commands
+
+## Workspace Agent Commit Convention
+
+If your workspace is a permanent per-agent worktree (you never cd to a per-task worktree),
+your branch is shared across tasks. **Prefix every commit with `[TASK-xxx]`** where xxx
+matches the current task ID (shown in `.agent/task.md` under "Task ID").
+
+Example:
+  git add -A && git commit -m "[TASK-abc-1] add POST /users endpoint with tests"
+
+AOM reads this tag at merge time (`aom merge commit`) to identify which commits belong
+to which task. A commit without the prefix will be excluded from the task's merge set.

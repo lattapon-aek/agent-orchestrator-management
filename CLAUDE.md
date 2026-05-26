@@ -2,6 +2,26 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## Project Skills
+
+The following skills are available in `.claude/skills/`. When the user types the trigger, invoke the Skill tool immediately before doing anything else.
+
+- **task-intake** (`.claude/skills/task-intake/SKILL.md`) — Convert vague or underspecified requests into a clear execution brief. Trigger: `/task-intake`
+  When the user types `/task-intake`, invoke the Skill tool with `skill: "task-intake"` before doing anything else.
+
+- **change-implementation** (`.claude/skills/change-implementation/SKILL.md`) — Implement repository changes with an evidence-first, scope-first workflow. Trigger: `/change-implementation`
+  When the user types `/change-implementation`, invoke the Skill tool with `skill: "change-implementation"` before doing anything else.
+
+- **root-cause-debugging** (`.claude/skills/root-cause-debugging/SKILL.md`) — Investigate software defects with an evidence-first, root-cause-driven workflow. Trigger: `/root-cause-debugging`
+  When the user types `/root-cause-debugging`, invoke the Skill tool with `skill: "root-cause-debugging"` before doing anything else.
+
+- **change-review** (`.claude/skills/change-review/SKILL.md`) — Review repository changes with an evidence-first, impact-aware workflow. Trigger: `/change-review`
+  When the user types `/change-review`, invoke the Skill tool with `skill: "change-review"` before doing anything else.
+
+---
+
 ## Role in This Repository
 
 You are operating as an **implementation partner**. You may read, edit, and create
@@ -129,11 +149,17 @@ Defined in full in `docs/state-machine.md`. Summary:
 | WSL2 bwrap bypass + wrapper loop fix — codex E2E hardening (2026-05-22) | Complete |
 | Single-quote `sh -lc` pane crash fix — deny_commands spawn failure (2026-05-22) | Complete |
 | E2E feedback fixes (2026-05-22) — completion gate, reviewer guard, workspace hard error, repo layout | Complete |
+| Phase 2 completion — F2–F8 fixes, `aom task signal`, E2E 2-agent test (builder→reviewer), master plan doc | Complete |
+| Phase 4 Operator UX — `aom switch`, `aom dashboard`, `aom task verify --watch`, `aom status --action-items` | Complete |
+| Phase 5 Guided Autonomy — `aom task accept --auto`, `aom session watch --auto-spawn`, `aom run-pipeline` + timeout/escalation | Complete |
 
 **Immediate next work** (see `docs/dev/current-status.md` for full detail):
 
 *Deferred:*
 - gemini and kiro runtime launch (`internal/provider/gemini.go`, `internal/provider/kiro.go`) — blocked on confirmed CLI flags
+
+*Ready to start:*
+- Phase 3.3: cross-provider E2E test (claude backend + codex frontend) — both providers working, no blockers
 
 **Recent additions** (see `docs/dev/current-status.md` for full detail):
 - M13: `aom task link/unlink`, cross-task dependency graph with BFS cycle detection, `--priority` flag, `aom next`
@@ -164,6 +190,9 @@ Defined in full in `docs/state-machine.md`. Summary:
 - WSL2 auto-detect: `internal/provider/codex.go` now reads `/proc/version` automatically; bypass is applied on WSL2 without any `policy.yaml` change; `aom doctor` shows `[PASS] codex: wsl2 bypass WSL2 detected — applied automatically`; macOS/Windows unaffected
 - WSL2 deny-command wrapper loop fix: smart wrappers in `buildCodexWrapperPreamble` replaced `${PATH#binDir:}` (only strips prefix) with `sed "s|binDir:||g;s|:binDir||g"` — removes the AOM policy dir from any PATH position, preventing infinite self-exec inside bwrap where codex-linux-sandbox prepends its own entries before the policy dir
 - Single-quote `sh -lc` pane crash fix: `buildCodexWrapperPreamble` `passThroughLine` was using `sed 's|...|'` (single quotes) which terminated the outer `sh -lc '...'` wrapper, causing sh syntax error → immediate pane exit whenever `deny_commands` were configured (all default projects); fixed by using `\"s|...|g\"` (escaped double quotes); also fixed `printf` hex escapes (`\x7b`) → POSIX-compatible `\"` escapes; new invariant test in `TestBuilderBuildCodexWrapsDenyCommands`
+- Phase 2 completion (2026-05-26): **F2** — `runTaskVerifyChecks` Check 1b adds `[TASK-xxx]` tagged-commit verification (workspace agents share one branch; missing tag = silent empty merge); **F4** — merged duplicate "Starting a session" protocols into single 6-step sequence; **F5** — commit guard in `executeTaskShow` extended to workspace agents; **F7/F8** — orchestrator profile updated with verify-gate note + `--force` warning; frontend profile adds `[TASK-xxx]` commit convention; **`aom task signal`** new command (`task.completed`, `handoff.prepared`, `checkpoint.created`, `step.completed`) replaces manual log.md writes; writes to task artifact log + mirrors to workspace log; E2E 2-agent test (builder→reviewer in WSL2, claude provider) passed 5/5 verify checks; `docs/AOM-MASTER-PLAN.md` + `docs/dev/e2e-2agent-test-plan.md` added
+- Phase 4 Operator UX (2026-05-26): **`aom switch <agent-name>`** — jumps to agent's live tmux pane by name (no session ID needed), auto-logs `operator.intervention`; **`aom task verify --watch [--interval] [--timeout]`** — polls every 10s until all checks pass, prints iteration timestamp + check results on each poll; **`aom status --action-items`** — shows only APPROVAL / ACCEPT / SPAWN / BLOCKED items with exact commands to run; **`aom dashboard [--interval]`** — ANSI live terminal UI (clear+redraw loop) showing sessions table, action items, recent channel, Ctrl+C exits cleanly; `buildActionItems` helper extracted and shared between `--action-items` and dashboard
+- Phase 5 Guided Autonomy (2026-05-26): **`aom task accept --auto [--interval 15s] [--timeout 30m]`** — polling loop calls `runTaskVerifyChecks` each interval; breaks and auto-accepts when all checks pass; timeout prints agent-specific escalation hints; **`aom session watch [--auto-spawn] [--interval] [--timeout] [--real|--mock]`** — new session subcommand; polls `buildActionItems` for SPAWN items; `--auto-spawn` calls `parseSpawnItemCommand` + `executeSessionSpawn` (non-fatal per spawn); **`aom run-pipeline <task-id> [--agent] [--timeout] [--real|--mock] [--skip-merge]`** — new top-level command in `internal/cli/pipeline_cmd.go`; 5 stages: spawn → wait(task.completed) → verify → accept → merge; `escalate(stage, hint)` prints remaining budget + resume commands on timeout; 24 new tests in `internal/cli/phase5_test.go`
 
 ---
 

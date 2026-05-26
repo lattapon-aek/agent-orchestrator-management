@@ -78,7 +78,20 @@ func (s *Service) ProvisionAgentWorkspace(repoPath, agentName string) (string, e
 	branch := "agents/" + agentName
 
 	if _, err := s.stat(path); err == nil {
-		return path, nil
+		// Directory exists — verify it is still a registered git worktree.
+		// If it was deleted from git's tracking (e.g. after `git worktree prune`
+		// or a failed partial provision) the directory lingers but git will refuse
+		// to add it again without us pruning first.  Re-register if missing.
+		if out, err2 := s.runGit(repoPath, "worktree", "list", "--porcelain"); err2 == nil {
+			if strings.Contains(string(out), path) {
+				return path, nil
+			}
+			// Path exists on disk but is not registered — fall through to re-add.
+			_, _ = s.runGit(repoPath, "worktree", "prune")
+		} else {
+			// Can't run git — treat as registered (best-effort).
+			return path, nil
+		}
 	}
 
 	if err := s.mkdirAll(filepath.Dir(path), 0o755); err != nil {

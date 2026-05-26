@@ -218,16 +218,45 @@ func (r Runner) executeTaskShow(args []string) error {
 	}
 
 	// Commit guard: warn if agent signalled task.completed but branch has no commits.
-	if view.Worktree != nil && view.Task.Status != "Done" && view.Task.Status != "Archived" {
-		logPath := taskArtifactLogPath(result.Project.RepoPath, result.StateDir, view.Task.ID, view.Worktree)
-		if hasTaskCompletedEvent(logPath) {
-			branch := view.Worktree.BranchName
-			defaultBranch := result.Project.DefaultBranch
-			commitsOut, commitsErr := exec.Command("git", "-C", result.Project.RepoPath,
-				"log", "--oneline", defaultBranch+".."+branch).Output()
-			if commitsErr == nil && strings.TrimSpace(string(commitsOut)) == "" {
-				fmt.Fprintf(r.stdout, "\n⚠  task.completed logged but no commits found on branch %q ahead of %q\n", branch, defaultBranch)
-				fmt.Fprintf(r.stdout, "   Agent may not have committed work. Run: aom task verify %s\n", view.Task.ID)
+	if view.Task.Status != "Done" && view.Task.Status != "Archived" {
+		if view.Worktree != nil {
+			logPath := taskArtifactLogPath(result.Project.RepoPath, result.StateDir, view.Task.ID, view.Worktree)
+			if hasTaskCompletedEvent(logPath) {
+				branch := view.Worktree.BranchName
+				defaultBranch := result.Project.DefaultBranch
+				commitsOut, commitsErr := exec.Command("git", "-C", result.Project.RepoPath,
+					"log", "--oneline", defaultBranch+".."+branch).Output()
+				if commitsErr == nil && strings.TrimSpace(string(commitsOut)) == "" {
+					fmt.Fprintf(r.stdout, "\n⚠  task.completed logged but no commits found on branch %q ahead of %q\n", branch, defaultBranch)
+					fmt.Fprintf(r.stdout, "   Agent may not have committed work. Run: aom task verify %s\n", view.Task.ID)
+				}
+			}
+		} else if agentRec := findAgentByName(result.Agents, view.Task.PreferredAgent); agentRec != nil &&
+			strings.TrimSpace(agentRec.WorkspacePath) != "" &&
+			strings.TrimSpace(view.Task.PreferredAgent) != "" {
+			// Workspace agent: check workspace log and agents/<name> branch.
+			wsLogPath := filepath.Join(strings.TrimSpace(agentRec.WorkspacePath), ".agent", "log.md")
+			if hasTaskCompletedEvent(wsLogPath) {
+				branch := "agents/" + strings.TrimSpace(view.Task.PreferredAgent)
+				taskID := view.Task.ID
+				defaultBranch := result.Project.DefaultBranch
+				// Check any commits exist on the branch.
+				commitsOut, commitsErr := exec.Command("git", "-C", result.Project.RepoPath,
+					"log", "--oneline", defaultBranch+".."+branch).Output()
+				if commitsErr == nil && strings.TrimSpace(string(commitsOut)) == "" {
+					fmt.Fprintf(r.stdout, "\n⚠  task.completed logged but no commits found on branch %q ahead of %q\n", branch, defaultBranch)
+					fmt.Fprintf(r.stdout, "   Agent may not have committed work. Run: aom task verify %s\n", taskID)
+				} else {
+					// Commits exist — check for [TASK-xxx] tag specifically.
+					taggedOut, taggedErr := exec.Command("git", "-C", result.Project.RepoPath,
+						"log", "--oneline", "--fixed-strings", "--grep=["+taskID+"]",
+						defaultBranch+".."+branch).Output()
+					if taggedErr == nil && strings.TrimSpace(string(taggedOut)) == "" {
+						fmt.Fprintf(r.stdout, "\n⚠  task.completed logged but no commits tagged [%s] on branch %q\n", taskID, branch)
+						fmt.Fprintf(r.stdout, "   Commits exist but will be excluded from merge — prefix commits with [%s]\n", taskID)
+						fmt.Fprintf(r.stdout, "   Run: aom task verify %s\n", taskID)
+					}
+				}
 			}
 		}
 	}
@@ -434,6 +463,32 @@ func (r Runner) executeTaskClose(args []string) error {
 		if commitsErr == nil && strings.TrimSpace(string(commitsOut)) == "" {
 			fmt.Fprintf(r.stdout, "Warning: branch %q has no commits ahead of %q — agent work will not appear in git history after merge.\n\n", branch, defaultBranch)
 		}
+	} else if viewErr == nil && view != nil && view.Worktree == nil {
+		// Workspace agent: no per-task worktree — check the agents/<name> branch instead.
+		agentName := strings.TrimSpace(view.Task.PreferredAgent)
+		if agentRecord := findAgentByName(result.Agents, agentName); agentRecord != nil &&
+			strings.TrimSpace(agentRecord.WorkspacePath) != "" && agentName != "" {
+
+			wsPath := strings.TrimSpace(agentRecord.WorkspacePath)
+			branch := "agents/" + agentName
+			defaultBranch := result.Project.DefaultBranch
+
+			// Uncommitted changes in the workspace.
+			statusOut, statusErr := exec.Command("git", "-C", wsPath, "status", "--porcelain").Output()
+			if statusErr == nil && strings.TrimSpace(string(statusOut)) != "" {
+				fmt.Fprintf(r.stdout, "Warning: workspace has uncommitted changes — run 'git commit' in %s before merging.\n\n", wsPath)
+			}
+
+			// No commits tagged [TASK-taskID] on the workspace branch yet.
+			commitsOut, commitsErr := exec.Command("git", "-C", result.Project.RepoPath,
+				"log", "--oneline", "--fixed-strings", "--grep=["+taskID+"]",
+				defaultBranch+".."+branch).Output()
+			if commitsErr == nil && strings.TrimSpace(string(commitsOut)) == "" {
+				fmt.Fprintf(r.stdout, "Warning: no commits tagged [%s] on branch %q — "+
+					"agent must prefix commits with [%s] so AOM can identify them at merge time.\n\n",
+					taskID, branch, taskID)
+			}
+		}
 	}
 
 	record, err := taskService.Close(taskID)
@@ -498,18 +553,44 @@ func (r Runner) executeTaskClose(args []string) error {
 func (r Runner) executeTaskAccept(args []string) error {
 	var taskID string
 	force := false
-	for _, arg := range args {
-		switch arg {
+	autoMode := false
+	autoInterval := 15 * time.Second
+	autoTimeout := 30 * time.Minute
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
 		case "--force":
 			force = true
+		case "--auto":
+			autoMode = true
+		case "--interval":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--interval requires a value (e.g. 15s, 1m)")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--interval: %w", err)
+			}
+			autoInterval = d
+		case "--timeout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--timeout requires a value (e.g. 30m, 2h)")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--timeout: %w", err)
+			}
+			autoTimeout = d
 		default:
-			if strings.HasPrefix(arg, "-") {
-				return fmt.Errorf("unknown flag %q", arg)
+			if strings.HasPrefix(args[i], "-") {
+				return fmt.Errorf("unknown flag %q", args[i])
 			}
 			if taskID != "" {
 				return fmt.Errorf("task accept takes exactly one task identifier")
 			}
-			taskID = strings.TrimSpace(arg)
+			taskID = strings.TrimSpace(args[i])
 		}
 	}
 	if taskID == "" {
@@ -519,6 +600,58 @@ func (r Runner) executeTaskAccept(args []string) error {
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
 		return err
+	}
+
+	// --auto mode: poll verify checks every interval until all pass, then accept.
+	if autoMode {
+		agentHint := taskID
+		fmt.Fprintf(r.stdout, "Auto-accept: watching %s — polling every %s, timeout %s\n", taskID, autoInterval, autoTimeout)
+		fmt.Fprintln(r.stdout, "Press Ctrl+C to cancel.")
+		fmt.Fprintln(r.stdout, "")
+		deadline := time.Now().Add(autoTimeout)
+		iteration := 1
+		for {
+			view, viewErr := r.loadTaskView(result, taskID)
+			if viewErr == nil && view != nil {
+				if strings.TrimSpace(view.Task.PreferredAgent) != "" {
+					agentHint = view.Task.PreferredAgent
+				}
+				checks := r.runTaskVerifyChecks(result, view)
+				allOK := true
+				fmt.Fprintf(r.stdout, "─── #%d  %s ─────────────────────────────\n", iteration, time.Now().Format("15:04:05"))
+				for _, c := range checks {
+					icon := "ok"
+					if !c.ok {
+						icon = "FAIL"
+						allOK = false
+					}
+					if c.note != "" {
+						fmt.Fprintf(r.stdout, "  [%s]  %s — %s\n", icon, c.name, c.note)
+					} else {
+						fmt.Fprintf(r.stdout, "  [%s]  %s\n", icon, c.name)
+					}
+				}
+				if allOK {
+					fmt.Fprintln(r.stdout, "\nAll checks passed — proceeding to accept...")
+					fmt.Fprintln(r.stdout, "")
+					break
+				}
+			}
+			if time.Now().After(deadline) {
+				fmt.Fprintf(r.stdout, "\n⚠  Auto-accept timed out after %s\n\n", autoTimeout)
+				fmt.Fprintln(r.stdout, "Diagnose:")
+				fmt.Fprintf(r.stdout, "  aom capture %s --diff\n", agentHint)
+				fmt.Fprintf(r.stdout, "  aom task verify %s\n", taskID)
+				fmt.Fprintln(r.stdout, "  aom session recover <session-id>")
+				fmt.Fprintln(r.stdout, "")
+				fmt.Fprintln(r.stdout, "Accept anyway (bypass checks):")
+				fmt.Fprintf(r.stdout, "  aom task accept --force %s\n", taskID)
+				return fmt.Errorf("auto-accept: timeout after %s", autoTimeout)
+			}
+			fmt.Fprintf(r.stdout, "\n  (next check in %s...)\n", autoInterval)
+			time.Sleep(autoInterval)
+			iteration++
+		}
 	}
 
 	taskService, sqlDB, err := r.app.OpenTaskService(result.DBPath)
@@ -1518,7 +1651,16 @@ type verifyCheck struct {
 func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) []verifyCheck {
 	var checks []verifyCheck
 
+	// Resolve workspace path for the assigned agent (may be empty for traditional agents).
+	agentRecord := findAgentByName(result.Agents, view.Task.PreferredAgent)
+	workspacePath := ""
+	if agentRecord != nil {
+		workspacePath = strings.TrimSpace(agentRecord.WorkspacePath)
+	}
+
 	// Check 1: commits on branch ahead of default branch.
+	// Traditional agents: check per-task worktree branch.
+	// Workspace agents:   check agents/<name> permanent branch.
 	if view.Worktree != nil {
 		branch := view.Worktree.BranchName
 		defaultBranch := result.Project.DefaultBranch
@@ -1530,11 +1672,51 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 			note = fmt.Sprintf("no commits on %q ahead of %q", branch, defaultBranch)
 		}
 		checks = append(checks, verifyCheck{"commits on branch", hasCommits, note})
+	} else if workspacePath != "" && strings.TrimSpace(view.Task.PreferredAgent) != "" {
+		branch := "agents/" + strings.TrimSpace(view.Task.PreferredAgent)
+		taskID := view.Task.ID
+		defaultBranch := result.Project.DefaultBranch
+
+		// Check 1a: any commits on the workspace branch at all.
+		commitsOut, commitsErr := exec.Command("git", "-C", result.Project.RepoPath,
+			"log", "--oneline", defaultBranch+".."+branch).Output()
+		hasCommits := commitsErr == nil && strings.TrimSpace(string(commitsOut)) != ""
+		note := ""
+		if !hasCommits {
+			note = fmt.Sprintf("no commits on workspace branch %q ahead of %q", branch, defaultBranch)
+		}
+		checks = append(checks, verifyCheck{"commits on branch", hasCommits, note})
+
+		// Check 1b: at least one commit is tagged [TASK-xxx] for this task.
+		// Workspace agents share one branch across tasks — the tag is how AOM
+		// identifies which commits belong to this task at merge time (aom merge commit).
+		// A branch with commits but no tagged commits will produce an empty merge set.
+		taggedOut, taggedErr := exec.Command("git", "-C", result.Project.RepoPath,
+			"log", "--oneline", "--fixed-strings", "--grep=["+taskID+"]",
+			defaultBranch+".."+branch).Output()
+		hasTagged := taggedErr == nil && strings.TrimSpace(string(taggedOut)) != ""
+		tagNote := ""
+		if !hasTagged {
+			tagNote = fmt.Sprintf(
+				"no commit tagged [%s] on branch %q — prefix commits with [%s] so aom merge commit can find them",
+				taskID, branch, taskID,
+			)
+		}
+		checks = append(checks, verifyCheck{"[" + taskID + "] tagged commit", hasTagged, tagNote})
 	}
 
 	// Check 2: state.md has completed work entries.
+	// For workspace agents prefer workspace/.agent/state.md (agent's live copy) over the
+	// task-artifact state.md which is only refreshed by AOM CLI calls.
 	artifactRoot := taskArtifactRoot(result.Project.RepoPath, result.StateDir, view.Task.ID, view.Worktree)
-	stateData, stateErr := os.ReadFile(filepath.Join(artifactRoot, "state.md"))
+	statePath := filepath.Join(artifactRoot, "state.md")
+	if workspacePath != "" {
+		wsStatePath := filepath.Join(workspacePath, ".agent", "state.md")
+		if _, err := os.Stat(wsStatePath); err == nil {
+			statePath = wsStatePath
+		}
+	}
+	stateData, stateErr := os.ReadFile(statePath)
 	stateOK := stateErr == nil && !strings.Contains(string(stateData), "- None recorded yet")
 	stateNote := ""
 	if !stateOK {
@@ -1546,11 +1728,27 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 	}
 	checks = append(checks, verifyCheck{"state.md updated", stateOK, stateNote})
 
-	// Check 3: handoff.md is present and non-trivial.
+	// Check 3: handoff.md is present, non-trivial, and not template placeholder text.
 	handoffData, handoffErr := os.ReadFile(filepath.Join(artifactRoot, "handoff.md"))
 	handoffOK := handoffErr == nil && len(strings.TrimSpace(string(handoffData))) > 80
 	handoffNote := ""
-	if !handoffOK {
+	if handoffOK {
+		// Reject handoff.md files that still contain template sentinel strings.
+		templateSentinels := []string{
+			"Fill this in when the work is ready for transfer",
+			"Fill in what was completed in this session",
+			"Fill in what still needs to happen next",
+			"Record touched files before signaling",
+		}
+		for _, s := range templateSentinels {
+			if strings.Contains(string(handoffData), s) {
+				handoffOK = false
+				handoffNote = "handoff.md still contains template placeholder text — update it before signaling completion"
+				break
+			}
+		}
+	}
+	if !handoffOK && handoffNote == "" {
 		if handoffErr != nil {
 			handoffNote = "handoff.md not found"
 		} else {
@@ -1560,8 +1758,14 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 	checks = append(checks, verifyCheck{"handoff.md filled", handoffOK, handoffNote})
 
 	// Check 4: task.completed event in log.md.
+	// For workspace agents also accept the event from workspace/.agent/log.md since that
+	// is where the agent writes its own completion signal.
 	logPath := taskArtifactLogPath(result.Project.RepoPath, result.StateDir, view.Task.ID, view.Worktree)
 	logOK := hasTaskCompletedEvent(logPath)
+	if !logOK && workspacePath != "" {
+		wsLogPath := filepath.Join(workspacePath, ".agent", "log.md")
+		logOK = hasTaskCompletedEvent(wsLogPath)
+	}
 	logNote := ""
 	if !logOK {
 		logNote = "task.completed event not found in log.md"
@@ -1569,8 +1773,15 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 	checks = append(checks, verifyCheck{"task.completed in log", logOK, logNote})
 
 	// Invariant checks.
+	// For workspace agents use the agents/<name> branch to scan changed files.
+	invariantBranch := ""
 	if view.Worktree != nil {
-		branch := view.Worktree.BranchName
+		invariantBranch = view.Worktree.BranchName
+	} else if workspacePath != "" && strings.TrimSpace(view.Task.PreferredAgent) != "" {
+		invariantBranch = "agents/" + strings.TrimSpace(view.Task.PreferredAgent)
+	}
+	if invariantBranch != "" {
+		branch := invariantBranch
 		defaultBranch := result.Project.DefaultBranch
 		gitLogOut, gitLogErr := exec.Command("git", "-C", result.Project.RepoPath,
 			"log", "--name-only", defaultBranch+".."+branch).Output()
@@ -1623,55 +1834,119 @@ func (r Runner) runTaskVerifyChecks(result *project.OpenResult, view *taskView) 
 
 // executeTaskVerify checks that a task's worktree evidence is consistent with completion:
 // commits exist on branch, state.md updated, handoff.md filled, task.completed in log.
+//
+// --watch mode polls until all checks pass (or --timeout expires).
+// Usage: aom task verify <task-id> [--watch] [--interval <dur>] [--timeout <dur>]
 func (r Runner) executeTaskVerify(args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("task identifier is required")
 	}
+
+	// Parse flags: first positional arg is task ID.
 	taskID := strings.TrimSpace(args[0])
+	watchMode := false
+	interval := 10 * time.Second
+	timeout := 30 * time.Minute
+
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--watch", "-w":
+			watchMode = true
+		case "--interval":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--interval requires a value (e.g. 10s, 30s, 1m)")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--interval: %w", err)
+			}
+			interval = d
+		case "--timeout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--timeout requires a value (e.g. 10m, 1h)")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--timeout: %w", err)
+			}
+			timeout = d
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
 
 	result, err := r.app.Projects.Open(".")
 	if err != nil {
 		return err
 	}
 
-	view, err := r.loadTaskView(result, taskID)
-	if err != nil {
-		return err
-	}
-	if view == nil {
-		return fmt.Errorf("task %q not found", taskID)
-	}
-
-	checks := r.runTaskVerifyChecks(result, view)
-
-	allOK := true
-	fmt.Fprintln(r.stdout, "Task Verify")
-	fmt.Fprintln(r.stdout, "")
-	fmt.Fprintf(r.stdout, "Task:   %s\n", view.Task.ID)
-	fmt.Fprintf(r.stdout, "Title:  %s\n", view.Task.Title)
-	fmt.Fprintf(r.stdout, "Status: %s\n", view.Task.Status)
-	fmt.Fprintln(r.stdout, "")
-
-	for _, c := range checks {
-		icon := "ok"
-		if !c.ok {
-			icon = "FAIL"
-			allOK = false
+	// printVerify prints the check table and returns whether all checks passed.
+	printVerify := func(ts string) bool {
+		view, err := r.loadTaskView(result, taskID)
+		if err != nil || view == nil {
+			fmt.Fprintf(r.stdout, "task %q not found\n", taskID)
+			return false
 		}
-		if c.note != "" {
-			fmt.Fprintf(r.stdout, "[%s]  %s — %s\n", icon, c.name, c.note)
+		checks := r.runTaskVerifyChecks(result, view)
+		allOK := true
+		if ts != "" {
+			fmt.Fprintf(r.stdout, "─── %s ───────────────────────────────────────────\n", ts)
 		} else {
-			fmt.Fprintf(r.stdout, "[%s]  %s\n", icon, c.name)
+			fmt.Fprintln(r.stdout, "Task Verify")
+			fmt.Fprintln(r.stdout, "")
 		}
+		fmt.Fprintf(r.stdout, "Task:   %s\n", view.Task.ID)
+		fmt.Fprintf(r.stdout, "Title:  %s\n", view.Task.Title)
+		fmt.Fprintf(r.stdout, "Status: %s\n", view.Task.Status)
+		fmt.Fprintln(r.stdout, "")
+		for _, c := range checks {
+			icon := "ok"
+			if !c.ok {
+				icon = "FAIL"
+				allOK = false
+			}
+			if c.note != "" {
+				fmt.Fprintf(r.stdout, "[%s]  %s — %s\n", icon, c.name, c.note)
+			} else {
+				fmt.Fprintf(r.stdout, "[%s]  %s\n", icon, c.name)
+			}
+		}
+		fmt.Fprintln(r.stdout, "")
+		if allOK {
+			fmt.Fprintln(r.stdout, "All checks passed — task appears ready for review/accept")
+		} else {
+			fmt.Fprintln(r.stdout, "Some checks failed — review the items above before accepting this task")
+		}
+		return allOK
 	}
 
-	fmt.Fprintln(r.stdout, "")
-	if allOK {
-		fmt.Fprintln(r.stdout, "All checks passed — task appears ready for review/accept")
-	} else {
-		fmt.Fprintln(r.stdout, "Some checks failed — review the items above before accepting this task")
+	if !watchMode {
+		printVerify("")
+		return nil
 	}
-	return nil
+
+	// Watch mode: poll until all checks pass or timeout expires.
+	fmt.Fprintf(r.stdout, "Watching %s — polling every %s, timeout %s\n\n", taskID, interval, timeout)
+	deadline := time.Now().Add(timeout)
+	iteration := 1
+
+	for {
+		ts := fmt.Sprintf("#%d  %s", iteration, time.Now().Format("15:04:05"))
+		allOK := printVerify(ts)
+		if allOK {
+			fmt.Fprintf(r.stdout, "\nAll checks passed after %d poll(s) — run: aom task accept %s\n", iteration, taskID)
+			return nil
+		}
+		if time.Now().After(deadline) {
+			fmt.Fprintf(r.stdout, "\nTimeout after %s — some checks still failing\n", timeout)
+			return fmt.Errorf("verify --watch: timeout after %s", timeout)
+		}
+		fmt.Fprintf(r.stdout, "  (next check in %s...)\n", interval)
+		time.Sleep(interval)
+		iteration++
+	}
 }
 
 func (r Runner) executeTaskCancel(args []string) error {
@@ -1757,6 +2032,139 @@ func (r Runner) executeTaskCancel(args []string) error {
 		fmt.Fprintf(r.stdout, "Steps cancelled: %d\n", cancelledSteps)
 	}
 	return nil
+}
+
+// executeTaskSignal appends a signal event to a task's canonical log so that
+// agents can call "aom task signal <type> --task <id>" instead of manually
+// writing to .agent/log.md.  For workspace agents the event is also mirrored
+// to workspace/.agent/log.md so the agent's own log file stays consistent.
+//
+// Usage:
+//
+//	aom task signal <event-type> --task <task-id> [--summary <text>] [--step <step-id>]
+//
+// Valid event types: task.completed, handoff.prepared, checkpoint.created, step.completed
+func (r Runner) executeTaskSignal(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("event type is required — valid types: task.completed, handoff.prepared, checkpoint.created, step.completed")
+	}
+
+	validEventTypes := map[string]bool{
+		"task.completed":     true,
+		"handoff.prepared":   true,
+		"checkpoint.created": true,
+		"step.completed":     true,
+	}
+	eventType := strings.TrimSpace(args[0])
+	if !validEventTypes[eventType] {
+		return fmt.Errorf("unknown event type %q; valid types: task.completed, handoff.prepared, checkpoint.created, step.completed", eventType)
+	}
+
+	var taskID, summary, stepID string
+
+	// Default actor from AOM_ACTOR env var (set by aom session spawn in agent profile).
+	actor := strings.TrimSpace(os.Getenv("AOM_ACTOR"))
+	if actor == "" {
+		actor = "agent"
+	}
+
+	for i := 1; i < len(args); i++ {
+		switch args[i] {
+		case "--task":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--task requires a value")
+			}
+			taskID = strings.TrimSpace(args[i])
+		case "--summary":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--summary requires a value")
+			}
+			summary = strings.TrimSpace(args[i])
+		case "--step":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--step requires a value")
+			}
+			stepID = strings.TrimSpace(args[i])
+		case "--actor":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--actor requires a value")
+			}
+			actor = strings.TrimSpace(args[i])
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	if taskID == "" {
+		return fmt.Errorf("--task <id> is required")
+	}
+	if summary == "" {
+		summary = eventType
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	event := artifact.Event{
+		Type:    eventType,
+		Actor:   actor,
+		StepID:  stepID,
+		Summary: summary,
+	}
+
+	// Write to the canonical task artifact log (checked by aom task verify).
+	if err := r.syncTaskArtifacts(result, taskID, event, false); err != nil {
+		return err
+	}
+
+	// For workspace agents also mirror the event to workspace/.agent/log.md so
+	// the agent can see their own signal and teammates can cross-check via
+	// aom worktree read-file.
+	view, viewErr := r.loadTaskView(result, taskID)
+	if viewErr == nil && view != nil {
+		agentRecord := findAgentByName(result.Agents, view.Task.PreferredAgent)
+		if agentRecord != nil && strings.TrimSpace(agentRecord.WorkspacePath) != "" {
+			wsLogPath := filepath.Join(strings.TrimSpace(agentRecord.WorkspacePath), ".agent", "log.md")
+			appendSignalToWorkspaceLog(wsLogPath, eventType, actor, taskID, summary)
+		}
+	}
+
+	fmt.Fprintf(r.stdout, "Signal recorded\n\n")
+	fmt.Fprintf(r.stdout, "Event: %s\n", eventType)
+	fmt.Fprintf(r.stdout, "Task:  %s\n", taskID)
+	if stepID != "" {
+		fmt.Fprintf(r.stdout, "Step:  %s\n", stepID)
+	}
+	fmt.Fprintf(r.stdout, "Actor: %s\n", actor)
+	return nil
+}
+
+// appendSignalToWorkspaceLog appends a minimal log entry to a workspace log.md file
+// if the file already exists.  Uses the same heading format as the artifact service so
+// hasTaskCompletedEvent can detect the signal.  Silently ignores write errors — the
+// canonical log (task artifact) is already updated; this is a best-effort mirror.
+func appendSignalToWorkspaceLog(logPath, eventType, actor, taskID, summary string) {
+	// Only mirror if the workspace log already exists — we don't create it here.
+	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	entry := fmt.Sprintf(
+		"\n### %s | %s\n- Actor: %s\n- Task: %s\n- Summary: %s\n",
+		time.Now().UTC().Format(time.RFC3339),
+		eventType,
+		actor,
+		taskID,
+		summary,
+	)
+	_, _ = f.WriteString(entry)
 }
 
 // invariantsPath returns the path to the task invariants file.

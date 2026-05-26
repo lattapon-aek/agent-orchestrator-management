@@ -719,3 +719,98 @@ func TestComputeContinuityReadinessMediumWithNoSession(t *testing.T) {
 		t.Fatalf("want Medium, got %q", got)
 	}
 }
+
+// TestRenderTaskMarkdownWorkspaceAgentHasCompletionSection verifies that task.md
+// for a workspace agent includes the pre-filled "When Done" completion checklist.
+func TestRenderTaskMarkdownWorkspaceAgentHasCompletionSection(t *testing.T) {
+	repoRoot := t.TempDir()
+	svc := NewService(repoRoot, "tasks")
+
+	params := SyncParams{
+		Task: task.Record{
+			ID:             "TASK-001",
+			Title:          "Build API",
+			Mode:           "Direct",
+			Status:         "Ready",
+			PreferredRole:  "backend",
+			PreferredAgent: "backend-main",
+		},
+		Steps: []step.Record{
+			{ID: "STEP-001", TaskID: "TASK-001", Title: "Build API", Status: "Confirmed"},
+		},
+		AgentWorkspacePath: "/workspace/backend-main",
+	}
+
+	md := svc.renderTaskMarkdown(params)
+
+	wantStrings := []string{
+		"## When Done — Run These Commands",
+		"aom step update STEP-001 --status completed",
+		"aom channel append \"backend-main: task TASK-001 done",
+	}
+	for _, want := range wantStrings {
+		if !strings.Contains(md, want) {
+			t.Errorf("renderTaskMarkdown missing %q\ngot:\n%s", want, md)
+		}
+	}
+}
+
+// TestRenderTaskMarkdownTraditionalAgentHasNoCompletionSection verifies that
+// traditional (non-workspace) agents do not get the completion checklist injected.
+func TestRenderTaskMarkdownTraditionalAgentHasNoCompletionSection(t *testing.T) {
+	repoRoot := t.TempDir()
+	svc := NewService(repoRoot, "tasks")
+
+	params := SyncParams{
+		Task: task.Record{
+			ID:             "TASK-002",
+			Title:          "Build API",
+			Mode:           "Direct",
+			Status:         "Ready",
+			PreferredRole:  "backend",
+			PreferredAgent: "backend-main",
+		},
+		Steps: []step.Record{
+			{ID: "STEP-002", TaskID: "TASK-002", Title: "Build API", Status: "Confirmed"},
+		},
+		// No AgentWorkspacePath → traditional worktree agent
+	}
+
+	md := svc.renderTaskMarkdown(params)
+
+	if strings.Contains(md, "## When Done — Run These Commands") {
+		t.Errorf("renderTaskMarkdown should not include completion section for traditional agent")
+	}
+}
+
+// TestRenderTaskMarkdownWorkspaceAgentAllStepsDone verifies that when all steps are
+// terminal the completion section omits the step update command.
+func TestRenderTaskMarkdownWorkspaceAgentAllStepsDone(t *testing.T) {
+	repoRoot := t.TempDir()
+	svc := NewService(repoRoot, "tasks")
+
+	params := SyncParams{
+		Task: task.Record{
+			ID:             "TASK-003",
+			Title:          "Build API",
+			Mode:           "Direct",
+			Status:         "Done",
+			PreferredRole:  "backend",
+			PreferredAgent: "backend-main",
+		},
+		Steps: []step.Record{
+			{ID: "STEP-003", TaskID: "TASK-003", Title: "Build API", Status: "Completed"},
+		},
+		AgentWorkspacePath: "/workspace/backend-main",
+	}
+
+	md := svc.renderTaskMarkdown(params)
+
+	if strings.Contains(md, "aom step update") {
+		t.Errorf("renderTaskMarkdown should not include aom step update when all steps are terminal")
+	}
+	// Should still include channel append
+	if !strings.Contains(md, "aom channel append") {
+		t.Errorf("renderTaskMarkdown should still include aom channel append")
+	}
+}

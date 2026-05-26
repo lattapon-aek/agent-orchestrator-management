@@ -75,6 +75,8 @@ func (r Runner) Execute(args []string) (retErr error) {
 		return r.executeAgent(args[1:])
 	case "attach":
 		return r.executeAttach(args[1:])
+	case "switch":
+		return r.executeSwitch(args[1:])
 	case "approve":
 		return r.executeApprove(args[1:])
 	case "broadcast":
@@ -85,6 +87,8 @@ func (r Runner) Execute(args []string) (retErr error) {
 		return r.executeChannel(args[1:])
 	case "checkpoint":
 		return r.executeCheckpoint(args[1:])
+	case "dashboard":
+		return r.executeDashboard(args[1:])
 	case "deny":
 		return r.executeDeny(args[1:])
 	case "doctor":
@@ -129,6 +133,8 @@ func (r Runner) Execute(args []string) (retErr error) {
 		return r.executeEvents(args[1:])
 	case "watch":
 		return r.executeWatch(args[1:])
+	case "run-pipeline":
+		return r.executeRunPipeline(args[1:])
 	case "worktree":
 		return r.executeWorktree(args[1:])
 	case "project":
@@ -185,6 +191,8 @@ func (r Runner) executeTask(args []string) error {
 		return r.executeTaskCancel(args[1:])
 	case "verify":
 		return r.executeTaskVerify(args[1:])
+	case "signal":
+		return r.executeTaskSignal(args[1:])
 	default:
 		return fmt.Errorf("unknown task command %q", strings.Join(args, " "))
 	}
@@ -249,6 +257,8 @@ func (r Runner) executeSession(args []string) error {
 		return r.executeSessionCleanup(args[1:])
 	case "recover":
 		return r.executeSessionRecover(args[1:])
+	case "watch":
+		return r.executeSessionWatch(args[1:])
 	default:
 		return fmt.Errorf("unknown session command %q", strings.Join(args, " "))
 	}
@@ -416,7 +426,9 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom project init <name> --repo <path> : create .aom config, db, and starter agents")
 	fmt.Fprintln(r.stdout, "aom project resources : show role bindings, skills, MCP servers, and policy")
 	fmt.Fprintln(r.stdout, "aom open : load project state and reconcile tmux/worktree/session state")
-	fmt.Fprintln(r.stdout, "aom status : show project, tasks, sessions, worktrees, and next-action hints")
+	fmt.Fprintln(r.stdout, "aom status [--active] [--graph] [--json] : show project, tasks, sessions, worktrees, and next-action hints")
+	fmt.Fprintln(r.stdout, "aom status --action-items : show only items that need operator attention (approvals, completions, spawns)")
+	fmt.Fprintln(r.stdout, "aom dashboard [--interval <dur>] : live auto-refreshing view of sessions, action items, and team channel (default 5s)")
 	fmt.Fprintln(r.stdout, "aom version : print build metadata for the installed binary")
 	fmt.Fprintln(r.stdout, "aom install [--test] [--dry] : build and install from the current checkout")
 	fmt.Fprintln(r.stdout, "aom update [--test] : pull latest source and reinstall from the current checkout")
@@ -444,7 +456,10 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom task ready <task-id> : confirm all Proposed steps and transition Planned task to Ready in one shot")
 	fmt.Fprintln(r.stdout, "aom task close <task-id> : mark a task complete (task must be InProgress; all steps must be terminal)")
 	fmt.Fprintln(r.stdout, "aom task cancel <task-id> : cancel a Draft/Planned/Ready task (archives it and cancels all pending steps)")
-	fmt.Fprintln(r.stdout, "aom task accept <task-id> : accept agent work — complete all pending steps and close the task in one shot")
+	fmt.Fprintln(r.stdout, "aom task accept <task-id> [--auto] [--interval <dur>] [--timeout <dur>] : accept agent work — complete all pending steps and close the task")
+	fmt.Fprintln(r.stdout, "  --auto : poll every --interval (default 15s) until all verify checks pass, then accept automatically; timeout default 30m")
+	fmt.Fprintln(r.stdout, "aom task verify <task-id> [--watch] [--interval <dur>] [--timeout <dur>] : check completion readiness; --watch polls until all checks pass")
+	fmt.Fprintln(r.stdout, "aom task signal <type> --task <id> [--summary <text>] [--step <step-id>] : record a signal event (task.completed, handoff.prepared, checkpoint.created, step.completed)")
 	fmt.Fprintln(r.stdout, "aom task link <task-id> --blocked-by <blocker-id> : declare that task-id cannot start until blocker-id is done")
 	fmt.Fprintln(r.stdout, "aom task unlink <task-id> --blocked-by <blocker-id> : remove a dependency edge")
 	fmt.Fprintln(r.stdout, "aom review <task-id> [--mock|--real] : prepare or start review flow")
@@ -467,13 +482,15 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom session replace <session-id> --agent <agent> --reason <why> [--mock|--real] : spawn a replacement in the same context")
 	fmt.Fprintln(r.stdout, "aom session set-agent-id <session-id> <native-id> : register the agent CLI's own session ID for resume on next spawn")
 	fmt.Fprintln(r.stdout, "aom session wait <session-id> --event <type> [--timeout 30m] : block until event appears in task log (e.g. handoff.prepared, task.completed)")
+	fmt.Fprintln(r.stdout, "aom session watch [--auto-spawn] [--interval <dur>] [--timeout <dur>] [--real|--mock] : poll for Ready tasks with no session; --auto-spawn spawns them automatically")
 	fmt.Fprintln(r.stdout, "aom session cleanup --stale [--dry-run] : remove orphan policy wrapper dirs and capture state files for inactive sessions")
 	fmt.Fprintln(r.stdout, "aom task reanalyze <task-id> : refresh task artifacts from current state and print recommended next action")
 	fmt.Fprintln(r.stdout, "aom capture <session-id>                        : read worker output through AOM")
 	fmt.Fprintln(r.stdout, "aom capture --all                               : capture every active session in one view")
 	fmt.Fprintln(r.stdout, "aom capture --all --summary                     : signal-only summary for each active session")
 	fmt.Fprintln(r.stdout, "aom capture --all --follow [--interval <dur>]   : stream new lines from all sessions (default interval 2s)")
-	fmt.Fprintln(r.stdout, "aom attach <session-id> : attach manually and log operator intervention")
+	fmt.Fprintln(r.stdout, "aom attach <session-id>   : attach manually and log operator intervention")
+	fmt.Fprintln(r.stdout, "aom switch <agent-name>   : jump to an agent's live session by name (no session-id needed); logs operator.intervention automatically")
 	fmt.Fprintln(r.stdout, "aom checkpoint <session-id> : refresh task artifacts and record a checkpoint")
 	fmt.Fprintln(r.stdout, "aom handoff <session-id> --to <role-or-agent> [--reason <why>] : prepare handoff state")
 	fmt.Fprintln(r.stdout, "aom approve <session-id> : approve a pending WaitingApproval session request")
@@ -509,6 +526,13 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "aom merge commit <task-id> [--into <branch>] : merge task branch; runs merge check first")
 	fmt.Fprintln(r.stdout, "aom merge continue <task-id> : complete a merge paused by conflicts (after git add of resolved files)")
 	fmt.Fprintln(r.stdout, "aom merge abort <task-id> : abort a conflicted merge and restore HEAD")
+	fmt.Fprintln(r.stdout, "")
+	fmt.Fprintln(r.stdout, "Automation (Phase 5 — Guided Autonomy)")
+	fmt.Fprintln(r.stdout, "aom run-pipeline <task-id> [--agent <name>] [--timeout <dur>] [--real|--mock] [--skip-merge]")
+	fmt.Fprintln(r.stdout, "  Runs the full pipeline in one command: spawn → wait(task.completed) → verify → accept → merge")
+	fmt.Fprintln(r.stdout, "  --skip-merge : stop after accept; merge manually later with: aom merge commit <task-id>")
+	fmt.Fprintln(r.stdout, "aom task accept --auto <task-id> [--interval 15s] [--timeout 30m] : poll + auto-accept when all verify checks pass")
+	fmt.Fprintln(r.stdout, "aom session watch --auto-spawn [--interval 15s] [--timeout 60m] [--real|--mock] : auto-spawn agents for Ready tasks")
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Key rules")
 	fmt.Fprintln(r.stdout, "- Never edit .aom/ files directly; use the CLI so state changes stay canonical.")

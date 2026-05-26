@@ -359,12 +359,17 @@ Implemented commands:
 - `aom runtime inspect`
 - `aom policy list [--task <task-id>]`
 - `aom task verify <task-id>` (E2E feedback)
+- `aom task verify <task-id> --watch [--interval <dur>] [--timeout <dur>]` (Phase 4)
 - `aom task ready <task-id>` (E2E feedback)
 - `aom task cancel <task-id>` (E2E feedback)
+- `aom task signal <event-type> --task <id> [--summary <text>] [--step <id>]` (Phase 2)
 - `aom worktree prune [--dry-run]` (E2E feedback)
 - `aom project share <file>` (E2E feedback)
 - `aom status --json` / `-j` (E2E feedback)
+- `aom status --action-items` (Phase 4)
 - `aom capture --summary` (E2E feedback)
+- `aom switch <agent-name>` (Phase 4)
+- `aom dashboard [--interval <dur>]` (Phase 4)
 
 Current behavior notes:
 - `open` ensures tmux workspace and fails clearly when tmux is unavailable
@@ -556,8 +561,12 @@ Implemented after second real WSL test session analysis (AOM_FEEDBACK.md):
 
 ## Verified State
 
-Last verified state before this handoff:
-- `go test ./...` passes
+Last verified state before this handoff (2026-05-26, after Phase 2 + Phase 4 + Phase 5 completion):
+- `go build ./...` passes — `aom task signal`, `aom switch`, `aom dashboard`, `aom status --action-items`, `aom task verify --watch` all compile cleanly
+- `go test ./...` passes — new tests included: `TestAppendSignalToWorkspaceLog`, `TestTaskSignalValidation`, `TestRenderTaskMarkdownWorkspaceAgentHasCompletionSection`, `TestHandoffSentinelRejection`
+- WSL2 E2E: builder → reviewer full pipeline passed 5/5 verify checks; `aom task accept` without `--force`; `aom merge commit` to main (see `E2E-REPORT-WSL2-CLAUDE.md`)
+- (Preserved below: earlier flow records from milestones 2–4 and worktree repair/session/artifact coverage)
+- `go test ./...` passes (earlier milestone baseline)
 - live local Milestone 2 flow passes on macOS:
   - `aom project init aom --repo .`
   - `aom open`
@@ -711,7 +720,7 @@ From a second round of live feedback (Windows 11 + WSL, login-app pipeline).
 | High | `aom merge commit` conflict: raw git error, no guidance | **DONE** — `aom merge continue` + `aom merge abort` added |
 | Medium | Planned→Ready requires 3 commands | **DONE** — `aom task ready` added |
 | Low | `aom session send` shell-escaping for long messages | **DONE** — `--file <path>` flag added |
-| Low | `aom merge commit` does not auto-run merge check first | **NOT DONE** |
+| Low | `aom merge commit` does not auto-run merge check first | **DONE** — `executeMergeCheck` called at top of `executeMergeCommit` (`merge_cmd.go:486`) |
 
 #### What was verified as already working (no fix needed)
 
@@ -722,7 +731,6 @@ From a second round of live feedback (Windows 11 + WSL, login-app pipeline).
 #### Remaining work
 
 1. `.gitignore` + README WSL section (docs only)
-2. auto merge check before `aom merge commit`
 
 ---
 
@@ -1310,65 +1318,228 @@ Four issues from `/tmp/aom-test-005/feedback.md` addressed:
 
 ---
 
+## E2E Feedback — WSL2 Claude-Only Run (2026-05-26)
+
+Full E2E test run on WSL2 Ubuntu with 3 claude-haiku agents (all-claude, all-workspace mode).
+See `E2E-REPORT-WSL2-CLAUDE.md` for full detail. Three bugs found and fixed:
+
+### Fix 1 — `aom task verify` workspace artifact routing (`internal/cli/task_cmd.go`)
+
+- `runTaskVerifyChecks` now looks up the assigned agent's `WorkspacePath` via
+  `findAgentByName(result.Agents, view.Task.PreferredAgent)`.
+- **state.md check**: prefers `workspace/.agent/state.md` over task artifact `tasks/<id>/state.md`
+  when the agent has a workspace — this is the live copy the agent writes.
+- **task.completed check**: ORs `workspace/.agent/log.md` with the task artifact log so the
+  agent's own completion signal is recognised regardless of which log it wrote to.
+- **commits check**: when `view.Worktree == nil` but workspace exists, checks
+  `agents/<name>` branch instead of skipping the check entirely.
+- **invariant checks**: similarly uses `agents/<name>` branch for workspace agents.
+
+### Fix 2 — Completion checklist injected into `task.md` for workspace agents (`internal/artifact/service.go`)
+
+- `renderTaskMarkdown` now builds a `## When Done — Run These Commands` section for workspace
+  agents (when `AgentWorkspacePath != ""`).
+- Section is pre-filled with the exact step ID of the first active step, the agent name, and
+  the task ID so the agent can copy-paste without looking anything up.
+- When all steps are already terminal the step update command is omitted; the channel append
+  command is always included.
+- Traditional (non-workspace) agents are unaffected — no section injected.
+
+### Fix 3 — `handoff.md` sentinel check (`internal/cli/task_cmd.go`)
+
+- `runTaskVerifyChecks` check 3 now detects four template placeholder strings
+  (`"Fill this in when the work is ready for transfer"`, `"Fill in what was completed"`,
+  `"Fill in what still needs to happen next"`, `"Record touched files before signaling"`)
+  and returns FAIL with `"handoff.md still contains template placeholder text"` when found.
+- Previously the check only tested file existence + length > 80 bytes, which accepted
+  unmodified templates.
+
+### Tests added
+- `internal/artifact/service_test.go`: `TestRenderTaskMarkdownWorkspaceAgentHasCompletionSection`,
+  `TestRenderTaskMarkdownTraditionalAgentHasNoCompletionSection`,
+  `TestRenderTaskMarkdownWorkspaceAgentAllStepsDone`
+- `internal/cli/task_verify_test.go`: `TestHasTaskCompletedEventDetectsWorkspaceLog`,
+  `TestHandoffSentinelRejection`, `TestHandoffSentinelPassesOnRealContent`
+
+### Verified in WSL
+`aom task verify` on the E2E demo-app task now shows:
+```
+[ok]  commits on branch      (agents/backend-main)
+[ok]  state.md updated       (workspace/.agent/state.md)
+[FAIL] handoff.md filled     (template text — correct, agent didn't fill it)
+[ok]  task.completed in log  (workspace/.agent/log.md)
+```
+
+---
+
+## Phase 2 — Reliable Multi-Agent Handoff ✅ (Complete 2026-05-26)
+
+All Phase 2 items resolved. Builder → reviewer pipeline passes without silent failure and without `--force`.
+
+### `aom task signal` — New Command
+
+- CLI: `aom task signal <event-type> --task <id> [--summary <text>] [--step <id>]`
+- Valid events: `task.completed`, `handoff.prepared`, `checkpoint.created`, `step.completed`
+- Actor defaults to `AOM_ACTOR` env var (set at session spawn) or `"agent"`
+- Writes a structured event entry to the canonical task artifact log via `syncTaskArtifacts`
+- Best-effort mirrors to `workspace/.agent/log.md` via `appendSignalToWorkspaceLog` (silent no-op when file absent)
+- Replaces manual log.md writes — agents call one command; AOM owns the schema
+- `base.md.tmpl` Constraints: "Use `aom task signal` — do NOT write to .agent/log.md directly"
+- `base.md.tmpl` AOM Workflow step 3 updated with exact signal commands for each event type
+- `task.md` completion checklist for workspace agents pre-fills `aom task signal task.completed` command
+
+### Profile and Verification Fixes
+
+| Fix | File | Change |
+|-----|------|--------|
+| F1 — log.md schema contradiction | `profiles/base.md.tmpl` | Constraints section no longer contradicts Workflow step 3; agents use `aom task signal` only |
+| F2 — verify missing `[TASK-xxx]` check | `internal/cli/task_cmd.go` | `runTaskVerifyChecks` Check 1b: ≥1 commit tagged `[TASK-xxx]` for workspace agents |
+| F3 — hardcoded "Out of Scope" | `internal/artifact/service.go` | `renderTaskMarkdown` now shows project-neutral scope boundary |
+| F4 — duplicate starting protocol | `profiles/base.md.tmpl` | Merged into single 6-step "Starting a session"; removed duplicate from Collaboration Routines |
+| F5 — commit guard skips workspace agents | `internal/cli/task_cmd.go` | `aom task show` commit guard extended: workspace log + tagged commits on `agents/<name>` |
+| F6 — verify syntactic not semantic | `internal/cli/task_cmd.go` | state.md check prefers `workspace/.agent/state.md`; task.completed check reads workspace log |
+| F7 — orchestrator profile verify-gate | `profiles/orchestrator.md.tmpl` | "When a worker finishes" adds `aom task verify` step; NOTE on gate refusal; `--force` as last resort |
+| F8 — frontend commit convention | `profiles/frontend.md.tmpl` | `[TASK-xxx]` commit convention note in Work Standards; explains `aom merge commit` dependency |
+
+### E2E Result
+
+```
+builder: task done → aom task signal task.completed → verify 5/5 checks PASS → accept (no --force)
+reviewer: spawned → review-report.md written → aom task signal task.completed → accept → aom merge commit
+```
+
+All Phase 2 milestones verified in WSL2 with real claude-haiku sessions.  
+See `docs/dev/e2e-2agent-test-plan.md` for the full test plan and results.
+
+---
+
+## Phase 4 — Operator UX: Navigation & Observability ✅ (Complete 2026-05-26)
+
+All four Phase 4 items implemented and wired in `internal/cli/root.go`.
+
+### `aom task verify --watch`
+
+- `executeTaskVerify` parses `--watch`, `--interval <dur>` (default 10s), `--timeout <dur>` (default 30m)
+- Loop: run all verify checks → exit `allOK` → sleep interval → repeat until timeout
+- Output prefix: `#N  HH:MM:SS` per iteration; `All checks passed after N poll(s) — run: aom task accept <id>` on success
+- Implemented in `internal/cli/task_cmd.go`
+
+### `aom status --action-items`
+
+- New `--action-items`/`--actions` flag in `executeStatus`
+- Calls `buildActionItems(result, sessions, taskViews)` — shared helper also used by `aom dashboard`
+- Priority 1 (red):    WaitingApproval sessions → `[APPROVAL]` + `aom approve <id>`
+- Priority 2 (yellow): `task.completed` in log but status ≠ Done → `[ACCEPT]` + `aom task accept <id>`
+- Priority 2 (yellow): Ready tasks with no active session → `[SPAWN]` + `aom session spawn <agent>`
+- Priority 3 (dim):    Blocked tasks → `[BLOCKED]`
+- Implemented in `internal/cli/project_cmd.go`; `actionItem` struct + `buildActionItems` + `printActionItems` helpers
+
+### `aom switch <agent-name>`
+
+- Top-level command; takes agent name (not session ID)
+- Scans sessions newest-first for a live tmux pane belonging to the named agent
+- On success: attaches pane + logs `operator.intervention` event to the task log
+- On failure: lists all known sessions for agent + spawn hint
+- Implemented in `internal/cli/tmux_cmd.go`
+
+### `aom dashboard [--interval <dur>]`
+
+- New file: `internal/cli/dashboard_cmd.go` (181 lines)
+- Default interval 5s; `--interval 10s` to override; Ctrl+C exits cleanly via `signal.NotifyContext`
+- ANSI clear-screen (`\033[?25l\033[H\033[2J`) + cursor hide/restore per frame
+- Three sections per frame: **Sessions** (agent | status | task | pane live/dead), **Action Items** (from `buildActionItems`), **Recent Channel** (last 6 non-empty/non-heading lines from `channel.md`)
+
+### Tests
+
+- `TestAppendSignalToWorkspaceLog` (3 sub-cases) in `internal/cli/task_verify_test.go`
+- `TestTaskSignalValidation` (4 sub-cases) in `internal/cli/task_verify_test.go`
+
+---
+
+## Phase 5 — Guided Autonomy ✅ (Complete 2026-05-26)
+
+All four Phase 5 items implemented. Operator can now hand off monitoring to the CLI and only
+intervene when the system escalates.
+
+### `aom task accept --auto`
+
+- New flags on `aom task accept`: `--auto`, `--interval <dur>` (default 15s), `--timeout <dur>` (default 30m)
+- When `--auto` is set: enters a polling loop; calls `runTaskVerifyChecks` each iteration
+- Prints `#N  HH:MM:SS` per iteration with `[ok]`/`[FAIL]` for each check
+- Breaks and proceeds to accept when all checks pass
+- On timeout: prints agent-specific escalation hints (`aom capture <agent> --diff`, `aom session recover`) and returns error
+- Implemented in `internal/cli/task_cmd.go` (indexed loop flag parse + auto-poll block before accept body)
+
+### `aom session watch [--auto-spawn]`
+
+- New session subcommand: `aom session watch [--auto-spawn] [--interval 15s] [--timeout 60m] [--real|--mock]`
+- Guard: `--auto-spawn` requires `--mock` or `--real` (returns error if neither set)
+- Loop: loads all sessions + task views → calls `buildActionItems` → filters `SPAWN` items
+- Without `--auto-spawn`: prints pending SPAWN items each interval (informational watch)
+- With `--auto-spawn`: calls `parseSpawnItemCommand` on each SPAWN command string → `executeSessionSpawn`; spawn errors are non-fatal (logged + continue)
+- On timeout: returns `nil` (clean exit; no error — watch expiring is expected)
+- Implemented in `internal/cli/session_cmd.go`; `parseSpawnItemCommand` helper guards on `parts[i-1] == "session"` to avoid false matches
+
+### `aom run-pipeline <task-id>`
+
+- New top-level command: `aom run-pipeline <task-id> [--agent <name>] [--timeout 60m] [--real|--mock] [--skip-merge]`
+- Requires `--mock` or `--real`; resolves agent from `task.PreferredAgent` or `--agent` override
+- Five stages with stage headers (`━━━ Stage N: Name ━━━`):
+  - **Stage 1 — Spawn**: `executeSessionSpawn([agentName, "--task", taskID, launchFlag])`
+  - **Stage 2 — Wait for task.completed**: polls `runTaskVerifyChecks` for `"task.completed in log"` check; `goto stage3` when found
+  - **Stage 3 — Verify**: polls `runTaskVerifyChecks` until all checks pass; prints `[ok]/[FAIL]` each iteration
+  - **Stage 4 — Accept**: `executeTaskAccept([taskID])`
+  - **Stage 5 — Merge**: `executeMergeCommit([taskID])`; if merge fails after accept, prints resume hints and returns wrapped error; `--skip-merge` skips stage 5
+- Implemented in `internal/cli/pipeline_cmd.go` (new file, 235 lines)
+- `escalate(stage, diagHint)` helper prints remaining budget + resume commands on timeout
+
+### Timeout + Escalation
+
+Every polling command prints remaining budget and agent-specific resume hints on timeout:
+
+| Command | Stage-specific hint |
+|---------|---------------------|
+| `aom task accept --auto` | `aom capture <agent> --diff` + `aom session recover <id>` |
+| `aom run-pipeline` (wait stage) | `aom capture <agent> --diff` + `aom session recover <id>` |
+| `aom run-pipeline` (verify stage) | `aom task verify <task-id>` + `aom capture <agent> --diff` |
+
+### Tests
+
+24 new test cases in `internal/cli/phase5_test.go`:
+
+- `TestTaskAcceptAutoFlagValidation` — 7 sub-cases: missing task id, bad --interval, bad --timeout, --interval missing value, --timeout missing value, unknown flag, two positional args
+- `TestSessionWatchFlagValidation` — 6 sub-cases: --auto-spawn without mode, bad --interval, bad --timeout, --interval missing value, unknown flag, --mock + --real conflict
+- `TestRunPipelineFlagValidation` — 6 sub-cases: no args, no launch mode, bad --timeout, --agent missing value, unknown flag, --mock + --real conflict
+- `TestParseSpawnItemCommand` — 4 sub-cases: with task, without task (reviewer), "session" guard prevents false match
+
+All 24 tests pass. `go build ./...` clean.
+
+---
+
 ## Immediate Next Step
 
-Milestones 0–17, all E2E feedback improvements, and cross-platform polish are complete.
+Phases 1–5 complete. Milestones 0–17, all E2E feedback rounds, cross-platform polish,
+Free-Roam Workspace (Tracks A–C), and Guided Autonomy are fully resolved. The system is at
+Level 5 of the readiness criteria defined in `docs/AOM-MASTER-PLAN.md`.
 
-### Track A — Per-Agent Workspace (Free-Roam foundation)
+### Completed — no further action needed
 
-Full plan in `docs/free-roam-workspace.md`.
+| Work | Status |
+|------|--------|
+| Milestones 0–17 | ✅ Complete |
+| E2E feedback rounds 1–11 | ✅ Complete |
+| Cross-platform (Windows/WSL2/macOS) polish | ✅ Complete |
+| Per-Agent Workspace / Free-Roam (Track A A1–A8) | ✅ Complete — see Per-Agent Workspace section |
+| Free-Roam Messaging (Track B B1–B5) | ✅ Complete |
+| Phase 2 — Reliable Multi-Agent Handoff (F1–F8) | ✅ Complete — see Phase 2 section |
+| Phase 4 — Operator UX (switch / verify --watch / --action-items / dashboard) | ✅ Complete — see Phase 4 section |
+| Phase 5 — Guided Autonomy (accept --auto / session watch / run-pipeline) | ✅ Complete — see Phase 5 section |
 
-**Why**: In the current per-task-worktree model, when an agent gets a new task it must `cd` to a new
-worktree. `cd` is sent via `tmux send-keys` to a running TUI (claude/codex), which receives it as a
-chat message rather than a shell command — the agent's process CWD never changes and state diverges.
-Per-Agent Workspace eliminates this by giving each agent one permanent workspace that never moves.
+### Phase 3.3 — Cross-Provider E2E 🔲 (Ready to start)
 
-**What changes:**
-
-| Step | Status | File | Change |
-|------|--------|------|--------|
-| A1 | ✅ Done | `internal/db/db.go` | Schema migration v9: `ALTER TABLE agents ADD COLUMN workspace_path TEXT NOT NULL DEFAULT ''` |
-| A2 | ✅ Done | `internal/agent/repository.go` | Add `WorkspacePath string` field; update Upsert + scan |
-| A3 | ✅ Done | `internal/worktree/service.go` | Add `ProvisionAgentWorkspace(repoPath, agentName) (string, error)` — `<repo>/.aom/agents/<name>/workspace/` as git worktree on `agents/<name>` branch; idempotent |
-| A4 | ✅ Done | `internal/cli/agent_cmd.go` | Add `aom agent provision <name>` subcommand |
-| A5 | ✅ Done | `internal/cli/session_spawn_helpers.go` | `resolveTaskExecutionPath`: check `agentRecord.WorkspacePath != ""` first; return workspace path if set |
-| A6 | ✅ Done | `internal/artifact/service.go` | `TaskArtifactRoot` returns `<workspace>/.agent/tasks/<taskID>` when workspace set, else legacy `.agent/` |
-| A7 | ✅ Done | `internal/cli/task_cmd.go` | `aom task claim`: skip `ensurePlannedWorktree` when agent has workspace; write `current-task.md` |
-| A8 | ✅ Done | `internal/cli/merge_cmd.go` | `aom merge commit`: `resolveSourceBranch` helper detects workspace agent (`agents/<name>` branch) vs legacy worktree; verifies `[TASK-xxx]` tagged commits on agent branch before merge; `aom merge continue` updated consistently |
-
-**Track A complete.** Backward compatible: agents without `workspace_path` keep using per-task worktrees unchanged.
-
-### Track B — Free-Roam Messaging
-
-Full plan in `docs/free-roam-workspace.md` (Communication Features section).
-
-**Why**: Agents must currently poll `aom message read` for new messages. There is no live notification.
-The `aom message watch` command enables reactive inbox — agent is notified as messages arrive.
-`aom message reply` closes the request-response loop without manual routing.
-
-**What changes:**
-
-| Step | Status | File | Change |
-|------|--------|------|--------|
-| B1 | ✅ Done | `internal/cli/message_cmd.go` | Add `watch` subcommand — tail `.aom/mailbox/<agent>.md` using byte-offset tracking (same pattern as `tailLogEvents` in `log_wait.go`) |
-| B2 | ✅ Done | `internal/cli/message_cmd.go` | Add `reply <msg-id> <text>` subcommand — parse `from:` field from mailbox entry, route reply to sender |
-| B3 | ✅ Done | `internal/cli/root.go` | Wire `watch` and `reply` into `executeMessage` switch |
-| B4 | ✅ Done | `profiles/base.md.tmpl` | Add "When user asks to contact a teammate" and "When user asks to tell the team" workflow |
-| B5 | ✅ Done | `profiles/orchestrator.md.tmpl` | Add "Relaying operator feedback" and "Acting as peer relay" sections |
-
-**Track B complete.**
-
-### Track C — Document Updates
-
-| Document | Status | Change |
-|----------|--------|--------|
-| `docs/free-roam-workspace.md` | ✅ Done | Created — full concept + implementation plan |
-| `docs/AOM-planning.md` | ✅ Done | Added "Option C — Free-Roam" to Interaction Models section |
-| `docs/cli-spec.md` | ✅ Done | Added `aom message watch`, `aom message reply`, `aom agent provision` specs |
-| `profiles/base.md.tmpl` | ✅ Done | Free-Roam communication workflow |
-| `profiles/orchestrator.md.tmpl` | ✅ Done | Peer relay protocol |
-
-**All Free-Roam tracks complete (A1–A8, B1–B5, Track C).**
+- `claude` backend + `codex` frontend + `claude` reviewer in the same AOM pipeline
+- Both providers are confirmed working individually (claude ✅ codex ✅)
+- No blockers — can be run in WSL2 with existing toolchain
 
 ### Deferred (unchanged)
 

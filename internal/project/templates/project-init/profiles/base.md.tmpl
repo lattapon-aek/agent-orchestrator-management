@@ -8,10 +8,16 @@
 {{.RoleSection}}
 ## AOM Workflow
 
-### Starting a session
-1. Read .agent/task.md — understand goal, scope, and pipeline position
-2. Read .agent/state.md — see current progress and remaining steps
-3. Read .agent/log.md — review history and last checkpoint
+### Starting a session — do these in order, every time
+1. Read your team context:
+     cat .agent/team-roster.md
+2. Check your inbox for messages from teammates:
+     aom message read {{.AgentName}}
+3. Read .agent/task.md — understand goal, scope, and pipeline position
+4. Read .agent/state.md — see current progress and remaining steps
+5. Read .agent/log.md — review history and last checkpoint
+6. Announce you are starting:
+     aom channel append "{{.AgentName}}: STARTING — <one-line summary of your goal>"
 
 ### After completing each step — do ALL three
 1. Update state.md directly (edit the file in your worktree):
@@ -40,9 +46,18 @@
    use instead: aom worktree commit --local -m "your message"
    (--local runs git add -A automatically and is safe inside any sandboxed runtime)
    Do NOT use timeout wrappers, background shells (&/nohup), or retry loops.
-3. Choose the right signal:
-   - Task fully done → append event "task.completed" to .agent/log.md
-   - Handing off to another agent → append event "handoff.prepared" to .agent/log.md
+   WORKSPACE AGENTS: if your workspace is a permanent per-agent worktree (you never cd to
+   a per-task worktree), prefix every commit with `[TASK-xxx]` where xxx is the current
+   task ID (shown in .agent/task.md). This lets AOM identify your commits at merge time.
+   Example: git add -A && git commit -m "[TASK-abc-1] implement feature X"
+3. Record the right signal via AOM (replaces manual log.md writes):
+   - Task fully done:
+       aom task signal task.completed --task <task-id> --summary "<one-line summary>"
+   - Handing off to another agent:
+       aom task signal handoff.prepared --task <task-id> --summary "<one-line summary>"
+   - Saving a mid-task checkpoint:
+       aom task signal checkpoint.created --task <task-id> --summary "<progress note>"
+   (<task-id> is shown in .agent/task.md under "Task ID")
 4. Announce completion to the team:
    aom channel append "{{.AgentName}}: task done — <one-line summary of what was delivered>"
 
@@ -61,13 +76,13 @@
 - <anything unresolved or risky>
 ```
 
-### Valid log events
-| Event              | Use when                                          |
-|--------------------|---------------------------------------------------|
-| task.completed     | Work is done; ready for operator to close         |
-| handoff.prepared   | Passing work to another agent to continue         |
-| checkpoint.created | Saving progress mid-task                          |
-| step.completed     | A sub-step finished                               |
+### Valid signal events — always use `aom task signal` (do NOT write to log.md directly)
+| Event              | Use when                                          | Command                                                              |
+|--------------------|---------------------------------------------------|----------------------------------------------------------------------|
+| task.completed     | Work is done; ready for operator to close         | `aom task signal task.completed --task <id> --summary "<summary>"`   |
+| handoff.prepared   | Passing work to another agent to continue         | `aom task signal handoff.prepared --task <id> --summary "<summary>"` |
+| checkpoint.created | Saving progress mid-task                          | `aom task signal checkpoint.created --task <id> --summary "<note>"`  |
+| step.completed     | A sub-step finished                               | `aom task signal step.completed --task <id> --step <step-id>`        |
 
 ### Waiting for another session to finish
   aom session wait <session-id> --event task.completed
@@ -144,14 +159,6 @@ and "message send" will stage to .agent/outbox.md instead. The operator runs
 
 These protocols let you work as a self-coordinating team without waiting for the operator.
 
-### Starting a session — do this FIRST before any implementation work
-1. Read your team context and task dependencies:
-     cat .agent/team-roster.md
-2. Check your inbox for messages from teammates:
-     aom message read {{.AgentName}}
-3. Announce you are starting:
-     aom channel append "{{.AgentName}}: STARTING — <one-line summary of your goal>"
-
 ### After completing each step — before starting the next
 Check your inbox for new messages from teammates:
      aom message read {{.AgentName}}
@@ -189,7 +196,10 @@ and notify each dependent teammate explicitly.
 
 ## Constraints
 - Stay within the current task scope
-- Do not modify .agent/index.md or .agent/log.md directly — those are AOM-owned
+- Do not edit .agent/index.md — it is AOM-managed and will be overwritten; treat it as read-only
+- Use `aom task signal <type> --task <id>` to record signal events — do NOT write to .agent/log.md directly
+  (aom task signal handles both the task artifact log and workspace log in one command)
+  Do NOT edit or delete existing log entries — log.md is append-only by convention
 
 ## Model Configuration
 

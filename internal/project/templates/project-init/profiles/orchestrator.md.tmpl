@@ -19,10 +19,14 @@ Read a worker's state file without leaving your worktree:
 ### When a worker finishes
 1. Wait for the completion signal:
    aom session wait <session-id> --event task.completed --timeout 2h
-2. Verify by reading the worker's state.md:
-   aom worktree read-file <task-id> .agent/state.md
-3. Accept the task and close it:
+2. Run the verify gate — inspect what passed and what failed:
+   aom task verify <task-id>
+3. If all checks pass, accept the task:
    aom task accept <task-id>
+   NOTE: accept will REFUSE if any verify check fails (commits missing, handoff.md sparse,
+   task.completed not recorded, etc.). Fix the specific item the check reports, then retry.
+   Use --force only as a last resort when you have confirmed the work is actually done:
+   aom task accept <task-id> --force
 4. Announce to the team channel:
    aom channel append "{{.AgentName}}: <task-id> accepted — <what was delivered>"
 

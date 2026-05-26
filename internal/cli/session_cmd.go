@@ -1088,6 +1088,27 @@ func (r Runner) executeSessionResumeToTask(result *project.OpenResult, record *s
 		return err
 	}
 
+	// G1-resume: soft warning (not a hard error) for same-runtime no-workspace collision
+	// when rebinding a session to a new task.  Spawn already enforces this as a hard error;
+	// resume is softer because the operator is explicitly directing the rebind.
+	if strings.TrimSpace(agentRecord.WorkspacePath) == "" {
+		for _, other := range result.Agents {
+			if other.Name != agentRecord.Name &&
+				other.Runtime == agentRecord.Runtime &&
+				other.Enabled &&
+				strings.TrimSpace(other.WorkspacePath) == "" {
+				fmt.Fprintf(r.stdout,
+					"Warning: session resume — agent %q and %q both use runtime=%q but neither has a workspace.\n"+
+						"Identity files (CLAUDE.md/AGENTS.md) may overwrite each other.\n"+
+						"Consider: aom agent provision %s && aom agent provision %s\n\n",
+					agentRecord.Name, other.Name, agentRecord.Runtime,
+					agentRecord.Name, other.Name,
+				)
+				break
+			}
+		}
+	}
+
 	if err := r.enforceWriterWorktreeBoundary(result, agentRecord, sessionSpawnParams{
 		taskID:          newTaskID,
 		ignoreSessionID: record.ID,
@@ -1935,4 +1956,155 @@ func (r Runner) executeSessionRecover(args []string) error {
 	fmt.Fprintf(r.stdout, "Continuity:       %s\n", quality)
 	fmt.Fprintf(r.stdout, "Recommended:      %s\n", action)
 	return nil
+}
+
+// executeSessionWatch polls for Ready tasks that have no active session and,
+// when --auto-spawn is set, automatically spawns the assigned agent for each.
+//
+// Usage: aom session watch [--auto-spawn] [--interval <dur>] [--timeout <dur>] [--real|--mock]
+func (r Runner) executeSessionWatch(args []string) error {
+	autoSpawn := false
+	interval := 15 * time.Second
+	watchTimeout := 60 * time.Minute
+	launchMode := aomruntime.LaunchModePlaceholder
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--auto-spawn":
+			autoSpawn = true
+		case "--interval":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--interval requires a value (e.g. 15s, 1m)")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--interval: %w", err)
+			}
+			interval = d
+		case "--timeout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--timeout requires a value (e.g. 30m, 2h)")
+			}
+			d, err := time.ParseDuration(args[i])
+			if err != nil {
+				return fmt.Errorf("--timeout: %w", err)
+			}
+			watchTimeout = d
+		case "--mock":
+			if err := setLaunchMode(&launchMode, aomruntime.LaunchModeMock); err != nil {
+				return err
+			}
+		case "--real":
+			if err := setLaunchMode(&launchMode, aomruntime.LaunchModeReal); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	if autoSpawn && launchMode == aomruntime.LaunchModePlaceholder {
+		return fmt.Errorf("--auto-spawn requires --mock or --real to specify how to launch sessions")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	modeName := "watch (read-only)"
+	if autoSpawn {
+		modeName = "watch + auto-spawn"
+	}
+	fmt.Fprintf(r.stdout, "Session watch (%s) — polling every %s, timeout %s\n", modeName, interval, watchTimeout)
+	fmt.Fprintln(r.stdout, "Press Ctrl+C to stop.")
+	fmt.Fprintln(r.stdout, "")
+
+	deadline := time.Now().Add(watchTimeout)
+	iteration := 1
+
+	for {
+		sessions, sessErr := r.loadProjectSessions(result)
+		if sessErr != nil {
+			return sessErr
+		}
+		taskViews, tvErr := r.loadTaskViews(result, sessions)
+		if tvErr != nil {
+			return tvErr
+		}
+		items := r.buildActionItems(result, sessions, taskViews)
+
+		// Collect SPAWN items only.
+		var spawnItems []actionItem
+		for _, item := range items {
+			if item.label == "SPAWN" {
+				spawnItems = append(spawnItems, item)
+			}
+		}
+
+		ts := fmt.Sprintf("#%d  %s", iteration, time.Now().Format("15:04:05"))
+		fmt.Fprintf(r.stdout, "─── %s ──────────────────────────────────────────\n", ts)
+		if len(spawnItems) == 0 {
+			fmt.Fprintln(r.stdout, "  No Ready tasks waiting for a session.")
+		} else {
+			for _, item := range spawnItems {
+				fmt.Fprintf(r.stdout, "  [SPAWN]  %s\n", item.detail)
+				if item.command != "" {
+					fmt.Fprintf(r.stdout, "           → %s\n", item.command)
+				}
+			}
+			if autoSpawn {
+				for _, item := range spawnItems {
+					agentName, spawnTaskID := parseSpawnItemCommand(item.command)
+					if agentName == "" {
+						fmt.Fprintf(r.stdout, "  [skip] could not parse spawn command: %s\n", item.command)
+						continue
+					}
+					spawnArgs := []string{agentName}
+					if spawnTaskID != "" {
+						spawnArgs = append(spawnArgs, "--task", spawnTaskID)
+					}
+					if launchMode == aomruntime.LaunchModeReal {
+						spawnArgs = append(spawnArgs, "--real")
+					} else {
+						spawnArgs = append(spawnArgs, "--mock")
+					}
+					fmt.Fprintf(r.stdout, "  Auto-spawning %s...\n", agentName)
+					if spawnErr := r.executeSessionSpawn(spawnArgs); spawnErr != nil {
+						fmt.Fprintf(r.stdout, "  [warn] spawn failed: %v — continuing\n", spawnErr)
+					} else {
+						fmt.Fprintf(r.stdout, "  [ok]   %s spawned\n", agentName)
+					}
+				}
+			}
+		}
+
+		if time.Now().After(deadline) {
+			fmt.Fprintf(r.stdout, "\nWatch timeout after %s — exiting.\n", watchTimeout)
+			return nil
+		}
+
+		fmt.Fprintf(r.stdout, "\n  (next check in %s...)\n", interval)
+		time.Sleep(interval)
+		iteration++
+	}
+}
+
+// parseSpawnItemCommand extracts the agent name and task ID from a spawn command
+// string of the form "aom session spawn <agent> --task <id> ...".
+// It only recognises "spawn" when immediately preceded by "session" to avoid
+// false matches in arbitrary text.
+func parseSpawnItemCommand(cmd string) (agentName, taskID string) {
+	parts := strings.Fields(cmd)
+	for i, p := range parts {
+		if p == "spawn" && i > 0 && parts[i-1] == "session" && i+1 < len(parts) {
+			agentName = parts[i+1]
+		}
+		if p == "--task" && i+1 < len(parts) {
+			taskID = parts[i+1]
+		}
+	}
+	return agentName, taskID
 }

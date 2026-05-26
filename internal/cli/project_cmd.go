@@ -586,6 +586,7 @@ func (r Runner) executeStatus(args []string) error {
 	activeOnly := false
 	graphMode := false
 	jsonMode := false
+	actionItemsMode := false
 	for _, arg := range args {
 		switch arg {
 		case "--active":
@@ -594,6 +595,8 @@ func (r Runner) executeStatus(args []string) error {
 			graphMode = true
 		case "--json", "-j":
 			jsonMode = true
+		case "--action-items", "--actions":
+			actionItemsMode = true
 		default:
 			return fmt.Errorf("unknown flag %q", arg)
 		}
@@ -643,7 +646,145 @@ func (r Runner) executeStatus(args []string) error {
 		return r.printStatusJSON(result, sessions, taskCount, taskViews)
 	}
 
+	if actionItemsMode {
+		return r.printActionItems(result, sessions, taskViews)
+	}
+
 	r.printProjectSummary("Project status", result, nil, sessions, taskCount, taskViews)
+	return nil
+}
+
+// actionItem is one concrete thing the operator should do right now.
+type actionItem struct {
+	priority int    // 1=urgent, 2=normal, 3=info
+	label    string // short tag shown in brackets
+	detail   string // human description
+	command  string // exact command to run (empty if none)
+}
+
+// buildActionItems computes the prioritised list of things the operator should
+// do right now, given the current sessions and task views.
+// Extracted so both printActionItems and the dashboard can share the logic.
+func (r Runner) buildActionItems(result *project.OpenResult, sessions []session.Record, taskViews []taskView) []actionItem {
+	var items []actionItem
+
+	// ── Priority 1: sessions waiting for approval ─────────────────────────
+	for _, s := range sessions {
+		if s.Status == "WaitingApproval" {
+			items = append(items, actionItem{
+				priority: 1,
+				label:    "APPROVAL",
+				detail:   fmt.Sprintf("session %s (%s) is waiting for operator approval", s.ID, s.AgentName),
+				command:  fmt.Sprintf("aom approve %s", s.ID),
+			})
+		}
+	}
+
+	// ── Priority 2: tasks that signalled completion but are not yet accepted ─
+	for i := range taskViews {
+		tv := &taskViews[i]
+		if tv.Task.Status == "Done" || tv.Task.Status == "Archived" {
+			continue
+		}
+		// Quick log check — no git required.
+		logPath := taskArtifactLogPath(result.Project.RepoPath, result.StateDir, tv.Task.ID, tv.Worktree)
+		completed := hasTaskCompletedEvent(logPath)
+		if !completed {
+			agentRecord := findAgentByName(result.Agents, tv.Task.PreferredAgent)
+			if agentRecord != nil && strings.TrimSpace(agentRecord.WorkspacePath) != "" {
+				wsLog := filepath.Join(strings.TrimSpace(agentRecord.WorkspacePath), ".agent", "log.md")
+				completed = hasTaskCompletedEvent(wsLog)
+			}
+		}
+		if completed {
+			agentLabel := tv.Task.PreferredAgent
+			if agentLabel == "" {
+				agentLabel = tv.Task.PreferredRole
+			}
+			items = append(items, actionItem{
+				priority: 2,
+				label:    "ACCEPT",
+				detail:   fmt.Sprintf("%s  %q  (agent: %s) — task.completed signalled", tv.Task.ID, tv.Task.Title, agentLabel),
+				command:  fmt.Sprintf("aom task verify %s  &&  aom task accept %s", tv.Task.ID, tv.Task.ID),
+			})
+		}
+	}
+
+	// ── Priority 2: tasks Ready with no active session ─────────────────────
+	activeTasks := make(map[string]bool)
+	for _, s := range sessions {
+		if s.TaskID != "" && s.Status != "Stopped" && s.Status != "Archived" && s.Status != "Failed" && s.Status != "Detached" {
+			activeTasks[s.TaskID] = true
+		}
+	}
+	for i := range taskViews {
+		tv := &taskViews[i]
+		if tv.Task.Status != "Ready" || activeTasks[tv.Task.ID] {
+			continue
+		}
+		agent := tv.Task.PreferredAgent
+		if agent == "" {
+			agent = "<agent>"
+		}
+		items = append(items, actionItem{
+			priority: 2,
+			label:    "SPAWN",
+			detail:   fmt.Sprintf("%s  %q  — no active session", tv.Task.ID, tv.Task.Title),
+			command:  fmt.Sprintf("aom session spawn %s --task %s --real", agent, tv.Task.ID),
+		})
+	}
+
+	// ── Priority 3: tasks Blocked ─────────────────────────────────────────
+	for i := range taskViews {
+		tv := &taskViews[i]
+		if tv.Task.Status == "Blocked" {
+			items = append(items, actionItem{
+				priority: 3,
+				label:    "BLOCKED",
+				detail:   fmt.Sprintf("%s  %q  — waiting on dependency (check: aom status --graph)", tv.Task.ID, tv.Task.Title),
+			})
+		}
+	}
+
+	return items
+}
+
+// printActionItems shows only the items that require operator attention,
+// ordered by priority.  It is much shorter than the full status output.
+func (r Runner) printActionItems(result *project.OpenResult, sessions []session.Record, taskViews []taskView) error {
+	items := r.buildActionItems(result, sessions, taskViews)
+
+	fmt.Fprintln(r.stdout, "Action Items")
+	fmt.Fprintln(r.stdout, "")
+	if len(items) == 0 {
+		fmt.Fprintln(r.stdout, "  Nothing needs operator attention right now.")
+		return nil
+	}
+
+	urgentCount := 0
+	for _, item := range items {
+		if item.priority == 1 {
+			urgentCount++
+		}
+	}
+	if urgentCount > 0 {
+		fmt.Fprintf(r.stdout, colorize("  %d urgent item(s) require immediate attention\n\n", ansiRed, r.stdout), urgentCount)
+	}
+
+	for _, item := range items {
+		priorityColor := ansiYellow
+		if item.priority == 1 {
+			priorityColor = ansiRed
+		} else if item.priority == 3 {
+			priorityColor = ansiDim
+		}
+		fmt.Fprintf(r.stdout, "%s  %s\n", colorize(fmt.Sprintf("[%s]", item.label), priorityColor, r.stdout), item.detail)
+		if item.command != "" {
+			fmt.Fprintf(r.stdout, "         → %s\n", item.command)
+		}
+		fmt.Fprintln(r.stdout, "")
+	}
+	fmt.Fprintf(r.stdout, "%d action item(s) total\n", len(items))
 	return nil
 }
 

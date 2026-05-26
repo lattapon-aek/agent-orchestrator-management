@@ -524,6 +524,45 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 	// default: "not provisioned yet" — leave worktreePath / note as initialised above
 	}
 
+	// Build "When Done" completion checklist for workspace agents.
+	// Pre-fills the exact step ID and agent name so agents don't have to look them up.
+	var completionSection string
+	if strings.TrimSpace(params.AgentWorkspacePath) != "" {
+		activeStepID := ""
+		for _, s := range params.Steps {
+			if s.Status != "Completed" && s.Status != "Skipped" && s.Status != "Canceled" {
+				activeStepID = s.ID
+				break
+			}
+		}
+		agentName := strings.TrimSpace(params.Task.PreferredAgent)
+		taskID := params.Task.ID
+		if activeStepID != "" {
+			completionSection = fmt.Sprintf(
+				"## When Done — Run These Commands\n"+
+					"1. Fill in `.aom/tasks/%s/handoff.md` (Completed / Remaining / Touched Files sections)\n"+
+					"2. Update `.agent/state.md` with a summary of completed work\n"+
+					"3. Commit with `[%s]` prefix: `git add -A && git commit -m \"[%s] <description>\"`\n"+
+					"   (workspace agents share one branch — the tag lets AOM identify your commits at merge time)\n"+
+					"4. Signal completion to AOM: `aom task signal task.completed --task %s --summary \"<one-line summary>\"`\n"+
+					"5. `aom step update %s --status completed`\n"+
+					"6. `aom channel append \"%s: task %s done — <one-line summary>\"`\n\n",
+				taskID, taskID, taskID, taskID, activeStepID, agentName, taskID,
+			)
+		} else {
+			completionSection = fmt.Sprintf(
+				"## When Done — Run These Commands\n"+
+					"1. Fill in `.aom/tasks/%s/handoff.md` (Completed / Remaining / Touched Files sections)\n"+
+					"2. Update `.agent/state.md` with a summary of completed work\n"+
+					"3. Commit with `[%s]` prefix: `git add -A && git commit -m \"[%s] <description>\"`\n"+
+					"   (workspace agents share one branch — the tag lets AOM identify your commits at merge time)\n"+
+					"4. Signal completion to AOM: `aom task signal task.completed --task %s --summary \"<one-line summary>\"`\n"+
+					"5. `aom channel append \"%s: task %s done — <one-line summary>\"`\n\n",
+				taskID, taskID, taskID, taskID, agentName, taskID,
+			)
+		}
+	}
+
 	// Build Pipeline Position section.
 	var pipelineSection strings.Builder
 	pipelineSection.WriteString("## Pipeline Position\n\n")
@@ -579,7 +618,9 @@ func (s *Service) renderTaskMarkdown(params SyncParams) string {
 - Complete the steps tracked for this task
 
 ## Out of Scope
-- Worktree isolation and provider-native runtime integration remain outside this slice
+- Do not expand beyond the steps listed above unless the operator explicitly requests it
+- Do not modify files, tasks, or work assigned to other agents
+- Do not change .aom/ config files (agents.yaml, policy.yaml, project.yaml)
 
 %s
 ## Constraints
@@ -613,7 +654,7 @@ runs "aom outbox flush" to publish. Seeing "Message staged to outbox" is expecte
   cat .aom/team-brief.md     # team snapshot (operator runs: aom team brief)
   cat .aom/project-board.md  # full task board
 
-## Success Criteria
+%s## Success Criteria
 - Planned steps are completed or explicitly resolved
 - Task status reflects the final operator decision
 - Relevant verification is captured before closure
@@ -633,6 +674,7 @@ runs "aom outbox flush" to publish. Seeing "Message staged to outbox" is expecte
 		artifactRoot,
 		params.Task.Title,
 		pipelineSection.String(),
+		completionSection,
 	)
 }
 

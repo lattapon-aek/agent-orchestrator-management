@@ -15,6 +15,11 @@
 - Never commit `.aom/` directory files — `git add -A` will include `.aom/sessions.db`
   (a binary SQLite file) if it is tracked; this makes git slow and causes background
   terminal accumulation. `.aom/` must be in `.gitignore` before the first commit.
+- **Workspace agent commit convention**: prefix every commit with `[TASK-xxx]` where
+  xxx is the current task ID (shown in .agent/task.md under "Task ID").
+  This tag lets `aom merge commit` identify which commits belong to this task.
+  Without it the merge step will produce an empty commit set — your work won't land on main.
+  Example: `git add -A && git commit -m "[TASK-abc-1] add login page component"`
 
 ## Sandbox Constraints
 - Outbound network access is enabled — npm install / pip install should work normally

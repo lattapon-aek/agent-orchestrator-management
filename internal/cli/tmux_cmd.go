@@ -48,6 +48,102 @@ func (r Runner) executeAttach(args []string) error {
 	}, false, sessionRecord)
 }
 
+// executeSwitch jumps the operator directly into an agent's live tmux pane by
+// agent name, without needing to know the session ID.  It logs an
+// operator.intervention event to the task artifact log so the audit trail stays
+// intact.
+//
+// Usage: aom switch <agent-name>
+//
+// When the agent has more than one session, the most recently created live
+// session wins. If no live session is found, a helpful error is printed that
+// lists the agent's known sessions.
+func (r Runner) executeSwitch(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("agent name is required\n  usage: aom switch <agent-name>")
+	}
+	if len(args) > 1 {
+		return fmt.Errorf("aom switch takes exactly one argument (agent name)")
+	}
+	agentName := strings.TrimSpace(args[0])
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	sessions, err := r.loadProjectSessions(result)
+	if err != nil {
+		return err
+	}
+
+	// Find the most recent session for this agent that has a live pane.
+	// Iterate in reverse (loadProjectSessions returns ascending creation order).
+	var target *struct {
+		id       string
+		taskID   string
+		pane     string
+		tmuxSess string
+		status   string
+	}
+	var allForAgent []string // for helpful error message
+
+	for i := len(sessions) - 1; i >= 0; i-- {
+		s := sessions[i]
+		if s.AgentName != agentName {
+			continue
+		}
+		allForAgent = append(allForAgent, fmt.Sprintf("  %s  status=%-16s  pane=%s", s.ID, s.Status, s.TmuxPane))
+		if target != nil {
+			continue // already found a candidate; still collect for error message
+		}
+		if strings.TrimSpace(s.TmuxPane) == "" {
+			continue
+		}
+		alive, _ := r.app.Tmux.PaneExists(s.TmuxPane)
+		if !alive {
+			continue
+		}
+		cp := struct {
+			id       string
+			taskID   string
+			pane     string
+			tmuxSess string
+			status   string
+		}{s.ID, s.TaskID, s.TmuxPane, s.TmuxSessionName, s.Status}
+		target = &cp
+	}
+
+	if target == nil {
+		msg := fmt.Sprintf("no live session found for agent %q", agentName)
+		if len(allForAgent) == 0 {
+			msg += "\n  (agent has no sessions at all — run: aom session spawn " + agentName + ")"
+		} else {
+			msg += "\n  known sessions:\n" + strings.Join(allForAgent, "\n")
+			msg += "\n  to start a new session: aom session spawn " + agentName
+		}
+		return fmt.Errorf("%s", msg)
+	}
+
+	fmt.Fprintf(r.stdout, "Switching to %s (session %s, %s)\n", agentName, target.id, target.status)
+
+	if err := r.app.Tmux.AttachPane(target.tmuxSess, target.pane); err != nil {
+		return fmt.Errorf("attach requires an interactive terminal — run this command from a real terminal session, not a script or pipe\n  (underlying error: %w)", err)
+	}
+
+	if strings.TrimSpace(target.taskID) == "" {
+		return nil
+	}
+
+	return r.syncTaskArtifactsWithSession(result, target.taskID, artifact.Event{
+		Type:        "operator.intervention",
+		Actor:       "operator",
+		SessionID:   target.id,
+		Summary:     fmt.Sprintf("Operator switched to agent %s (session %s) for live intervention", agentName, target.id),
+		StateEffect: "Re-analysis required",
+	}, false, nil)
+}
+
 func (r Runner) executeCapture(args []string) error {
 	// Parse flags: session identifier (positional), --follow/-f, --diff, --summary,
 	// --all (capture every active session), --interval <duration>

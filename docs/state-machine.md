@@ -247,6 +247,8 @@ This leads to four rules:
 
 ## Approval States
 
+> **Note:** Approval state is artifact-driven and tracked per session via CLI commands (`aom approve`, `aom deny`). It is not stored as a separate database record.
+
 ### States
 
 - `NotRequired`
@@ -288,6 +290,8 @@ This leads to four rules:
 - Critical approval conflicts may force the related step or task into `NeedsAttention`.
 
 ## Handoff States
+
+> **Note:** Handoff state is artifact-driven. The `.agent/handoff.md` file is the primary record. State is not stored as a separate database entry.
 
 ### States
 
@@ -334,40 +338,30 @@ This leads to four rules:
 ### States
 
 - `Planned`
-- `Provisioning`
 - `Ready`
 - `Active`
 - `NeedsRepair`
-- `Archived`
 
 ### Meaning
 
 - `Planned`
   - The task exists, but AOM has not created the worktree yet.
-- `Provisioning`
-  - AOM is creating or preparing the worktree and its task artifacts.
 - `Ready`
   - The worktree exists and is ready for a session to bind to it.
 - `Active`
   - At least one active step or session is using the worktree.
 - `NeedsRepair`
   - The worktree mapping, path, branch, or required artifacts are incomplete or unreliable.
-- `Archived`
-  - The worktree is no longer part of active execution.
 
 ### Allowed Transitions
 
-- `Planned -> Provisioning`
-- `Planned -> Archived`
-- `Provisioning -> Ready`
-- `Provisioning -> NeedsRepair`
+- `Planned -> Ready`
+- `Planned -> NeedsRepair`
 - `Ready -> Active`
 - `Ready -> NeedsRepair`
 - `Active -> Ready`
 - `Active -> NeedsRepair`
 - `NeedsRepair -> Ready`
-- `NeedsRepair -> Archived`
-- `Ready -> Archived`
 
 ### Rules
 

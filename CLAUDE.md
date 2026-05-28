@@ -94,7 +94,7 @@ Defined in full in `docs/state-machine.md`. Summary:
 | Task | Draft → Planned → Ready → InProgress → Blocked/NeedsAttention → Done → Archived |
 | Step | Proposed → Confirmed → Ready → InProgress → Completed/Blocked/NeedsAttention/Skipped/Canceled |
 | Session | Created → Booting → Idle → Working/WaitingApproval/WaitingHandoff → Detached/Failed/Stopped → Archived |
-| Worktree | Planned → Provisioning → Ready → Active → NeedsRepair/Archived |
+| Worktree | Planned → Ready → Active → NeedsRepair |
 
 ### Task Modes
 

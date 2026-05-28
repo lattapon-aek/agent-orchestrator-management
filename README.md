@@ -59,7 +59,7 @@ cd your-project
 aom project init
 
 # 2. Register an AI agent
-aom agent add --name builder --runtime claude --class builder
+aom agent add builder --role builder --runtime claude
 
 # 3. Create a task
 aom task create "Add user authentication endpoint"

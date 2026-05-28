@@ -60,7 +60,9 @@ internal/
   session/
   worktree/
   artifact/
-  audit/
+  plan/
+  merge/
+  provider/
   runtime/
   tmux/
 
@@ -254,17 +256,41 @@ Rules:
 - markdown operational memory behavior belongs here
 - keep artifact schema logic separate from CLI and session logic
 
-## internal/audit
+## internal/plan
 
 Owns:
 
-- event recording
-- audit append helpers
-- log integration
+- orchestrator planning logic
+- task mode inference (Direct, Bugfix, Requirements-first, Design-first)
+- step proposal generation
 
 Rules:
 
-- event and history recording should not be spread across packages ad hoc
+- planning logic must not import CLI or tmux packages
+
+## internal/merge
+
+Owns:
+
+- merge readiness checks
+- merge plan artifact generation
+- merge coordination workflow (check, prepare, commit)
+
+Rules:
+
+- keep merge logic separate from task and session logic
+
+## internal/provider
+
+Owns:
+
+- runtime provider registry
+- per-provider launch configuration (claude, codex, kiro)
+- provider-specific flag and preamble construction
+
+Rules:
+
+- provider-specific logic is isolated here; runtime package stays provider-neutral
 
 ## internal/runtime
 
@@ -308,7 +334,7 @@ internal/cli
   -> internal/task
   -> internal/session
 
-internal/project|agent|task|step|session|worktree|artifact|audit
+internal/project|agent|task|step|session|worktree|artifact|plan|merge|provider
   -> internal/config
   -> internal/db
 

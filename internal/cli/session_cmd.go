@@ -19,6 +19,7 @@ import (
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/session"
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/step"
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/task"
+	tmuxpkg "github.com/lattapon-aek/agent-orchestrator-management/internal/tmux"
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/worktree"
 )
 
@@ -57,6 +58,14 @@ func (r Runner) executeSessionSpawn(args []string) error {
 			params.freshStart = true
 		case "--allow-collision":
 			params.allowCollision = true
+		case "--grid":
+			params.gridMode = true
+		case "--layout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--layout requires a value (tiled, even-horizontal, even-vertical)")
+			}
+			params.gridLayout = strings.TrimSpace(args[i])
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -310,9 +319,27 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 	// startup have mtime >= spawnedAt (used by claude's filesystem-based detection).
 	spawnedAt := time.Now()
 
-	paneBinding, err := r.app.Tmux.CreatePane(workspace.Target, executionPath, launchCommand)
-	if err != nil {
-		return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
+	var paneBinding *tmuxpkg.PaneBinding //nolint:staticcheck
+	if params.gridMode {
+		const teamWindowName = "team"
+		layout := params.gridLayout
+		if layout == "" {
+			layout = "tiled"
+		}
+		teamWindowID, wErr := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
+		if wErr != nil {
+			return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "ensure team window failed", wErr)
+		}
+		paneBinding, err = r.app.Tmux.CreatePaneInWindow(teamWindowID, executionPath, launchCommand)
+		if err != nil {
+			return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation in team window failed", err)
+		}
+		_ = r.app.Tmux.SelectLayout(teamWindowID, layout)
+	} else {
+		paneBinding, err = r.app.Tmux.CreatePane(workspace.Target, executionPath, launchCommand)
+		if err != nil {
+			return nil, r.failTaskBoundSessionSpawn(result, sessionService, record, taskRecord, params.stepID, "pane creation failed before session became interactive", err)
+		}
 	}
 
 	// Set pane binding on record before any early-exit paths so failure saves include tmux context.
@@ -603,6 +630,8 @@ type sessionSpawnParams struct {
 	launchMode      aomruntime.LaunchMode
 	freshStart      bool
 	allowCollision  bool
+	gridMode        bool   // place pane inside team window instead of own window
+	gridLayout      string // tmux layout to apply after pane creation (default: tiled)
 }
 
 type sessionReplaceParams struct {

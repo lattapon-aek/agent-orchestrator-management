@@ -404,6 +404,84 @@ func (m *Manager) RenameWindow(windowID, name string) error {
 	return nil
 }
 
+// EnsureTeamWindow creates or reuses a named window in the given session.
+// Returns the window ID (e.g. "@3"). If the window already exists it is not
+// recreated; the existing ID is returned via list-windows.
+func (m *Manager) EnsureTeamWindow(sessionTarget, windowName string) (string, error) {
+	availability := m.Availability()
+	if !availability.Available {
+		return "", fmt.Errorf("tmux is not available in the current environment")
+	}
+	// Check whether a window with this name already exists.
+	out, err := m.exec(availability.BinaryPath, "list-windows", "-t", sessionTarget, "-F", "#{window_id} #{window_name}")
+	if err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			parts := strings.SplitN(strings.TrimSpace(line), " ", 2)
+			if len(parts) == 2 && parts[1] == windowName {
+				return parts[0], nil
+			}
+		}
+	}
+	// Create a new window.
+	out, err = m.exec(availability.BinaryPath, "new-window", "-d", "-P", "-F", "#{window_id}", "-t", sessionTarget, "-n", windowName)
+	if err != nil {
+		return "", fmt.Errorf("create team window %q: %w", windowName, err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// CreatePaneInWindow splits a horizontal pane inside an existing window rather
+// than creating a new window. Returns the pane binding of the new pane.
+func (m *Manager) CreatePaneInWindow(windowID, cwd, command string) (*PaneBinding, error) {
+	availability := m.Availability()
+	if !availability.Available {
+		return nil, fmt.Errorf("tmux is not available in the current environment")
+	}
+	out, err := m.exec(
+		availability.BinaryPath,
+		"split-window",
+		"-d",
+		"-P",
+		"-F", "#{window_id} #{pane_id}",
+		"-t", windowID,
+		"-c", cwd,
+		command,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("split pane in window %q: %w", windowID, err)
+	}
+	return parsePaneBindingOutput(out)
+}
+
+// SelectLayout applies a tmux layout to all panes in a window.
+// layout is one of: tiled, even-horizontal, even-vertical, main-horizontal, main-vertical.
+func (m *Manager) SelectLayout(windowID, layout string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if _, err := m.exec(availability.BinaryPath, "select-layout", "-t", windowID, layout); err != nil {
+		return fmt.Errorf("select-layout %q on %q: %w", layout, windowID, err)
+	}
+	return nil
+}
+
+// AttachWindow focuses the given window and attaches the operator to the session.
+// windowID is a tmux window ID (e.g. "@3"); sessionTarget is the session name or target.
+func (m *Manager) AttachWindow(sessionTarget, windowID string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if _, err := m.exec(availability.BinaryPath, "select-window", "-t", windowID); err != nil {
+		return fmt.Errorf("select window %q: %w", windowID, err)
+	}
+	if err := m.run(availability.BinaryPath, "attach-session", "-t", sessionTarget); err != nil {
+		return fmt.Errorf("attach to tmux session %q: %w", sessionTarget, err)
+	}
+	return nil
+}
+
 // KillPane intentionally removes a pane from the tmux workspace.
 func (m *Manager) KillPane(paneID string) error {
 	availability := m.Availability()

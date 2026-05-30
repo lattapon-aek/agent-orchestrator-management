@@ -140,6 +140,8 @@ func (r Runner) Execute(args []string) (retErr error) {
 		return r.executeWatch(args[1:])
 	case "run-pipeline":
 		return r.executeRunPipeline(args[1:])
+	case "orchestrate":
+		return r.executeOrchestrate(args[1:])
 	case "worktree":
 		return r.executeWorktree(args[1:])
 	case "memory":
@@ -517,6 +519,9 @@ func (r Runner) printHelp() {
 	fmt.Fprintln(r.stdout, "")
 	fmt.Fprintln(r.stdout, "Team collaboration")
 	fmt.Fprintln(r.stdout, "aom watch [--task <task-id>] [--event <type>] [--timeout 30m] : stream log events across all active tasks (or one task with --task)")
+	fmt.Fprintln(r.stdout, "aom orchestrate [--layout tiled|even-horizontal|even-vertical] [--mock] : spawn all enabled agents into the shared team tmux window")
+	fmt.Fprintln(r.stdout, "aom team view [--layout <layout>] : attach operator to the shared team tmux window (all agent panes in one grid)")
+	fmt.Fprintln(r.stdout, "aom session spawn <agent> --grid [--layout <layout>] : place pane in team window instead of own window")
 
 	fmt.Fprintln(r.stdout, "aom broadcast \"<message>\" --sessions <id,id,...> [--file <path>] : deliver the same prompt to multiple sessions at once")
 	fmt.Fprintln(r.stdout, "aom policy list [--task <task-id>] : show project deny_commands and enforcement level; add --task to see per-task agent enforcement")

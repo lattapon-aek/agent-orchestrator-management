@@ -564,6 +564,25 @@ func (m *Manager) ListWindowsInSession(sessionTarget string) ([]WindowInfo, erro
 	return windows, nil
 }
 
+// ListPanesInWindow returns the pane IDs of all panes in the given window target.
+func (m *Manager) ListPanesInWindow(windowTarget string) ([]string, error) {
+	availability := m.Availability()
+	if !availability.Available {
+		return nil, fmt.Errorf("tmux is not available in the current environment")
+	}
+	out, err := m.exec(availability.BinaryPath, "list-panes", "-t", windowTarget, "-F", "#{pane_id}")
+	if err != nil {
+		return nil, fmt.Errorf("list panes in %q: %w", windowTarget, err)
+	}
+	var panes []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if p := strings.TrimSpace(line); p != "" {
+			panes = append(panes, p)
+		}
+	}
+	return panes, nil
+}
+
 // KillWindow removes a tmux window by its fully-qualified target.
 func (m *Manager) KillWindow(windowTarget string) error {
 	availability := m.Availability()

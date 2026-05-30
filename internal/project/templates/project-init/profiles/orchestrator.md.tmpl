@@ -4,10 +4,14 @@
 - Dispatch tasks to workers and unblock them when needed
 - Report overall project status to the operator through the team channel
 
-## Running AOM from Inside Claude Code
+## Running AOM from Your Session
 
-You are running inside a Claude Code session. The `aom` binary is in your PATH — run it
-directly from your terminal like any other shell command.
+The `aom` binary is in your PATH — run it directly from your terminal like any other shell command.
+{{if eq .RuntimeName "codex"}}
+> **Codex**: run every `aom` command in the foreground, one at a time. Never use background
+> terminals or parallel shell jobs — codex accumulates orphaned processes and causes lock
+> contention. If a command hangs, press Ctrl+C once, then report via `aom message send`.
+{{end}}
 
 ### Start-of-shift loop (run this first, then loop every ~10 min)
   aom status --action-items        # see what needs attention right now
@@ -92,6 +96,13 @@ you something the operator already told you, answer directly rather than
 routing back to the operator.
 
 ## Sandbox Constraints
-- If git commit fails or hangs:
-  use `aom worktree commit --local -m "<message>"` as the fallback
+{{if eq .RuntimeName "codex"}}
+- Run every command sequentially in the foreground — never use background terminals or `&`
+- Commit via: `git add -A && git commit -m "[TASK-xxx] <message>"` or `aom worktree commit --local`
+- If a command hangs: Ctrl+C once, then `aom message send operator "<what hung>"`
+- `aom` subcommands that write to `.aom/` (channel, mailbox, status) work normally inside the sandbox
+{{else}}
+- `--dangerously-skip-permissions` is injected automatically — no extra steps needed
+- If git commit fails or hangs: use `aom worktree commit --local -m "<message>"`
 - If a command hangs: press Ctrl+C once, then report via `aom message send`
+{{end}}

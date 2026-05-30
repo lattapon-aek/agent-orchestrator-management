@@ -379,12 +379,13 @@ func TestEnsureTeamWindowReusesExistingWindow(t *testing.T) {
 		nil,
 	)
 
-	windowID, err := manager.EnsureTeamWindow("aom-proj", "team")
+	target, err := manager.EnsureTeamWindow("aom-proj", "team")
 	if err != nil {
 		t.Fatalf("EnsureTeamWindow: %v", err)
 	}
-	if windowID != "@2" {
-		t.Fatalf("windowID = %q, want @2", windowID)
+	// Must return fully-qualified "session:@windowID" format.
+	if target != "aom-proj:@2" {
+		t.Fatalf("target = %q, want aom-proj:@2", target)
 	}
 	// new-window must not be called when the window already exists.
 	for _, call := range calls {
@@ -397,11 +398,9 @@ func TestEnsureTeamWindowReusesExistingWindow(t *testing.T) {
 }
 
 func TestEnsureTeamWindowCreatesWhenMissing(t *testing.T) {
-	callCount := 0
 	manager := NewManagerWithDeps(
 		func(string) (string, error) { return "/usr/bin/tmux", nil },
 		func(name string, args ...string) ([]byte, error) {
-			callCount++
 			for _, a := range args {
 				if a == "list-windows" {
 					return []byte("@1 aom\n"), nil // "team" window not in list
@@ -409,18 +408,54 @@ func TestEnsureTeamWindowCreatesWhenMissing(t *testing.T) {
 				if a == "new-window" {
 					return []byte("@5\n"), nil
 				}
+				if a == "set-option" {
+					return nil, nil // auto-rename disable
+				}
 			}
 			return nil, nil
 		},
 		nil,
 	)
 
-	windowID, err := manager.EnsureTeamWindow("aom-proj", "team")
+	target, err := manager.EnsureTeamWindow("aom-proj", "team")
 	if err != nil {
 		t.Fatalf("EnsureTeamWindow: %v", err)
 	}
-	if windowID != "@5" {
-		t.Fatalf("windowID = %q, want @5", windowID)
+	// Must return fully-qualified target.
+	if target != "aom-proj:@5" {
+		t.Fatalf("target = %q, want aom-proj:@5", target)
+	}
+}
+
+func TestEnsureTeamWindowDisablesAutoRename(t *testing.T) {
+	var autoRenameDisabled bool
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			// Detect set-option automatic-rename off call.
+			for i, a := range args {
+				if a == "automatic-rename" && i > 0 && args[i-1] != "list-windows" {
+					autoRenameDisabled = true
+				}
+			}
+			for _, a := range args {
+				if a == "list-windows" {
+					return []byte("@1 aom\n"), nil
+				}
+				if a == "new-window" {
+					return []byte("@3\n"), nil
+				}
+			}
+			return nil, nil
+		},
+		nil,
+	)
+
+	if _, err := manager.EnsureTeamWindow("aom-proj", "team"); err != nil {
+		t.Fatalf("EnsureTeamWindow: %v", err)
+	}
+	if !autoRenameDisabled {
+		t.Error("automatic-rename should be disabled after creating the team window")
 	}
 }
 

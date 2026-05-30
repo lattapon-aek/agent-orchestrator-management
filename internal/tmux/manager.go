@@ -225,6 +225,9 @@ func (m *Manager) AnnotatePane(paneID string, metadata map[string]string) error 
 }
 
 // AttachPane selects the pane and attaches the operator to the tmux workspace.
+// When already inside a tmux session ($TMUX is set) it uses switch-client
+// instead of attach-session to avoid the "sessions should be nested with care"
+// error that tmux raises on nested attaches.
 func (m *Manager) AttachPane(sessionTarget, paneID string) error {
 	availability := m.Availability()
 	if !availability.Available {
@@ -240,15 +243,15 @@ func (m *Manager) AttachPane(sessionTarget, paneID string) error {
 		return fmt.Errorf("select tmux pane %q: %w", paneID, err)
 	}
 
-	if err := m.run(
-		availability.BinaryPath,
-		"attach-session",
-		"-t",
-		sessionTarget,
-	); err != nil {
+	if insideTmux() {
+		if err := m.run(availability.BinaryPath, "switch-client", "-t", sessionTarget); err != nil {
+			return fmt.Errorf("switch to tmux session %q: %w", sessionTarget, err)
+		}
+		return nil
+	}
+	if err := m.run(availability.BinaryPath, "attach-session", "-t", sessionTarget); err != nil {
 		return fmt.Errorf("attach to tmux workspace %q: %w", sessionTarget, err)
 	}
-
 	return nil
 }
 
@@ -468,6 +471,8 @@ func (m *Manager) SelectLayout(windowID, layout string) error {
 
 // AttachWindow focuses the given window and attaches the operator to the session.
 // windowID is a tmux window ID (e.g. "@3"); sessionTarget is the session name or target.
+// When already inside a tmux session ($TMUX is set) it uses switch-client to
+// avoid the nested-attach error.
 func (m *Manager) AttachWindow(sessionTarget, windowID string) error {
 	availability := m.Availability()
 	if !availability.Available {
@@ -476,10 +481,21 @@ func (m *Manager) AttachWindow(sessionTarget, windowID string) error {
 	if _, err := m.exec(availability.BinaryPath, "select-window", "-t", windowID); err != nil {
 		return fmt.Errorf("select window %q: %w", windowID, err)
 	}
+	if insideTmux() {
+		if err := m.run(availability.BinaryPath, "switch-client", "-t", sessionTarget); err != nil {
+			return fmt.Errorf("switch to tmux session %q: %w", sessionTarget, err)
+		}
+		return nil
+	}
 	if err := m.run(availability.BinaryPath, "attach-session", "-t", sessionTarget); err != nil {
 		return fmt.Errorf("attach to tmux session %q: %w", sessionTarget, err)
 	}
 	return nil
+}
+
+// insideTmux reports whether the current process is running inside a tmux session.
+func insideTmux() bool {
+	return os.Getenv("TMUX") != ""
 }
 
 // KillPane intentionally removes a pane from the tmux workspace.

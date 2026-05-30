@@ -370,8 +370,12 @@ func (r Runner) executeResolvedSessionSpawn(result *project.OpenResult, agentRec
 
 	record.Status = "Idle"
 
-	// Label the window with the agent name so operators can identify sessions at a glance.
-	_ = r.app.Tmux.RenameWindow(paneBinding.WindowID, agentRecord.Name)
+	// In grid mode the pane lives inside the shared "team" window — don't rename
+	// it or EnsureTeamWindow will fail to find the window on the next spawn.
+	// In normal mode, label the window with the agent name for easy identification.
+	if !params.gridMode {
+		_ = r.app.Tmux.RenameWindow(paneBinding.WindowID, agentRecord.Name)
+	}
 
 	record, err = sessionService.Save(*record)
 	if err != nil {

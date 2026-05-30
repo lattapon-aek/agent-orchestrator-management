@@ -144,6 +144,10 @@ func (r Runner) Execute(args []string) (retErr error) {
 		return r.executeWorktree(args[1:])
 	case "memory":
 		return r.executeMemory(args[1:])
+	case "claim":
+		return r.executeClaim(args[1:])
+	case "token-usage":
+		return r.executeTokenUsage(args[1:])
 	case "project":
 		return r.executeProject(args[1:])
 	default:
@@ -206,6 +210,8 @@ func (r Runner) executeTask(args []string) error {
 		return r.executeTaskPlanApprove(args[1:])
 	case "plan-reject":
 		return r.executeTaskPlanReject(args[1:])
+	case "templates":
+		return r.executeTaskTemplates(args[1:])
 	default:
 		return fmt.Errorf("unknown task command %q", strings.Join(args, " "))
 	}

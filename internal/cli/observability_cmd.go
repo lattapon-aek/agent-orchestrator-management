@@ -408,21 +408,21 @@ func (r Runner) executeTeamView(args []string) error {
 	}
 
 	const teamWindowName = "team"
-	windowID, err := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
+	windowTarget, _, err := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
 	if err != nil {
 		return fmt.Errorf("ensure team window: %w", err)
 	}
 
 	if layout != "" {
-		if err := r.app.Tmux.SelectLayout(windowID, layout); err != nil {
+		if err := r.app.Tmux.SelectLayout(windowTarget, layout); err != nil {
 			fmt.Fprintf(r.stderr, "warning: select-layout %q: %v\n", layout, err)
 		}
 	}
 
-	fmt.Fprintf(r.stdout, "Attaching to team window %s in session %s\n", windowID, workspace.Target)
+	fmt.Fprintf(r.stdout, "Attaching to team window in session %s\n", workspace.Target)
 	fmt.Fprintf(r.stdout, "Use Ctrl+B then arrow keys to navigate panes.\n")
 
-	return r.app.Tmux.AttachWindow(workspace.Target, windowID)
+	return r.app.Tmux.AttachWindow(workspace.Target, windowTarget)
 }
 
 func (r Runner) executeTeamBrief(args []string) error {
@@ -767,6 +767,7 @@ func (r Runner) executeOrchestrate(args []string) error {
 
 	spawned := 0
 	skipped := 0
+	var firstAgentPane string
 	for _, name := range enabled {
 		if livePanes[name] {
 			fmt.Fprintf(r.stdout, "  %-24s skipped (already running)\n", name)
@@ -778,7 +779,7 @@ func (r Runner) executeOrchestrate(args []string) error {
 			fmt.Fprintf(r.stdout, "  %-24s error: %v\n", name, aErr)
 			continue
 		}
-		_, spawnErr := r.executeResolvedSessionSpawn(result, agentRecord, sessionSpawnParams{
+		rec, spawnErr := r.executeResolvedSessionSpawn(result, agentRecord, sessionSpawnParams{
 			agentName:      name,
 			launchMode:     launchMode,
 			allowCollision: allowCollision,
@@ -791,6 +792,10 @@ func (r Runner) executeOrchestrate(args []string) error {
 		}
 		fmt.Fprintf(r.stdout, "  %-24s spawned\n", name)
 		spawned++
+		// Remember first successfully spawned pane to focus it for the operator.
+		if firstAgentPane == "" && rec != nil && rec.TmuxPane != "" {
+			firstAgentPane = rec.TmuxPane
+		}
 	}
 
 	fmt.Fprintf(r.stdout, "\nSpawned: %d  Skipped: %d\n", spawned, skipped)
@@ -799,13 +804,16 @@ func (r Runner) executeOrchestrate(args []string) error {
 		return fmt.Errorf("all agents failed to spawn — check the errors above")
 	}
 
-	// Apply final layout across all panes in the team window.
+	// Apply final layout and focus the first agent pane before attaching.
 	const teamWindowName = "team"
-	teamWindowID, wErr := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
+	teamWindowTarget, _, wErr := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
 	if wErr == nil {
-		_ = r.app.Tmux.SelectLayout(teamWindowID, layout)
+		_ = r.app.Tmux.SelectLayout(teamWindowTarget, layout)
+		if firstAgentPane != "" {
+			_ = r.app.Tmux.FocusPane(firstAgentPane)
+		}
 		fmt.Fprintf(r.stdout, "\nAttaching to team window (Ctrl+B then arrow keys to navigate panes)...\n")
-		if err := r.app.Tmux.AttachWindow(workspace.Target, teamWindowID); err != nil {
+		if err := r.app.Tmux.AttachWindow(workspace.Target, teamWindowTarget); err != nil {
 			fmt.Fprintf(r.stderr, "note: could not auto-attach: %v\n", err)
 			fmt.Fprintf(r.stdout, "To view the team window manually: aom team view\n")
 		}

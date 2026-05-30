@@ -408,38 +408,68 @@ func (m *Manager) RenameWindow(windowID, name string) error {
 }
 
 // EnsureTeamWindow creates or reuses a named window in the given session.
-// Returns a fully-qualified target string "session:@windowID" so callers can
-// always address the correct window regardless of which tmux session the
-// calling process is attached to. If the window already exists it is not
-// recreated. Automatic-rename is disabled on the window so that agent process
-// names (e.g. "claude") cannot clobber the "team" window name and cause
-// subsequent EnsureTeamWindow calls to create duplicate windows.
-func (m *Manager) EnsureTeamWindow(sessionTarget, windowName string) (string, error) {
+// Returns a fully-qualified window target "session:@windowID" and the pane ID
+// of the initial blank shell pane created with the window (empty string when
+// the window already existed). Callers that spawn agents into the window should
+// kill the blank pane after all agents are placed so the grid has no empty slot.
+// Automatic-rename is disabled so agent process names cannot clobber the window
+// name and cause subsequent EnsureTeamWindow calls to create duplicate windows.
+func (m *Manager) EnsureTeamWindow(sessionTarget, windowName string) (windowTarget, blankPaneID string, err error) {
 	availability := m.Availability()
 	if !availability.Available {
-		return "", fmt.Errorf("tmux is not available in the current environment")
+		return "", "", fmt.Errorf("tmux is not available in the current environment")
 	}
 	// Check whether a window with this name already exists.
-	out, err := m.exec(availability.BinaryPath, "list-windows", "-t", sessionTarget, "-F", "#{window_id} #{window_name}")
-	if err == nil {
+	out, listErr := m.exec(availability.BinaryPath, "list-windows", "-t", sessionTarget, "-F", "#{window_id} #{window_name}")
+	if listErr == nil {
 		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 			parts := strings.SplitN(strings.TrimSpace(line), " ", 2)
 			if len(parts) == 2 && parts[1] == windowName {
-				return sessionTarget + ":" + parts[0], nil
+				return sessionTarget + ":" + parts[0], "", nil
 			}
 		}
 	}
-	// Create a new window.
-	out, err = m.exec(availability.BinaryPath, "new-window", "-d", "-P", "-F", "#{window_id}", "-t", sessionTarget, "-n", windowName)
+	// Create a new window; capture both window_id and pane_id so we can return
+	// the initial blank pane ID for the caller to kill after agents are placed.
+	out, err = m.exec(availability.BinaryPath, "new-window", "-d", "-P", "-F", "#{window_id} #{pane_id}", "-t", sessionTarget, "-n", windowName)
 	if err != nil {
-		return "", fmt.Errorf("create team window %q: %w", windowName, err)
+		return "", "", fmt.Errorf("create team window %q: %w", windowName, err)
 	}
-	windowID := strings.TrimSpace(string(out))
+	parts := strings.Fields(strings.TrimSpace(string(out)))
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("unexpected new-window output %q", string(out))
+	}
+	windowID, blankPane := parts[0], parts[1]
 	qualifiedTarget := sessionTarget + ":" + windowID
 	// Disable automatic-rename so tmux won't replace "team" with the agent
 	// process name (e.g. "claude") when a pane inside the window starts running.
 	_, _ = m.exec(availability.BinaryPath, "set-option", "-wt", qualifiedTarget, "automatic-rename", "off")
-	return qualifiedTarget, nil
+	return qualifiedTarget, blankPane, nil
+}
+
+// SetPaneTitle sets a visible title on a tmux pane so operators can identify
+// which agent is running in each grid cell.
+func (m *Manager) SetPaneTitle(paneID, title string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if _, err := m.exec(availability.BinaryPath, "select-pane", "-t", paneID, "-T", title); err != nil {
+		return fmt.Errorf("set pane title on %q: %w", paneID, err)
+	}
+	return nil
+}
+
+// FocusPane makes a pane the active pane within its window without attaching.
+func (m *Manager) FocusPane(paneID string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if _, err := m.exec(availability.BinaryPath, "select-pane", "-t", paneID); err != nil {
+		return fmt.Errorf("focus pane %q: %w", paneID, err)
+	}
+	return nil
 }
 
 // CreatePaneInWindow splits a pane inside an existing window rather than

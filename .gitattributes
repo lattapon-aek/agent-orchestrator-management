@@ -1,0 +1,18 @@
+# Normalize line endings to LF on commit; checkout as-is on Windows.
+* text=auto
+
+# Shell scripts must always be LF (bwrap/sh compatibility on Linux/WSL2).
+*.sh text eol=lf
+
+# Go source
+*.go text eol=lf
+
+# YAML / Markdown / config
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.tmpl text eol=lf
+
+# Windows-native binaries — keep binary flag so git doesn't mangle them.
+*.exe binary
+*.dll binary

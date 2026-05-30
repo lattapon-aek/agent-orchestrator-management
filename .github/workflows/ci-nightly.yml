@@ -1,0 +1,26 @@
+name: CI Nightly (Windows)
+
+on:
+  schedule:
+    # 02:00 UTC daily
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: "off"
+
+jobs:
+  test-windows:
+    name: Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test -timeout 20m ./...

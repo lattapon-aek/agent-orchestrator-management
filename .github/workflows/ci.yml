@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: "off"
+
+jobs:
+  build-and-test:
+    name: Build & Test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: |
+          VERSION=$(git describe --tags --match 'v[0-9]*' --dirty --always --abbrev=8 2>/dev/null || echo dev)
+          COMMIT=$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
+          PKG=github.com/lattapon-aek/agent-orchestrator-management/internal/cli
+          go build \
+            -ldflags "-X $PKG.Version=$VERSION -X $PKG.Commit=$COMMIT -X $PKG.BuiltAt=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X $PKG.GoVersion=$(go env GOVERSION)" \
+            -o aom \
+            cmd/aom/main.go
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -timeout 20m ./...

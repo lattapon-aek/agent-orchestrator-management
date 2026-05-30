@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "change-review": {
+      "source": "lattapon-aek/Skills",
+      "sourceType": "github",
+      "skillPath": "suites/software-engineering/skills/change-review/SKILL.md",
+      "computedHash": "cb816fd0be774ca5302c1ef8edcf9b45229341b20ed129b2f2e97281ad996747"
+    },
+    "software-engineering-core": {
+      "source": "lattapon-aek/Skills",
+      "sourceType": "github",
+      "skillPath": "suites/software-engineering/skills/software-engineering-core/SKILL.md",
+      "computedHash": "1fff9315f727e66d21d690d4523f3f956c78f4d7140cf326ef5eeddcb099033a"
+    }
+  }
+}

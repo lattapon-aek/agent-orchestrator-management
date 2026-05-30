@@ -742,7 +742,8 @@ func (r Runner) executeOrchestrate(args []string) error {
 	}
 
 	// Collect existing live sessions so we skip already-running agents.
-	livePanes := make(map[string]bool) // agentName → has live pane
+	livePanes := make(map[string]bool)   // agentName → has live pane
+	livePaneID := make(map[string]string) // agentName → pane ID
 	sessions, _ := r.loadProjectSessions(result)
 	for _, s := range sessions {
 		if strings.TrimSpace(s.TmuxPane) == "" {
@@ -750,6 +751,7 @@ func (r Runner) executeOrchestrate(args []string) error {
 		}
 		if alive, _ := r.app.Tmux.PaneExists(s.TmuxPane); alive {
 			livePanes[s.AgentName] = true
+			livePaneID[s.AgentName] = s.TmuxPane
 		}
 	}
 
@@ -772,6 +774,9 @@ func (r Runner) executeOrchestrate(args []string) error {
 		if livePanes[name] {
 			fmt.Fprintf(r.stdout, "  %-24s skipped (already running)\n", name)
 			skipped++
+			if firstAgentPane == "" {
+				firstAgentPane = livePaneID[name]
+			}
 			continue
 		}
 		agentRecord, aErr := findAgent(result.Agents, name)
@@ -812,6 +817,30 @@ func (r Runner) executeOrchestrate(args []string) error {
 		if firstAgentPane != "" {
 			_ = r.app.Tmux.FocusPane(firstAgentPane)
 		}
+
+		// Remove stale solo agent windows left from pre-grid runs. In iTerm2 -CC
+		// mode each tmux window becomes a separate native window, so these ghosts
+		// look like separate agent windows to the operator.
+		agentNameSet := make(map[string]bool, len(enabled))
+		for _, n := range enabled {
+			agentNameSet[n] = true
+		}
+		// Extract just the window ID part ("@6") from the fully-qualified team target.
+		teamWindowID := teamWindowTarget
+		if idx := strings.LastIndex(teamWindowTarget, ":"); idx >= 0 {
+			teamWindowID = teamWindowTarget[idx+1:]
+		}
+		if windows, listErr := r.app.Tmux.ListWindowsInSession(workspace.Target); listErr == nil {
+			for _, w := range windows {
+				if w.ID == teamWindowID {
+					continue // never kill the team window
+				}
+				if agentNameSet[w.Name] {
+					_ = r.app.Tmux.KillWindow(workspace.Target + ":" + w.ID)
+				}
+			}
+		}
+
 		fmt.Fprintf(r.stdout, "\nAttaching to team window (Ctrl+B then arrow keys to navigate panes)...\n")
 		if err := r.app.Tmux.AttachWindow(workspace.Target, teamWindowTarget); err != nil {
 			fmt.Fprintf(r.stderr, "note: could not auto-attach: %v\n", err)

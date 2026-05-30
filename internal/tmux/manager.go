@@ -538,6 +538,44 @@ func (m *Manager) AttachWindow(sessionTarget, windowTarget string) error {
 	return nil
 }
 
+// WindowInfo holds the ID and name of a tmux window.
+type WindowInfo struct {
+	ID   string // e.g. "@6"
+	Name string // e.g. "team"
+}
+
+// ListWindowsInSession returns all windows in the given tmux session.
+func (m *Manager) ListWindowsInSession(sessionTarget string) ([]WindowInfo, error) {
+	availability := m.Availability()
+	if !availability.Available {
+		return nil, fmt.Errorf("tmux is not available in the current environment")
+	}
+	out, err := m.exec(availability.BinaryPath, "list-windows", "-t", sessionTarget, "-F", "#{window_id} #{window_name}")
+	if err != nil {
+		return nil, fmt.Errorf("list windows in %q: %w", sessionTarget, err)
+	}
+	var windows []WindowInfo
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		parts := strings.SplitN(strings.TrimSpace(line), " ", 2)
+		if len(parts) == 2 {
+			windows = append(windows, WindowInfo{ID: parts[0], Name: parts[1]})
+		}
+	}
+	return windows, nil
+}
+
+// KillWindow removes a tmux window by its fully-qualified target.
+func (m *Manager) KillWindow(windowTarget string) error {
+	availability := m.Availability()
+	if !availability.Available {
+		return fmt.Errorf("tmux is not available in the current environment")
+	}
+	if _, err := m.exec(availability.BinaryPath, "kill-window", "-t", windowTarget); err != nil {
+		return fmt.Errorf("kill window %q: %w", windowTarget, err)
+	}
+	return nil
+}
+
 // insideTmux reports whether the current process is running inside a tmux session.
 func insideTmux() bool {
 	return os.Getenv("TMUX") != ""

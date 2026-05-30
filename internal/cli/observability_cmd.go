@@ -10,6 +10,7 @@ import (
 
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/artifact"
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/project"
+	aomruntime "github.com/lattapon-aek/agent-orchestrator-management/internal/runtime"
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/task"
 )
 
@@ -361,7 +362,7 @@ func (r Runner) waitForActiveTasks(result *project.OpenResult, timeout time.Dura
 
 func (r Runner) executeTeam(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("team subcommand is required (try: team brief, team roster)")
+		return fmt.Errorf("team subcommand is required (try: team brief, team roster, team view)")
 	}
 
 	switch args[0] {
@@ -369,9 +370,59 @@ func (r Runner) executeTeam(args []string) error {
 		return r.executeTeamBrief(args[1:])
 	case "roster":
 		return r.executeTeamRoster(args[1:])
+	case "view":
+		return r.executeTeamView(args[1:])
 	default:
 		return fmt.Errorf("unknown team command %q", args[0])
 	}
+}
+
+// executeTeamView attaches the operator to the shared team tmux window where all
+// grid-mode agent panes live side-by-side. The window is created if it does not
+// yet exist (empty). Use aom orchestrate to populate it.
+//
+// Usage: aom team view [--layout tiled|even-horizontal|even-vertical]
+func (r Runner) executeTeamView(args []string) error {
+	layout := ""
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--layout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--layout requires a value")
+			}
+			layout = strings.TrimSpace(args[i])
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	workspace, err := r.app.Tmux.EnsureWorkspace(result.SessionPrefix, result.Project.RepoPath)
+	if err != nil {
+		return fmt.Errorf("ensure tmux workspace: %w", err)
+	}
+
+	const teamWindowName = "team"
+	windowID, err := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
+	if err != nil {
+		return fmt.Errorf("ensure team window: %w", err)
+	}
+
+	if layout != "" {
+		if err := r.app.Tmux.SelectLayout(windowID, layout); err != nil {
+			fmt.Fprintf(r.stderr, "warning: select-layout %q: %v\n", layout, err)
+		}
+	}
+
+	fmt.Fprintf(r.stdout, "Attaching to team window %s in session %s\n", windowID, workspace.Target)
+	fmt.Fprintf(r.stdout, "Use Ctrl+B then arrow keys to navigate panes.\n")
+
+	return r.app.Tmux.AttachWindow(workspace.Target, windowID)
 }
 
 func (r Runner) executeTeamBrief(args []string) error {
@@ -637,4 +688,128 @@ func (r Runner) executeEventsTail(args []string) error {
 	fmt.Fprintf(r.stdout, "Log: %s\n\n", logPath)
 
 	return tailLogEvents(r.stdout, logPath, tailTimeout)
+}
+
+// executeOrchestrate spawns all enabled agents into the shared team tmux window
+// and applies a grid layout so the operator can watch all agents at once.
+//
+// Usage: aom orchestrate [--layout tiled|even-horizontal|even-vertical] [--mock] [--allow-collision]
+//
+// Only agents that do not already have a live session are spawned. Agents that
+// already have a live pane are skipped to avoid duplication. After spawning,
+// the operator is attached to the team window automatically.
+func (r Runner) executeOrchestrate(args []string) error {
+	layout := "tiled"
+	gridLayout := ""
+	launchMode := aomruntime.LaunchModePlaceholder
+	allowCollision := false
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--layout":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--layout requires a value")
+			}
+			gridLayout = strings.TrimSpace(args[i])
+		case "--mock":
+			launchMode = aomruntime.LaunchModeMock
+		case "--real":
+			launchMode = aomruntime.LaunchModeReal
+		case "--allow-collision":
+			allowCollision = true
+		default:
+			return fmt.Errorf("unknown flag %q", args[i])
+		}
+	}
+	if gridLayout != "" {
+		layout = gridLayout
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	workspace, err := r.app.Tmux.EnsureWorkspace(result.SessionPrefix, result.Project.RepoPath)
+	if err != nil {
+		return fmt.Errorf("ensure tmux workspace: %w", err)
+	}
+
+	// Inject AOM_BIN so spawned agents inherit the correct binary path.
+	if selfBinEarly, binErr := os.Executable(); binErr == nil && selfBinEarly != "" {
+		_ = r.app.Tmux.SetSessionEnv(workspace.Target, "AOM_BIN", selfBinEarly)
+	}
+
+	// Collect existing live sessions so we skip already-running agents.
+	livePanes := make(map[string]bool) // agentName → has live pane
+	sessions, _ := r.loadProjectSessions(result)
+	for _, s := range sessions {
+		if strings.TrimSpace(s.TmuxPane) == "" {
+			continue
+		}
+		if alive, _ := r.app.Tmux.PaneExists(s.TmuxPane); alive {
+			livePanes[s.AgentName] = true
+		}
+	}
+
+	enabled := make([]string, 0, len(result.Agents))
+	for _, a := range result.Agents {
+		if a.Enabled {
+			enabled = append(enabled, a.Name)
+		}
+	}
+	if len(enabled) == 0 {
+		return fmt.Errorf("no enabled agents found — add agents to agents.yaml first")
+	}
+
+	fmt.Fprintf(r.stdout, "Orchestrating %d agent(s) into team window (layout: %s)\n\n", len(enabled), layout)
+
+	spawned := 0
+	skipped := 0
+	for _, name := range enabled {
+		if livePanes[name] {
+			fmt.Fprintf(r.stdout, "  %-24s skipped (already running)\n", name)
+			skipped++
+			continue
+		}
+		agentRecord, aErr := findAgent(result.Agents, name)
+		if aErr != nil {
+			fmt.Fprintf(r.stdout, "  %-24s error: %v\n", name, aErr)
+			continue
+		}
+		_, spawnErr := r.executeResolvedSessionSpawn(result, agentRecord, sessionSpawnParams{
+			agentName:      name,
+			launchMode:     launchMode,
+			allowCollision: allowCollision,
+			gridMode:       true,
+			gridLayout:     layout,
+		})
+		if spawnErr != nil {
+			fmt.Fprintf(r.stdout, "  %-24s spawn failed: %v\n", name, spawnErr)
+			continue
+		}
+		fmt.Fprintf(r.stdout, "  %-24s spawned\n", name)
+		spawned++
+	}
+
+	fmt.Fprintf(r.stdout, "\nSpawned: %d  Skipped: %d\n", spawned, skipped)
+
+	if spawned == 0 && skipped == 0 {
+		return fmt.Errorf("all agents failed to spawn — check the errors above")
+	}
+
+	// Apply final layout across all panes in the team window.
+	const teamWindowName = "team"
+	teamWindowID, wErr := r.app.Tmux.EnsureTeamWindow(workspace.Target, teamWindowName)
+	if wErr == nil {
+		_ = r.app.Tmux.SelectLayout(teamWindowID, layout)
+		fmt.Fprintf(r.stdout, "\nAttaching to team window (Ctrl+B then arrow keys to navigate panes)...\n")
+		if err := r.app.Tmux.AttachWindow(workspace.Target, teamWindowID); err != nil {
+			fmt.Fprintf(r.stderr, "note: could not auto-attach: %v\n", err)
+			fmt.Fprintf(r.stdout, "To view the team window manually: aom team view\n")
+		}
+	}
+
+	return nil
 }

@@ -360,6 +360,132 @@ func TestManagerKillPaneInvokesTmuxKillPane(t *testing.T) {
 // TestKillPaneAndDescendantsIsIdempotentWhenPaneGone verifies that
 // KillPaneAndDescendants returns nil without issuing a kill-pane command when
 // the pane has already disappeared (PaneExists → false).
+// ── Phase 3: EnsureTeamWindow ─────────────────────────────────────────────────
+
+func TestEnsureTeamWindowReusesExistingWindow(t *testing.T) {
+	var calls [][]string
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			// list-windows returns the existing window.
+			for _, a := range args {
+				if a == "list-windows" {
+					return []byte("@2 team\n"), nil
+				}
+			}
+			return nil, nil
+		},
+		nil,
+	)
+
+	windowID, err := manager.EnsureTeamWindow("aom-proj", "team")
+	if err != nil {
+		t.Fatalf("EnsureTeamWindow: %v", err)
+	}
+	if windowID != "@2" {
+		t.Fatalf("windowID = %q, want @2", windowID)
+	}
+	// new-window must not be called when the window already exists.
+	for _, call := range calls {
+		for _, arg := range call {
+			if arg == "new-window" {
+				t.Errorf("new-window must not be called when window already exists; calls=%v", calls)
+			}
+		}
+	}
+}
+
+func TestEnsureTeamWindowCreatesWhenMissing(t *testing.T) {
+	callCount := 0
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			callCount++
+			for _, a := range args {
+				if a == "list-windows" {
+					return []byte("@1 aom\n"), nil // "team" window not in list
+				}
+				if a == "new-window" {
+					return []byte("@5\n"), nil
+				}
+			}
+			return nil, nil
+		},
+		nil,
+	)
+
+	windowID, err := manager.EnsureTeamWindow("aom-proj", "team")
+	if err != nil {
+		t.Fatalf("EnsureTeamWindow: %v", err)
+	}
+	if windowID != "@5" {
+		t.Fatalf("windowID = %q, want @5", windowID)
+	}
+}
+
+// ── Phase 3: CreatePaneInWindow ───────────────────────────────────────────────
+
+func TestCreatePaneInWindowCallsSplitWindow(t *testing.T) {
+	var calls [][]string
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return []byte("@3 %9\n"), nil
+		},
+		nil,
+	)
+
+	binding, err := manager.CreatePaneInWindow("@3", "/repo", "claude code")
+	if err != nil {
+		t.Fatalf("CreatePaneInWindow: %v", err)
+	}
+	if binding.WindowID != "@3" || binding.PaneID != "%9" {
+		t.Fatalf("binding = %+v, want WindowID=@3 PaneID=%%9", binding)
+	}
+	found := false
+	for _, call := range calls {
+		for _, arg := range call {
+			if arg == "split-window" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("split-window not called; calls=%v", calls)
+	}
+}
+
+// ── Phase 3: SelectLayout ─────────────────────────────────────────────────────
+
+func TestSelectLayoutCallsTmux(t *testing.T) {
+	var calls [][]string
+	manager := NewManagerWithDeps(
+		func(string) (string, error) { return "/usr/bin/tmux", nil },
+		func(name string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return nil, nil
+		},
+		nil,
+	)
+
+	if err := manager.SelectLayout("@3", "tiled"); err != nil {
+		t.Fatalf("SelectLayout: %v", err)
+	}
+	found := false
+	for _, call := range calls {
+		for _, arg := range call {
+			if arg == "select-layout" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("select-layout not called; calls=%v", calls)
+	}
+}
+
 func TestKillPaneAndDescendantsIsIdempotentWhenPaneGone(t *testing.T) {
 	var calls [][]string
 	manager := NewManagerWithDeps(

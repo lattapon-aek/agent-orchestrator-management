@@ -78,6 +78,12 @@ func (r Runner) executeTaskCreate(args []string) error {
 				return fmt.Errorf("--invariant requires a value")
 			}
 			params.invariants = append(params.invariants, args[i])
+		case "--template":
+			i++
+			if i >= len(args) {
+				return fmt.Errorf("--template requires a value")
+			}
+			params.templateName = args[i]
 		default:
 			return fmt.Errorf("unknown flag %q", args[i])
 		}
@@ -103,16 +109,56 @@ func (r Runner) executeTaskCreate(args []string) error {
 		return err
 	}
 
-	createResult, err := taskService.Create(task.CreateParams{
-		ProjectID:       result.Project.ID,
-		Title:           params.title,
-		Description:     params.description,
-		Mode:            params.mode,
-		Priority:        priority,
-		PreferredRole:   params.role,
-		PreferredAgent:  params.agent,
-		InitialStepType: params.stepType,
-	})
+	var tpl *taskTemplate
+	if params.templateName != "" {
+		resolved, err := resolveTaskTemplate(params.templateName)
+		if err != nil {
+			return err
+		}
+		tpl = resolved
+	}
+
+	effectiveMode := params.mode
+	if effectiveMode == "" && tpl != nil {
+		effectiveMode = tpl.Mode
+	}
+
+	var createResult *task.CreateResult
+	if tpl != nil {
+		seeds := make([]task.StepSeed, len(tpl.Steps))
+		for i, s := range tpl.Steps {
+			stepTitle := params.title
+			if s.Title != "" {
+				stepTitle = s.Title
+			}
+			seeds[i] = task.StepSeed{
+				Type:      s.StepType,
+				Title:     stepTitle,
+				RoleName:  params.role,
+				AgentName: params.agent,
+			}
+		}
+		createResult, err = taskService.CreateFromPlan(task.CreateParams{
+			ProjectID:      result.Project.ID,
+			Title:          params.title,
+			Description:    params.description,
+			Mode:           effectiveMode,
+			Priority:       priority,
+			PreferredRole:  params.role,
+			PreferredAgent: params.agent,
+		}, seeds)
+	} else {
+		createResult, err = taskService.Create(task.CreateParams{
+			ProjectID:       result.Project.ID,
+			Title:           params.title,
+			Description:     params.description,
+			Mode:            effectiveMode,
+			Priority:        priority,
+			PreferredRole:   params.role,
+			PreferredAgent:  params.agent,
+			InitialStepType: params.stepType,
+		})
+	}
 	if err != nil {
 		return err
 	}
@@ -175,14 +221,15 @@ func (r Runner) executeTaskCreate(args []string) error {
 }
 
 type taskCreateParams struct {
-	title       string
-	description string
-	mode        string
-	role        string
-	agent       string
-	priority    string
-	stepType    string
-	invariants  []string
+	title        string
+	description  string
+	mode         string
+	role         string
+	agent        string
+	priority     string
+	stepType     string
+	invariants   []string
+	templateName string
 }
 
 func (r Runner) executeTaskShow(args []string) error {

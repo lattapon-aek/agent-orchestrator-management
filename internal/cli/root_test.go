@@ -6782,3 +6782,203 @@ func TestTaskListShowsShortID(t *testing.T) {
 		t.Errorf("first line should start with '#' header, got: %q", lines[0])
 	}
 }
+
+// TestTaskTemplatesList verifies aom task templates lists built-in templates.
+func TestTaskTemplatesList(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWD) }()
+	_ = os.Chdir(repoRoot)
+
+	var stdout, stderr bytes.Buffer
+	if err := Execute([]string{"project", "init", "tpl-test", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init: %v", err)
+	}
+
+	stdout.Reset()
+	if err := Execute([]string{"task", "templates"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task templates: %v", err)
+	}
+	out := stdout.String()
+	for _, name := range []string{"small-fix", "feature-standard", "risky-change", "qa-pass", "research-spike"} {
+		if !strings.Contains(out, name) {
+			t.Errorf("task templates output missing %q, got:\n%s", name, out)
+		}
+	}
+}
+
+// TestTaskCreateWithTemplate verifies --template flag applies mode and creates correct steps.
+func TestTaskCreateWithTemplate(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWD) }()
+	_ = os.Chdir(repoRoot)
+
+	var stdout, stderr bytes.Buffer
+	if err := Execute([]string{"project", "init", "tpl-create", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init: %v", err)
+	}
+
+	stdout.Reset()
+	if err := Execute([]string{"task", "create", "Fix login bug", "--template", "small-fix"}, &stdout, &stderr); err != nil {
+		t.Fatalf("task create --template: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "Task created") {
+		t.Errorf("want 'Task created', got: %s", out)
+	}
+	// Template has 2 steps: investigate + implement
+	if !strings.Contains(out, "Initial steps: 2") {
+		t.Errorf("want 2 initial steps from small-fix template, got: %s", out)
+	}
+}
+
+// TestTaskCreateWithTemplateUnknown verifies an error for unknown template names.
+func TestTaskCreateWithTemplateUnknown(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWD) }()
+	_ = os.Chdir(repoRoot)
+
+	var stdout, stderr bytes.Buffer
+	if err := Execute([]string{"project", "init", "tpl-unk", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init: %v", err)
+	}
+	err := Execute([]string{"task", "create", "Some task", "--template", "nonexistent"}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("want error for unknown template, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown template") {
+		t.Errorf("want 'unknown template' in error, got: %v", err)
+	}
+}
+
+// TestClaimAddListRelease verifies the full file-claim lifecycle.
+func TestClaimAddListRelease(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWD) }()
+	_ = os.Chdir(repoRoot)
+
+	var stdout, stderr bytes.Buffer
+	if err := Execute([]string{"project", "init", "claim-test", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init: %v", err)
+	}
+
+	// claim files
+	stdout.Reset()
+	if err := Execute([]string{"claim", "internal/auth.go", "internal/user.go", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "Claimed 2 path(s)") {
+		t.Errorf("want 'Claimed 2 path(s)', got: %s", out)
+	}
+
+	// list
+	stdout.Reset()
+	if err := Execute([]string{"claim", "list"}, &stdout, &stderr); err != nil {
+		t.Fatalf("claim list: %v", err)
+	}
+	listOut := stdout.String()
+	if !strings.Contains(listOut, "backend-main") {
+		t.Errorf("want 'backend-main' in claim list, got: %s", listOut)
+	}
+	if !strings.Contains(listOut, "internal/auth.go") {
+		t.Errorf("want 'internal/auth.go' in claim list, got: %s", listOut)
+	}
+
+	// release
+	stdout.Reset()
+	if err := Execute([]string{"claim", "release", "--agent", "backend-main"}, &stdout, &stderr); err != nil {
+		t.Fatalf("claim release: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "released") {
+		t.Errorf("want 'released' in output, got: %s", stdout.String())
+	}
+
+	// list after release — empty
+	stdout.Reset()
+	if err := Execute([]string{"claim", "list"}, &stdout, &stderr); err != nil {
+		t.Fatalf("claim list after release: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "No active file claims") {
+		t.Errorf("want empty claim list after release, got: %s", stdout.String())
+	}
+}
+
+// TestClaimNoPathsError verifies that claim without paths returns an error.
+func TestClaimNoPathsError(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWD) }()
+	_ = os.Chdir(repoRoot)
+
+	var stdout, stderr bytes.Buffer
+	if err := Execute([]string{"project", "init", "claim-nopath", "--repo", repoRoot}, &stdout, &stderr); err != nil {
+		t.Fatalf("project init: %v", err)
+	}
+	err := Execute([]string{"claim", "--agent", "backend-main"}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("want error when no paths given, got nil")
+	}
+}
+
+// TestReviewResolveReopenListOpen verifies the review item lifecycle helpers.
+func TestReviewResolveReopenListOpen(t *testing.T) {
+	repoRoot := t.TempDir()
+	oldWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(oldWD) }()
+	_ = os.Chdir(repoRoot)
+
+	// Write a review-notes.md with two open items to a temp task dir.
+	taskID := "TASK-0001-0001"
+	notesDir := filepath.Join(repoRoot, ".aom", "state", taskID)
+	if err := os.MkdirAll(notesDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	notesContent := `# Review Notes
+
+### Missing input validation
+- Status: open
+- Owner: backend
+
+### Unused import
+- Status: open
+- Owner: backend
+`
+	notesPath := filepath.Join(notesDir, "review-notes.md")
+	if err := os.WriteFile(notesPath, []byte(notesContent), 0o644); err != nil {
+		t.Fatalf("write review-notes.md: %v", err)
+	}
+
+	// Test parseOpenReviewItems directly since it's an internal helper.
+	items := parseOpenReviewItems(notesPath)
+	if len(items) != 2 {
+		t.Fatalf("want 2 open items, got %d", len(items))
+	}
+	if items[0].Index != 1 || items[0].Title != "Missing input validation" {
+		t.Errorf("item[0] = %+v, want index=1 title='Missing input validation'", items[0])
+	}
+
+	// Resolve item 1.
+	if err := updateReviewItemStatus(notesPath, 1, "resolved"); err != nil {
+		t.Fatalf("updateReviewItemStatus resolve: %v", err)
+	}
+	remaining := parseOpenReviewItems(notesPath)
+	if len(remaining) != 1 {
+		t.Fatalf("want 1 open item after resolve, got %d", len(remaining))
+	}
+	if remaining[0].Title != "Unused import" {
+		t.Errorf("remaining item = %q, want 'Unused import'", remaining[0].Title)
+	}
+
+	// Reopen item 1.
+	if err := updateReviewItemStatus(notesPath, 1, "open"); err != nil {
+		t.Fatalf("updateReviewItemStatus reopen: %v", err)
+	}
+	reopened := parseOpenReviewItems(notesPath)
+	if len(reopened) != 2 {
+		t.Fatalf("want 2 open items after reopen, got %d", len(reopened))
+	}
+}

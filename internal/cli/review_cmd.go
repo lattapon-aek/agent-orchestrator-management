@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/lattapon-aek/agent-orchestrator-management/internal/agent"
@@ -29,6 +31,15 @@ func (r Runner) executeReview(args []string) error {
 
 	if args[0] == "close" {
 		return r.executeReviewClose(args[1:])
+	}
+	if args[0] == "list-open" {
+		return r.executeReviewListOpen(args[1:])
+	}
+	if args[0] == "resolve" {
+		return r.executeReviewResolve(args[1:])
+	}
+	if args[0] == "reopen" {
+		return r.executeReviewReopen(args[1:])
 	}
 
 	params := reviewParams{
@@ -666,6 +677,222 @@ func reviewStepDependencies(steps []step.Record) []string {
 			return []string{item.ID}
 		}
 	}
+	return nil
+}
+
+func isReviewStatusResolved(status string) bool {
+	switch status {
+	case "resolved", "closed", "fixed", "done", "accepted":
+		return true
+	default:
+		return false
+	}
+}
+
+// reviewOpenItem holds a parsed unresolved review finding with its source index.
+type reviewOpenItem struct {
+	Index  int
+	Title  string
+	Status string
+	Owner  string
+}
+
+// parseOpenReviewItems returns all unresolved items with their 1-based index.
+func parseOpenReviewItems(notesPath string) []reviewOpenItem {
+	data, err := os.ReadFile(notesPath)
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var items []reviewOpenItem
+	idx := 0
+	inItem := false
+	cur := reviewOpenItem{}
+
+	flush := func() {
+		if !inItem {
+			return
+		}
+		cur.Status = strings.ToLower(strings.TrimSpace(cur.Status))
+		cur.Owner = strings.TrimSpace(cur.Owner)
+		idx++
+		cur.Index = idx
+		if !isReviewStatusResolved(cur.Status) {
+			items = append(items, cur)
+		}
+		inItem = false
+		cur = reviewOpenItem{}
+	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "### ") {
+			flush()
+			inItem = true
+			cur.Title = strings.TrimPrefix(trimmed, "### ")
+			continue
+		}
+		if !inItem {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "- Status:") {
+			cur.Status = strings.TrimSpace(strings.TrimPrefix(trimmed, "- Status:"))
+		}
+		if strings.HasPrefix(trimmed, "- Owner:") {
+			cur.Owner = strings.TrimSpace(strings.TrimPrefix(trimmed, "- Owner:"))
+		}
+	}
+	flush()
+	return items
+}
+
+// updateReviewItemStatus rewrites the Status line for the Nth item (1-based) in review-notes.md.
+func updateReviewItemStatus(notesPath string, itemIndex int, newStatus string) error {
+	data, err := os.ReadFile(notesPath)
+	if err != nil {
+		return fmt.Errorf("read review-notes.md: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	idx := 0
+	inTarget := false
+	statusUpdated := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "### ") {
+			idx++
+			inTarget = idx == itemIndex
+			continue
+		}
+		if inTarget && strings.HasPrefix(trimmed, "- Status:") && !statusUpdated {
+			indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			lines[i] = indent + "- Status: " + newStatus
+			statusUpdated = true
+		}
+	}
+
+	if !statusUpdated {
+		return fmt.Errorf("item %d not found or has no Status field in review-notes.md", itemIndex)
+	}
+
+	return os.WriteFile(notesPath, []byte(strings.Join(lines, "\n")), 0o644)
+}
+
+// reviewNotesPathForTask returns the path to review-notes.md for a given task.
+func (r Runner) reviewNotesPathForTask(result *project.OpenResult, taskID string) (string, error) {
+	view, err := r.loadTaskView(result, taskID)
+	if err != nil {
+		return "", err
+	}
+	if view == nil {
+		return "", fmt.Errorf("task %q not found", taskID)
+	}
+	return filepath.Join(taskArtifactRoot(result.Project.RepoPath, result.StateDir, taskID, view.Worktree), "review-notes.md"), nil
+}
+
+// executeReviewListOpen prints all unresolved review items for a task.
+// Usage: aom review list-open <task-id>
+func (r Runner) executeReviewListOpen(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("task identifier is required")
+	}
+	taskID := strings.TrimSpace(args[0])
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	notesPath, err := r.reviewNotesPathForTask(result, taskID)
+	if err != nil {
+		return err
+	}
+
+	items := parseOpenReviewItems(notesPath)
+	if len(items) == 0 {
+		fmt.Fprintln(r.stdout, "No open review items.")
+		return nil
+	}
+
+	fmt.Fprintf(r.stdout, "Open review items for %s:\n\n", taskID)
+	for _, item := range items {
+		owner := item.Owner
+		if owner == "" {
+			owner = "unassigned"
+		}
+		fmt.Fprintf(r.stdout, "  [%d] %s\n", item.Index, item.Title)
+		fmt.Fprintf(r.stdout, "      Status: %s  Owner: %s\n", item.Status, owner)
+	}
+	fmt.Fprintf(r.stdout, "\nTo resolve: aom review resolve %s <index>\n", taskID)
+	return nil
+}
+
+// executeReviewResolve marks a review item as resolved.
+// Usage: aom review resolve <task-id> <item-index>
+func (r Runner) executeReviewResolve(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: aom review resolve <task-id> <item-index>")
+	}
+	taskID := strings.TrimSpace(args[0])
+	idx, err := strconv.Atoi(strings.TrimSpace(args[1]))
+	if err != nil || idx < 1 {
+		return fmt.Errorf("item-index must be a positive integer")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	notesPath, err := r.reviewNotesPathForTask(result, taskID)
+	if err != nil {
+		return err
+	}
+
+	if err := updateReviewItemStatus(notesPath, idx, "resolved"); err != nil {
+		return err
+	}
+
+	remaining := artifact.CountUnresolvedReviewItems(notesPath)
+	fmt.Fprintf(r.stdout, "Review item %d marked resolved.\n", idx)
+	fmt.Fprintf(r.stdout, "Remaining open items: %d\n", remaining)
+	if remaining == 0 {
+		fmt.Fprintln(r.stdout, "All review items resolved — ready to close review.")
+	}
+	return nil
+}
+
+// executeReviewReopen marks a previously resolved review item as open.
+// Usage: aom review reopen <task-id> <item-index>
+func (r Runner) executeReviewReopen(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: aom review reopen <task-id> <item-index>")
+	}
+	taskID := strings.TrimSpace(args[0])
+	idx, err := strconv.Atoi(strings.TrimSpace(args[1]))
+	if err != nil || idx < 1 {
+		return fmt.Errorf("item-index must be a positive integer")
+	}
+
+	result, err := r.app.Projects.Open(".")
+	if err != nil {
+		return err
+	}
+
+	notesPath, err := r.reviewNotesPathForTask(result, taskID)
+	if err != nil {
+		return err
+	}
+
+	if err := updateReviewItemStatus(notesPath, idx, "open"); err != nil {
+		return err
+	}
+
+	remaining := artifact.CountUnresolvedReviewItems(notesPath)
+	fmt.Fprintf(r.stdout, "Review item %d reopened.\n", idx)
+	fmt.Fprintf(r.stdout, "Open items: %d\n", remaining)
 	return nil
 }
 

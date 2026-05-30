@@ -344,7 +344,12 @@ type profileTemplateData struct {
 //  2. {aomPath}/templates/profiles/<file> — project-local override (for aom agent add)
 //  3. Embedded default (templates/project-init/profiles/<file>)
 func renderAgentProfile(agentName, roleName, runtimeName, roleClass, templateDir, aomPath string) (string, error) {
-	roleSection, err := loadProfileSection(roleClass, templateDir, aomPath)
+	sectionData := profileTemplateData{
+		AgentName:   agentName,
+		RoleName:    roleName,
+		RuntimeName: runtimeName,
+	}
+	roleSection, err := loadProfileSection(roleClass, templateDir, aomPath, sectionData)
 	if err != nil {
 		return "", err
 	}
@@ -371,19 +376,29 @@ func renderAgentProfile(agentName, roleName, runtimeName, roleClass, templateDir
 	return buf.String(), nil
 }
 
-// loadProfileSection loads the role-specific markdown section for a given role class.
+// loadProfileSection loads and renders the role-specific markdown section for a given role class.
+// The section template receives the same profileTemplateData as base.md.tmpl so role files
+// can use {{if eq .RuntimeName "codex"}} conditionals for provider-specific content.
 // Falls back to default.md.tmpl when no class-specific file exists.
-func loadProfileSection(roleClass, templateDir, aomPath string) (string, error) {
+func loadProfileSection(roleClass, templateDir, aomPath string, data profileTemplateData) (string, error) {
 	fileName := strings.TrimSpace(strings.ToLower(roleClass)) + ".md.tmpl"
-	data, err := loadProfileTemplate(fileName, templateDir, aomPath)
+	raw, err := loadProfileTemplate(fileName, templateDir, aomPath)
 	if err != nil {
 		// Class-specific file not found — use default.
-		data, err = loadProfileTemplate("default.md.tmpl", templateDir, aomPath)
+		raw, err = loadProfileTemplate("default.md.tmpl", templateDir, aomPath)
 		if err != nil {
 			return "", fmt.Errorf("load default profile section: %w", err)
 		}
 	}
-	return string(data), nil
+	tmpl, err := template.New("role-section").Parse(string(raw))
+	if err != nil {
+		return "", fmt.Errorf("parse role section template %q: %w", fileName, err)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("render role section %q: %w", fileName, err)
+	}
+	return buf.String(), nil
 }
 
 // loadProfileTemplate reads a profile template file, checking custom directories
